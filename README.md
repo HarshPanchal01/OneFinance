@@ -1,1 +1,34 @@
 # One-Finance
+
+The Finance App that should be the only *one* that you need.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
