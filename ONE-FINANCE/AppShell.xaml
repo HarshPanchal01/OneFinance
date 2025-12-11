@@ -3,12 +3,22 @@
     x:Class="ONE_FINANCE.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:ONE_FINANCE"
-    Title="ONE_FINANCE">
+    xmlns:views="clr-namespace:ONE_FINANCE.Views"
+    Title="One Finance"
+    FlyoutBehavior="Flyout">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <FlyoutItem Title="Dashboard" Icon="{OnPlatform Default=''}">
+        <ShellContent
+            Title="Dashboard"
+            ContentTemplate="{DataTemplate views:DashboardPage}"
+            Route="DashboardPage" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Settings" Icon="{OnPlatform Default=''}">
+        <ShellContent
+            Title="Settings"
+            ContentTemplate="{DataTemplate views:SettingsPage}"
+            Route="SettingsPage" />
+    </FlyoutItem>
 
 </Shell>
