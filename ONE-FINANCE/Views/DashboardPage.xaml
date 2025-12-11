@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:ONE_FINANCE.ViewModels"
+             x:Class="ONE_FINANCE.Views.DashboardPage"
+             x:DataType="viewmodels:DashboardViewModel"
+             Title="{Binding Title}">
+
+    <Grid Padding="20" RowDefinitions="Auto,Auto,*" RowSpacing="20">
+        
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="5">
+            <Label Text="One Finance" 
+                   FontSize="32" 
+                   FontAttributes="Bold" 
+                   HorizontalOptions="Center"/>
+            <Label Text="Your Personal Finance Manager" 
+                   FontSize="14" 
+                   TextColor="Gray" 
+                   HorizontalOptions="Center"/>
+        </VerticalStackLayout>
+
+        <!-- Summary Cards -->
+        <Grid Grid.Row="1" 
+              ColumnDefinitions="*,*,*" 
+              ColumnSpacing="15">
+            
+            <!-- Income Card -->
+            <Frame Grid.Column="0" 
+                   BackgroundColor="#E8F5E9" 
+                   BorderColor="Transparent"
+                   CornerRadius="10" 
+                   Padding="15">
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="💰 Income" 
+                           FontSize="14" 
+                           TextColor="#2E7D32"/>
+                    <Label Text="{Binding TotalIncome, StringFormat='{0:C}'}" 
+                           FontSize="24" 
+                           FontAttributes="Bold" 
+                           TextColor="#1B5E20"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Expenses Card -->
+            <Frame Grid.Column="1" 
+                   BackgroundColor="#FFEBEE" 
+                   BorderColor="Transparent"
+                   CornerRadius="10" 
+                   Padding="15">
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="💸 Expenses" 
+                           FontSize="14" 
+                           TextColor="#C62828"/>
+                    <Label Text="{Binding TotalExpenses, StringFormat='{0:C}'}" 
+                           FontSize="24" 
+                           FontAttributes="Bold" 
+                           TextColor="#B71C1C"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Balance Card -->
+            <Frame Grid.Column="2" 
+                   BackgroundColor="#E3F2FD" 
+                   BorderColor="Transparent"
+                   CornerRadius="10" 
+                   Padding="15">
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="📊 Balance" 
+                           FontSize="14" 
+                           TextColor="#1565C0"/>
+                    <Label Text="{Binding Balance, StringFormat='{0:C}'}" 
+                           FontSize="24" 
+                           FontAttributes="Bold" 
+                           TextColor="#0D47A1"/>
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Main Content Area (placeholder for future features) -->
+        <Frame Grid.Row="2" 
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray900}}"
+               BorderColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}"
+               CornerRadius="10" 
+               Padding="20">
+            <VerticalStackLayout VerticalOptions="Center" 
+                                 HorizontalOptions="Center" 
+                                 Spacing="15">
+                <Label Text="🚀 Welcome to One Finance!" 
+                       FontSize="20" 
+                       FontAttributes="Bold" 
+                       HorizontalOptions="Center"/>
+                <Label Text="Start tracking your income and expenses to take control of your finances." 
+                       FontSize="14" 
+                       TextColor="Gray" 
+                       HorizontalOptions="Center" 
+                       HorizontalTextAlignment="Center"/>
+                <Label Text="More features coming soon..." 
+                       FontSize="12" 
+                       TextColor="Gray" 
+                       FontAttributes="Italic" 
+                       HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+        </Frame>
+    </Grid>
+
+</ContentPage>

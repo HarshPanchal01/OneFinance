@@ -1,4 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using ONE_FINANCE.Services;
+using ONE_FINANCE.ViewModels;
+using ONE_FINANCE.Views;
 
 namespace ONE_FINANCE;
 
@@ -14,6 +17,18 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 			});
+
+		// Register Services
+		builder.Services.AddSingleton<IDatabaseService, DatabaseService>();
+		builder.Services.AddSingleton<INavigationService, NavigationService>();
+
+		// Register ViewModels
+		builder.Services.AddTransient<DashboardViewModel>();
+		builder.Services.AddTransient<SettingsViewModel>();
+
+		// Register Pages
+		builder.Services.AddTransient<DashboardPage>();
+		builder.Services.AddTransient<SettingsPage>();
 
 #if DEBUG
 		builder.Logging.AddDebug();
