@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using OneFinance.Services;
 using OneFinance.ViewModels;
+using OneFinance.Views;
 using System;
 
 namespace OneFinance;

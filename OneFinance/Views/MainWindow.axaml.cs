@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace OneFinance;
+namespace OneFinance.Views;
 
 public partial class MainWindow : Window
 {
