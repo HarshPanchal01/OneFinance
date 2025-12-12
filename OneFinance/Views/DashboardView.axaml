@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:OneFinance.ViewModels"
+             x:Class="OneFinance.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="24">
+            <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold"/>
+            
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Border Background="#0078D4" CornerRadius="8" Padding="20" MinWidth="200">
+                    <StackPanel>
+                        <TextBlock Text="Balance" Foreground="White" Opacity="0.8"/>
+                        <TextBlock Text="{Binding Balance, StringFormat=C2}" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#22C55E" CornerRadius="8" Padding="20" MinWidth="200">
+                    <StackPanel>
+                        <TextBlock Text="Income" Foreground="White" Opacity="0.8"/>
+                        <TextBlock Text="{Binding TotalIncome, StringFormat=C2}" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#EF4444" CornerRadius="8" Padding="20" MinWidth="200">
+                    <StackPanel>
+                        <TextBlock Text="Expenses" Foreground="White" Opacity="0.8"/>
+                        <TextBlock Text="{Binding TotalExpenses, StringFormat=C2}" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <Border Background="#2D2D2D" CornerRadius="8" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Recent Transactions" FontSize="18" FontWeight="SemiBold"/>
+                    <ItemsControl ItemsSource="{Binding RecentTransactions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12" Margin="0,4" Background="#3D3D3D" CornerRadius="4">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Text="{Binding Category.Icon}" FontSize="20" Margin="0,0,12,0"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding Description}" FontWeight="Medium"/>
+                                            <TextBlock Text="{Binding Date, StringFormat='{}{0:MMM dd}'}" Opacity="0.6" FontSize="12"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding DisplayAmount}" FontWeight="SemiBold"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
