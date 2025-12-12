@@ -17,71 +17,32 @@ obj/
 ## .NET
 *.dll
 *.exe
-*.app
 *.cache
 *.mdb
-*.config
-*.deps.json
-*.runtimeconfig.json
-*.manifest
-*.nuget.props
-*.nuget.targets
+project.lock.json
 
 ## NuGet
 packages/
 *.nupkg
 *.snupkg
 .nuget/
-project.lock.json
 project.fragment.lock.json
 artifacts/
 
-## MAUI specific
-# Generated platforms folders
-**/Platforms/Android/**/bin/
-**/Platforms/Android/**/obj/
-**/Platforms/iOS/**/bin/
-**/Platforms/iOS/**/obj/
-**/Platforms/MacCatalyst/**/bin/
-**/Platforms/MacCatalyst/**/obj/
-**/Platforms/Tizen/**/bin/
-**/Platforms/Tizen/**/obj/
-**/Platforms/Windows/**/bin/
-**/Platforms/Windows/**/obj/
+## Avalonia specific
+# Generated files
+*.g.cs
+*.g.i.cs
 
-# Maui assets cache
-Resources/**/*.g.cs
-Resources/**/*.g.*
+# Avalonia designer
+.avalonia/
 
-# Hot reload
-.hotreload/
-
-## Android specific
-*.apk
-*.ap_
-*.aab
-*.dex
-*.class
-*.keystore
-android/bin/
-android/obj/
-**/instant-run/
-
-## iOS / MacCatalyst
-*.dSYM
-*.dSYMs
-*.ipa
-*.xcuserstate
-*.xcuserdatad/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcuserdata/
-
-## Windows specific
-*.appx
-*.appxsym
-*.appxupload
-BundleArtifacts/
-Generated Files/
+## SQLite database (local dev data)
+*.db3
+*.db3-shm
+*.db3-wal
+*.sqlite
+*.sqlite3
 
 ## Logs
 *.log
@@ -90,21 +51,18 @@ Generated Files/
 # Rider
 .idea/
 
-# VS Code
-.vscode/
+# VS Code (uncomment if you want to ignore)
+# .vscode/
 
 ## OS files
 # macOS
 .DS_Store
+._*
 
 # Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-## Others
-*.tmp
-*.temp
-*.swp
-*.bak
-*.orig
+# Linux
+*~
