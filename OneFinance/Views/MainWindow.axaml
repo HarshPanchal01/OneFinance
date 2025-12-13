@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:OneFinance.ViewModels"
+        xmlns:views="using:OneFinance.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="OneFinance.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="One Finance"
+        Width="1200"
+        Height="800"
+        MinWidth="900"
+        MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid ColumnDefinitions="220,*">
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" 
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+            <DockPanel>
+                <!-- App Header -->
+                <Border DockPanel.Dock="Top" 
+                        Padding="20,24,20,20">
+                    <StackPanel>
+                        <TextBlock Text="One Finance" 
+                                   FontSize="20" 
+                                   FontWeight="Bold"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Navigation Items -->
+                <StackPanel Margin="8" Spacing="4">
+                    <Button Command="{Binding NavigateToDashboardCommand}"
+                            Classes="nav-item"
+                            Classes.selected="{Binding IsDashboardSelected}">
+                        <TextBlock Text="Dashboard" VerticalAlignment="Center"/>
+                    </Button>
+                    
+                    <Button Command="{Binding NavigateToTransactionsCommand}"
+                            Classes="nav-item"
+                            Classes.selected="{Binding IsTransactionsSelected}">
+                        <TextBlock Text="Transactions" VerticalAlignment="Center"/>
+                    </Button>
+
+                    <!-- Spacer -->
+                    <Border Height="1" 
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Margin="8,16"/>
+
+                    <Button Command="{Binding NavigateToSettingsCommand}"
+                            Classes="nav-item"
+                            Classes.selected="{Binding IsSettingsSelected}">
+                        <TextBlock Text="Settings" VerticalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Border Grid.Column="1">
+            <ContentControl Content="{Binding CurrentViewModel}">
+                <ContentControl.DataTemplates>
+                    <DataTemplate DataType="vm:DashboardViewModel">
+                        <views:DashboardView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="vm:TransactionsViewModel">
+                        <views:TransactionsView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="vm:TransactionFormViewModel">
+                        <views:TransactionFormView/>
+                    </DataTemplate>
+                    <DataTemplate DataType="vm:SettingsViewModel">
+                        <views:SettingsView/>
+                    </DataTemplate>
+                </ContentControl.DataTemplates>
+            </ContentControl>
+        </Border>
+    </Grid>
+</Window>
