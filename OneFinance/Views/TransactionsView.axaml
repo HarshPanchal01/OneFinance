@@ -23,7 +23,7 @@
                 <TextBlock Text="Transactions" FontSize="28" FontWeight="Bold"/>
                 <TextBlock Text="{Binding SelectedPeriodLabel}" Opacity="0.7" Margin="0,4,0,0"/>
             </StackPanel>
-            <Button Grid.Column="1" Content="+ Add" Command="{Binding AddTransactionCommand}" Padding="6,2" MinHeight="0" Background="#0078D4" Foreground="White"/>
+            <Button Grid.Column="1" Content="Add" Command="{Binding AddTransactionCommand}" MinHeight="0" Background="#0078D4" Foreground="White"/>
         </Grid>
 
         <ScrollViewer Grid.Row="1" Margin="24,0,24,24">

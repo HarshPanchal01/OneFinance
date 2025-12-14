@@ -77,7 +77,7 @@
                             <StackPanel Spacing="8">
                                 <DockPanel LastChildFill="False">
                                     <TextBlock Text="Ledger" FontWeight="SemiBold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                                    <Button DockPanel.Dock="Right" Content="+ Add" Command="{Binding OpenYearPromptCommand}" Padding="6,2" MinHeight="0" Background="#0078D4" Foreground="White"/>
+                                    <Button DockPanel.Dock="Right" Content="Add" Command="{Binding OpenYearPromptCommand}" MinHeight="0" Background="#0078D4" Foreground="White" FontSize="13" Padding="6,2"/>
                                 </DockPanel>
 
                                 <Border Background="#101010" CornerRadius="8" Padding="10" IsVisible="{Binding IsYearPromptVisible}">
