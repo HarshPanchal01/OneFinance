@@ -10,28 +10,45 @@ public partial class TransactionsViewModel : ViewModelBase
 {
     private readonly IDatabaseService _databaseService;
     private readonly INavigationService _navigationService;
+    private readonly ILedgerPeriodContext _periodContext;
 
     [ObservableProperty] private ObservableCollection<Transaction> _transactions = new();
     [ObservableProperty] private ObservableCollection<Transaction> _incomeTransactions = new();
     [ObservableProperty] private ObservableCollection<Transaction> _expenseTransactions = new();
     [ObservableProperty] private decimal _totalIncome;
     [ObservableProperty] private decimal _totalExpenses;
+    [ObservableProperty] private string _selectedPeriodLabel = "All time";
+    [ObservableProperty] private bool _isDeleteConfirmationVisible;
+    [ObservableProperty] private Transaction? _transactionToDelete;
 
-    public TransactionsViewModel(IDatabaseService databaseService, INavigationService navigationService)
+    public TransactionsViewModel(IDatabaseService databaseService, INavigationService navigationService, ILedgerPeriodContext periodContext)
     {
         _databaseService = databaseService;
         _navigationService = navigationService;
+        _periodContext = periodContext;
         Title = "Transactions";
+
+        _periodContext.SelectionChanged += OnPeriodChanged;
+        SelectedPeriodLabel = _periodContext.GetLabel();
     }
 
     public override async Task OnAppearingAsync() => await LoadDataAsync();
+
+    private async void OnPeriodChanged()
+    {
+        SelectedPeriodLabel = _periodContext.GetLabel();
+        await LoadDataAsync();
+    }
 
     [RelayCommand]
     private async Task LoadDataAsync()
     {
         await ExecuteAsync(async () =>
         {
-            var transactions = await _databaseService.GetTransactionsWithDetailsAsync();
+            var selection = _periodContext.SelectedPeriod;
+            var transactions = selection.HasValue
+                ? await _databaseService.GetTransactionsWithDetailsAsync(selection.Value.Year, selection.Value.Month)
+                : await _databaseService.GetTransactionsWithDetailsAsync();
             Transactions = new ObservableCollection<Transaction>(transactions);
             IncomeTransactions = new ObservableCollection<Transaction>(transactions.Where(t => t.Type == TransactionType.Income));
             ExpenseTransactions = new ObservableCollection<Transaction>(transactions.Where(t => t.Type == TransactionType.Expense));
@@ -47,14 +64,14 @@ public partial class TransactionsViewModel : ViewModelBase
     private void EditTransaction(Transaction? t) { if (t != null) _navigationService.NavigateTo("TransactionForm", t.Id); }
 
     [RelayCommand]
-    private async Task DeleteTransactionAsync(Transaction? t)
+    private void PromptDeleteTransaction(Transaction? t)
     {
         if (t == null) return;
         await _databaseService.DeleteAsync(t);
         Transactions.Remove(t);
 
         // Remove from filtered collection and recalculate totals
-        if (t.Type == TransactionType.Income)
+        if (TransactionToDelete.Type == TransactionType.Income)
         {
             IncomeTransactions.Remove(t);
             TotalIncome -= t.Amount;
@@ -69,5 +86,8 @@ public partial class TransactionsViewModel : ViewModelBase
 
             if (t.AccountId != null) await _databaseService.UpdateAccountBalanceById((int)t.AccountId, t.Amount, true);
         }
+
+        TransactionToDelete = null;
+        IsDeleteConfirmationVisible = false;
     }
 }

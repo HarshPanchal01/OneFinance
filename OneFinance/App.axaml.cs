@@ -41,6 +41,7 @@ public partial class App : Application
         // Services
         services.AddSingleton<IDatabaseService, DatabaseService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ILedgerPeriodContext, LedgerPeriodContext>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
