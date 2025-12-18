@@ -210,7 +210,22 @@ public class DatabaseService : IDatabaseService
     public async Task<List<Account>> GetAccountsAsync()
     {
         await InitializeAsync();
-        return await _database!.Table<Account>().ToListAsync();
+        var accountResult = await _database!.Table<Account>().ToListAsync();
+        var transactionResult = await _database!.Table<Transaction>().ToListAsync();
+
+        foreach (var transaction in transactionResult)
+        {
+            if (transaction != null)
+            {
+                Account? transactionAccount = accountResult.FirstOrDefault(a => a.Id == transaction.AccountId, null);
+               if (transaction.AccountId != null && transactionAccount != null){
+                   transactionAccount.Balance += (transaction.Amount *= transaction.Type == TransactionType.Income ? 1 : -1);
+                }
+            }
+        }
+
+        return accountResult;
+
     }
 
     public async Task<Account> GetAccountByIdAsync(int id)

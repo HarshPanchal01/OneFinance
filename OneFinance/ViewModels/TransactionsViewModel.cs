@@ -91,13 +91,13 @@ public partial class TransactionsViewModel : ViewModelBase
         {
             IncomeTransactions.Remove(TransactionToDelete);
             TotalIncome -= TransactionToDelete.Amount;
-            if (TransactionToDelete.AccountId != null) await _databaseService.UpdateAccountBalanceById((int)TransactionToDelete.AccountId, TransactionToDelete.Amount, false);
+            
         }
         else
         {
             ExpenseTransactions.Remove(TransactionToDelete);
             TotalExpenses -= TransactionToDelete.Amount;
-            if (TransactionToDelete.AccountId != null) await _databaseService.UpdateAccountBalanceById((int)TransactionToDelete.AccountId, TransactionToDelete.Amount, true);
+            
         }
 
         TransactionToDelete = null;

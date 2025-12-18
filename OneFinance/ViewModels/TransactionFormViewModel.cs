@@ -92,21 +92,11 @@ public partial class TransactionFormViewModel : ViewModelBase
             {
                 if (_editingId != null && SelectedAccount != null)
                 {
-                    var result = await _databaseService.GetTransactionByIdAsync((int)_editingId);
-                    if (result != null)
-                    {
-                        decimal oldbalanceChange = result.Amount;
-                        decimal newBalanceChange = Amount - oldbalanceChange;
-
-                        await _databaseService.UpdateAccountBalanceById(SelectedAccount.Id, newBalanceChange, SelectedType == TransactionType.Income ? true : false);
-                    }
                     await _databaseService.UpdateAsync(t);
                     _navigationService.GoBack();
                     return;
                 }
-                
             }
-            if (SelectedAccount != null && !IsEditMode) await _databaseService.UpdateAccountBalanceById(SelectedAccount.Id, Amount, SelectedType == TransactionType.Income ? true : false);
             
             await _databaseService.InsertAsync(t);
             _navigationService.GoBack();

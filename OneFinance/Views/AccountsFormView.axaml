@@ -31,7 +31,7 @@
             </StackPanel>
 
             <StackPanel Spacing="8">
-                <TextBlock Text="Current Balance"/>
+                <TextBlock Text="Starting Balance"/>
                 <NumericUpDown Value="{Binding Balance}" FormatString="C2" Minimum="0"/>
             </StackPanel>
 

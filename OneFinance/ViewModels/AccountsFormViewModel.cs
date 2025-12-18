@@ -45,7 +45,7 @@ namespace OneFinance.ViewModels
                 if (t != null)
                 {
                     AccountName = t.Name;
-                    InstitutionName = t.Name;
+                    InstitutionName = t.Institution ?? "None";
                     Balance = t.Balance;
                     IsDefault = t.IsDefault;
                     SelectedAccountType = t.Type;
