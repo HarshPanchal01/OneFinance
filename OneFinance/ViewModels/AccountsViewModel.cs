@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace OneFinance.ViewModels
 {
@@ -15,12 +16,16 @@ namespace OneFinance.ViewModels
 
         private readonly IDatabaseService _databaseService;
         private readonly INavigationService _navigationService;
+        private readonly MainWindowViewModel _mainWindowModel;
+        private readonly DialogServices _dialogService;
 
         [ObservableProperty] private string title = "Accounts";
         [ObservableProperty] private ObservableCollection<Account> accounts = new ObservableCollection<Account>();
 
-        public AccountsViewModel(IDatabaseService databaseService, INavigationService navigationService)
+        public AccountsViewModel(MainWindowViewModel mainWindowModel, DialogServices dialogService, IDatabaseService databaseService, INavigationService navigationService)
         {
+            _mainWindowModel = mainWindowModel;
+            _dialogService = dialogService;
             _databaseService = databaseService;
             _navigationService = navigationService;
         }
@@ -52,10 +57,23 @@ namespace OneFinance.ViewModels
         private void EditAccount(Account? t) { if (t != null) _navigationService.NavigateTo("AccountForm", t.Id); }
 
         [RelayCommand]
-        private void DeleteAccount(Account? t) { if (t != null) {
+        private async Task DeleteAccount(Account? t) { if (t != null) {
 
+                var confirmViewModel = new ConfirmDialogViewModel { 
+                
+                    Title = $"Delete {t.Name}?",
+                    Message = "Are you sure you want to delete this account?",
+
+                };
+
+                await _dialogService.ShowDialog(_mainWindowModel, confirmViewModel);
+
+                var result = confirmViewModel.Confirmed;
+
+                if (!result) return;
+                
                 Accounts.Remove(t);
-                _databaseService.DeleteAccountByIdAsync(t.Id);
+                await _databaseService.DeleteAccountByIdAsync(t.Id);
             } 
         }
 

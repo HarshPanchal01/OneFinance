@@ -8,7 +8,7 @@ using OneFinance.Services;
 
 namespace OneFinance.ViewModels;
 
-public partial class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase, IDialogProvider
 {
     private readonly INavigationService _navigationService;
     private readonly IDatabaseService _databaseService;
@@ -19,6 +19,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Func<AccountsFormViewModel> _accountsFormFactory;
     private readonly Func<TransactionFormViewModel> _transactionFormFactory;
     private readonly Func<SettingsViewModel> _settingsFactory;
+
+    [ObservableProperty]
+    private DialogViewModel _dialog;
 
     [ObservableProperty] private ViewModelBase? _currentViewModel;
     [ObservableProperty] private bool _isDashboardSelected = true;

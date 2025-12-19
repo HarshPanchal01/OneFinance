@@ -25,6 +25,9 @@
         <DataTemplate DataType="vm:AccountsFormViewModel">
 			<views:AccountsFormView/>
 		</DataTemplate>
+        <DataTemplate DataType="vm:ConfirmDialogViewModel">
+            <views:ConfirmDialogView/>
+        </DataTemplate>
     </Application.DataTemplates>
 
     <Application.Styles>

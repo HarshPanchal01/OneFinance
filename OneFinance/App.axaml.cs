@@ -59,5 +59,7 @@ public partial class App : Application
         services.AddSingleton<Func<AccountsFormViewModel>>(sp => () => sp.GetRequiredService<AccountsFormViewModel>());
         services.AddSingleton<Func<TransactionFormViewModel>>(sp => () => sp.GetRequiredService<TransactionFormViewModel>());
         services.AddSingleton<Func<SettingsViewModel>>(sp => () => sp.GetRequiredService<SettingsViewModel>());
+
+        services.AddSingleton<DialogServices>();
     }
 }
