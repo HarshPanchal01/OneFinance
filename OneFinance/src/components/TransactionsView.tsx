@@ -107,9 +107,9 @@ export function TransactionsView(props: {
 
   if (!period) {
     return (
-      <section className="contentEmpty">
-        <div className="panelTitle">Pick a Month</div>
-        <div className="muted">
+      <section className="p-5">
+        <div className="of-title">Pick a Month</div>
+        <div className="text-sm text-zinc-400">
           Select a month from the left sidebar to view and edit transactions.
         </div>
       </section>
@@ -162,34 +162,34 @@ export function TransactionsView(props: {
   };
 
   return (
-    <section className="content">
-      <div className="panel">
-        <div className="panelHeader">
+    <section className="flex flex-col gap-4">
+      <div className="of-panel p-3">
+        <div className="of-panelHeader">
           <div>
-            <div className="panelTitle">{periodTitle}</div>
-            <div className="txMeta">
-              <span className="txPill">
-                <span className="muted">Net</span>{" "}
-                <span className="mono">{summary.net.toFixed(2)}</span>
+            <div className="of-title">{periodTitle}</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="of-pill bg-zinc-950/40">
+                <span className="text-xs text-zinc-400">Net</span>{" "}
+                <span className="font-mono text-sm">{summary.net.toFixed(2)}</span>
               </span>
-              <span className="txPill">
-                <span className="muted">Income</span>{" "}
-                <span className="mono amount income">
+              <span className="of-pill bg-zinc-950/40">
+                <span className="text-xs text-zinc-400">Income</span>{" "}
+                <span className="font-mono text-sm text-emerald-400">
                   {summary.income.toFixed(2)}
                 </span>
               </span>
-              <span className="txPill">
-                <span className="muted">Expense</span>{" "}
-                <span className="mono amount expense">
+              <span className="of-pill bg-zinc-950/40">
+                <span className="text-xs text-zinc-400">Expense</span>{" "}
+                <span className="font-mono text-sm text-rose-400">
                   {summary.expense.toFixed(2)}
                 </span>
               </span>
             </div>
           </div>
 
-          <div className="panelHeaderActions">
+          <div className="flex items-center gap-2">
             <button
-              className="btn btnIcon"
+              className="of-btn"
               onClick={() => {
                 if (showEditor) resetEditor();
                 else openCreate();
@@ -197,21 +197,25 @@ export function TransactionsView(props: {
               title={showEditor ? "Close" : "Add transaction"}
               aria-label={showEditor ? "Close" : "Add transaction"}
             >
-              <span className="icon">{showEditor ? "×" : "＋"}</span>
+              <span className="text-base leading-none">{showEditor ? "×" : "＋"}</span>
               <span>{showEditor ? "Close" : "Add"}</span>
             </button>
           </div>
         </div>
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="of-error mb-3">{error}</div>
+        )}
 
         {showEditor && (
-          <div className="txEditor">
-            <div className="formGrid">
-              <div className="field span3">
-                <label className="label">Type</label>
+          <div className="of-panel bg-zinc-950/40 p-3">
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-3">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Type
+                </label>
                 <select
-                  className="input"
+                  className="of-input"
                   value={type}
                   onChange={(e) => setType(e.target.value as TransactionType)}
                 >
@@ -220,20 +224,24 @@ export function TransactionsView(props: {
                 </select>
               </div>
 
-              <div className="field span5">
-                <label className="label">Title</label>
+              <div className="col-span-5">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Title
+                </label>
                 <input
-                  className="input"
+                  className="of-input"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Groceries"
                 />
               </div>
 
-              <div className="field span2">
-                <label className="label">Amount</label>
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Amount
+                </label>
                 <input
-                  className="input"
+                  className="of-input"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
@@ -241,20 +249,24 @@ export function TransactionsView(props: {
                 />
               </div>
 
-              <div className="field span2">
-                <label className="label">Date</label>
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Date
+                </label>
                 <input
-                  className="input"
+                  className="of-input"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
 
-              <div className="field span4">
-                <label className="label">Category</label>
+              <div className="col-span-4">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Category
+                </label>
                 <select
-                  className="input"
+                  className="of-input"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                 >
@@ -267,25 +279,33 @@ export function TransactionsView(props: {
                 </select>
               </div>
 
-              <div className="field span8">
-                <label className="label">Notes</label>
+              <div className="col-span-8">
+                <label className="mb-1.5 block text-xs text-zinc-400">
+                  Notes
+                </label>
                 <input
-                  className="input"
+                  className="of-input"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional"
                 />
               </div>
 
-              <div className="field span12">
-                <div className="row gap">
-                  <button className="btn" onClick={onSubmit}>
+              <div className="col-span-full">
+                <div className="flex items-center gap-2">
+                  <button
+                    className="of-btn"
+                    onClick={onSubmit}
+                  >
                     {editingId ? "Update" : "Add"}
                   </button>
-                  <button className="btn" onClick={resetEditor}>
+                  <button
+                    className="of-btn"
+                    onClick={resetEditor}
+                  >
                     Cancel
                   </button>
-                  <div className="muted small">
+                  <div className="text-xs text-zinc-400">
                     This transaction will appear in the month matching its date.
                   </div>
                 </div>
@@ -295,86 +315,93 @@ export function TransactionsView(props: {
         )}
       </div>
 
-      <div className="panel">
-        <div className="panelHeader">
+      <div className="of-panel p-3">
+        <div className="of-panelHeader">
           <div>
-            <div className="panelTitle">Transactions</div>
-            <div className="muted small">
-              {props.transactions.length} record(s)
-            </div>
+            <div className="of-title">Transactions</div>
+            <div className="of-subtitle">{props.transactions.length} record(s)</div>
           </div>
         </div>
 
-        <div className="table">
-          <div className="tableHead">
-            <div>Date</div>
-            <div>Title</div>
-            <div>Category</div>
-            <div className="right">Amount</div>
-            <div></div>
-          </div>
+        <div className="overflow-x-auto">
+          <div className="flex min-w-[920px] flex-col gap-2">
+            <div className="of-tableHeader grid-cols-[140px_1.3fr_1fr_140px_220px] max-[900px]:grid-cols-[120px_1.3fr_1fr_110px_180px]">
+              <div>Date</div>
+              <div>Title</div>
+              <div>Category</div>
+              <div className="text-right">Amount</div>
+              <div></div>
+            </div>
 
-          {props.transactions.map((t) => (
-            <div key={t.id} className="tableRow">
-              <div className="mono">{t.date}</div>
-              <div>
-                <div>{t.title}</div>
-                {t.notes && <div className="muted small">{t.notes}</div>}
-              </div>
-              <div className="muted">{t.categoryName ?? "(none)"}</div>
+            {props.transactions.map((t) => (
               <div
-                className={
-                  t.type === "income"
-                    ? "right amount income"
-                    : "right amount expense"
-                }
+                key={t.id}
+                className="of-tableRow grid-cols-[140px_1.3fr_1fr_140px_220px] max-[900px]:grid-cols-[120px_1.3fr_1fr_110px_180px]"
               >
-                {t.type === "income" ? "+" : "-"}
-                {t.amount.toFixed(2)}
-              </div>
-              <div className="row gap right txRowActions">
-                <button
-                  className="iconBtn solid"
-                  title="Edit"
-                  aria-label="Edit"
-                  onClick={() => {
-                    setEditingId(t.id);
-                    setTitle(t.title);
-                    setAmount(String(t.amount));
-                    setDate(t.date);
-                    setType(t.type);
-                    setCategoryId(t.categoryId ? String(t.categoryId) : "");
-                    setNotes(t.notes ?? "");
-                    setError(null);
-                    setShowEditor(true);
-                  }}
+                <div className="font-mono">{t.date}</div>
+                <div>
+                  <div>{t.title}</div>
+                  {t.notes && (
+                    <div className="text-xs text-zinc-400">{t.notes}</div>
+                  )}
+                </div>
+                <div className="text-sm text-zinc-400">
+                  {t.categoryName ?? "(none)"}
+                </div>
+                <div
+                  className={
+                    t.type === "income"
+                      ? "text-right font-mono text-emerald-400"
+                      : "text-right font-mono text-rose-400"
+                  }
                 >
-                  <span className="icon">✎</span>
-                </button>
-                <button
-                  className="iconBtn solid danger"
-                  title="Delete"
-                  aria-label="Delete"
-                  onClick={async () => {
-                    const ok = window.confirm(
-                      `Delete transaction "${t.title}"?`
-                    );
-                    if (!ok) return;
-                    await props.onDelete(t.id);
-                  }}
-                >
-                  <span className="icon">🗑</span>
-                </button>
+                  {t.type === "income" ? "+" : "-"}
+                  {t.amount.toFixed(2)}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    className="of-iconBtn"
+                    title="Edit"
+                    aria-label="Edit"
+                    onClick={() => {
+                      setEditingId(t.id);
+                      setTitle(t.title);
+                      setAmount(String(t.amount));
+                      setDate(t.date);
+                      setType(t.type);
+                      setCategoryId(t.categoryId ? String(t.categoryId) : "");
+                      setNotes(t.notes ?? "");
+                      setError(null);
+                      setShowEditor(true);
+                    }}
+                  >
+                    <span className="text-base leading-none">✎</span>
+                  </button>
+                  <button
+                    className="of-iconBtn of-iconBtnDanger"
+                    title="Delete"
+                    aria-label="Delete"
+                    onClick={async () => {
+                      const ok = window.confirm(
+                        `Delete transaction "${t.title}"?`
+                      );
+                      if (!ok) return;
+                      await props.onDelete(t.id);
+                    }}
+                  >
+                    <span className="text-base leading-none">🗑</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {props.transactions.length === 0 && (
-            <div className="tableEmpty">
-              <div className="muted">No transactions yet.</div>
-              <div className="muted small">Click “Add” to create one.</div>
-            </div>
-          )}
+            {props.transactions.length === 0 && (
+              <div className="of-panel border-dashed bg-zinc-950/40 p-4 text-center">
+                <div className="text-sm text-zinc-400">No transactions yet.</div>
+                <div className="text-xs text-zinc-400">Click “Add” to create one.</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>

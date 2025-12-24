@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import "./App.css";
 import type {
   Category,
   LedgerPeriod,
@@ -219,7 +218,7 @@ function App() {
   };
 
   return (
-    <div className="appShell">
+    <div className="grid h-screen min-h-0 grid-cols-[280px_minmax(0,1fr)] bg-zinc-950 text-zinc-100">
       <Sidebar
         tree={tree}
         selectedPeriodId={selectedPeriod?.id ?? null}
@@ -232,14 +231,16 @@ function App() {
         onNavigate={setView}
       />
 
-      <main className="main">
+      <main className="min-w-0 overflow-auto p-5">
         {loading ? (
-          <div className="contentEmpty">
-            <div className="panelTitle">Loading…</div>
+          <div className="p-2">
+            <div className="of-title">Loading…</div>
           </div>
         ) : (
           <>
-            {error && <div className="error global">{error}</div>}
+            {error && (
+              <div className="of-error">{error}</div>
+            )}
 
             {view === "settings" ? (
               <SettingsView

@@ -1,50 +1,77 @@
-:root {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-    Arial, sans-serif;
-  line-height: 1.4;
-  font-weight: 400;
-  color: #e8e8e8;
-  background-color: #111;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply m-0 bg-zinc-950 text-zinc-100 antialiased text-sm leading-5;
+  }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+@layer components {
+  .of-panel {
+    @apply rounded-2xl border border-zinc-800/80 bg-zinc-900/30 p-4;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-}
+  .of-panelHeader {
+    @apply mb-3 flex items-start justify-between gap-3;
+  }
 
-body {
-  margin: 0;
-}
+  .of-title {
+    @apply text-base font-semibold tracking-tight;
+  }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  .of-subtitle {
+    @apply text-xs text-zinc-400;
+  }
+
+  .of-error {
+    @apply mb-4 rounded-2xl border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-rose-200;
+  }
+
+  .of-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-100 transition-colors hover:border-zinc-700 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-700/60;
+  }
+
+  .of-btnDanger {
+    @apply border-rose-900/60 hover:border-rose-700/70;
+  }
+
+  .of-iconBtn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-100 transition-colors hover:border-zinc-700 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700/60;
+  }
+
+  .of-iconBtnDanger {
+    @apply border-rose-900/60 hover:border-rose-700/70;
+  }
+
+  .of-input {
+    @apply w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/60;
+  }
+
+  .of-pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-3 py-1.5;
+  }
+
+  .of-navItem {
+    @apply flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900;
+  }
+
+  .of-navItemActive {
+    @apply border-zinc-700 bg-zinc-900;
+  }
+
+  .of-tableHeader {
+    @apply grid items-center gap-3 px-1.5 text-xs text-zinc-400;
+  }
+
+  .of-tableRow {
+    @apply of-panel grid items-center gap-3 bg-zinc-950/40 p-3;
+  }
 }

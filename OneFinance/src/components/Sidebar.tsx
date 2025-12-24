@@ -52,13 +52,13 @@ export function Sidebar(props: {
   }, [menu.open]);
 
   return (
-    <aside className="sidebar">
-      <div className="sidebarTop">
-        <div className="sidebarHeaderRow">
-          <div className="appTitle">OneFinance</div>
-          <div className="sidebarHeaderActions">
+    <aside className="flex min-h-0 flex-col border-r border-zinc-800 bg-zinc-950">
+      <div className="border-b border-zinc-800 p-3">
+        <div className="mb-2.5 flex items-center justify-between gap-2.5">
+          <div className="text-sm font-semibold tracking-wide">One Finance</div>
+          <div className="flex items-center gap-2">
             <button
-              className="iconBtn"
+              className="of-iconBtn h-8 w-8 border-transparent bg-transparent hover:border-zinc-700 hover:bg-zinc-900"
               onClick={() => {
                 setError(null);
                 setYearText(String(selectedYear));
@@ -67,23 +67,25 @@ export function Sidebar(props: {
               title="New Year"
               aria-label="New Year"
             >
-              <span className="icon">📁＋</span>
+              <span className="text-base leading-none">📁＋</span>
             </button>
           </div>
         </div>
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="of-error mb-3">{error}</div>
+        )}
 
         {mode === "year" && (
-          <div className="row gap">
+          <div className="flex items-center gap-2">
             <input
-              className="input"
+              className="of-input"
               value={yearText}
               onChange={(e) => setYearText(e.target.value)}
               placeholder="Year (e.g. 2025)"
             />
             <button
-              className="btn"
+              className="of-btn"
               onClick={async () => {
                 setError(null);
                 const year = Number(yearText);
@@ -107,27 +109,29 @@ export function Sidebar(props: {
         )}
       </div>
 
-      <div className="tree">
+      <div className="min-h-0 flex-1 overflow-auto p-3">
         <button
           className={
-            props.view === "dashboard" ? "treeTopRow active" : "treeTopRow"
+            props.view === "dashboard"
+              ? "of-navItem of-navItemActive mb-2.5"
+              : "of-navItem mb-2.5"
           }
           onClick={() => props.onNavigate("dashboard")}
           title="Dashboard"
         >
-          <span className="treeIcon">🏠</span>
+          <span className="inline-block w-[18px]">🏠</span>
           <span>Home</span>
         </button>
 
         {props.tree.length === 0 ? (
-          <div className="muted">No years yet. Create one.</div>
+          <div className="text-sm text-zinc-400">No years yet. Create one.</div>
         ) : (
           props.tree.map((node) => {
             const expanded = props.expandedYears[node.year] ?? true;
             return (
-              <div key={node.year} className="treeYear">
+              <div key={node.year} className="mb-1.5">
                 <button
-                  className="treeYearRow"
+                  className="of-navItem"
                   onClick={() => props.onToggleYear(node.year)}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -140,14 +144,14 @@ export function Sidebar(props: {
                     });
                   }}
                 >
-                  <span className="chev">{expanded ? "▾" : "▸"}</span>
-                  <span className="folder">{node.year}</span>
+                  <span className="inline-block w-4">{expanded ? "▾" : "▸"}</span>
+                  <span className="font-medium">{node.year}</span>
                 </button>
 
                 {expanded && (
-                  <div className="treeMonths">
+                  <div className="flex flex-col gap-1 pl-4">
                     {node.months.length === 0 ? (
-                      <div className="muted small">No months</div>
+                      <div className="text-xs text-zinc-400">No months</div>
                     ) : (
                       node.months.map((m) => {
                         const active = m.id === props.selectedPeriodId;
@@ -155,7 +159,9 @@ export function Sidebar(props: {
                           <button
                             key={m.id}
                             className={
-                              active ? "treeMonthRow active" : "treeMonthRow"
+                              active
+                                ? "of-navItem of-navItemActive"
+                                : "of-navItem"
                             }
                             onClick={() => {
                               if (props.view !== "ledger")
@@ -176,27 +182,31 @@ export function Sidebar(props: {
         )}
       </div>
 
-      <div className="sidebarFooter">
+      <div className="flex items-center justify-start border-t border-zinc-800 p-3">
         <button
-          className={props.view === "settings" ? "iconBtn active" : "iconBtn"}
+          className={
+            props.view === "settings"
+              ? "of-iconBtn border-zinc-700 bg-zinc-900"
+              : "of-iconBtn border-transparent bg-transparent hover:border-zinc-700 hover:bg-zinc-900"
+          }
           onClick={() =>
             props.onNavigate(props.view === "settings" ? "ledger" : "settings")
           }
           title="Settings"
           aria-label="Settings"
         >
-          <span className="icon">⚙</span>
+          <span className="text-base leading-none">⚙</span>
         </button>
       </div>
 
       {menu.open && (
         <div
           ref={menuRef}
-          className="ctxMenu"
+          className="fixed z-50 min-w-[160px] rounded-xl border border-zinc-800 bg-zinc-950 p-1"
           style={{ top: menu.y, left: menu.x }}
         >
           <button
-            className="ctxMenuItem danger"
+            className="of-btn of-btnDanger w-full justify-start border-transparent bg-transparent text-rose-200 hover:bg-zinc-900"
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();

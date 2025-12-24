@@ -15,25 +15,27 @@ export function CategoriesManager(props: {
   }, [props.categories]);
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
+    <section className="of-panel p-3">
+      <div className="of-panelHeader">
         <div>
-          <div className="panelTitle">Categories</div>
-          <div className="muted small">Used to tag transactions</div>
+          <div className="of-title">Categories</div>
+          <div className="of-subtitle">Used to tag transactions</div>
         </div>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div className="of-error mb-3">{error}</div>
+      )}
 
-      <div className="row gap">
+      <div className="flex items-center gap-2">
         <input
-          className="input"
+          className="of-input"
           placeholder="New category name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
         <button
-          className="btn"
+          className="of-btn"
           onClick={async () => {
             setError(null);
             try {
@@ -52,7 +54,7 @@ export function CategoriesManager(props: {
         </button>
       </div>
 
-      <div className="list">
+      <div className="mt-3 flex flex-col gap-2">
         {sorted.map((c) => (
           <CategoryRow
             key={c.id}
@@ -62,7 +64,9 @@ export function CategoriesManager(props: {
           />
         ))}
 
-        {sorted.length === 0 && <div className="muted">No categories yet</div>}
+        {sorted.length === 0 && (
+          <div className="text-sm text-zinc-400">No categories yet</div>
+        )}
       </div>
     </section>
   );
@@ -77,14 +81,14 @@ function CategoryRow(props: {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="listRow">
+    <div className="grid grid-cols-[1fr_90px_90px] items-center gap-2">
       <input
-        className="input"
+        className="of-input"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       <button
-        className="btn"
+        className="of-btn"
         onClick={async () => {
           setError(null);
           try {
@@ -99,7 +103,7 @@ function CategoryRow(props: {
         Save
       </button>
       <button
-        className="btn danger"
+        className="of-btn of-btnDanger"
         onClick={async () => {
           setError(null);
           const ok = window.confirm(
@@ -117,7 +121,9 @@ function CategoryRow(props: {
       >
         Delete
       </button>
-      {error && <div className="error inline">{error}</div>}
+      {error && (
+        <div className="of-error col-span-full mb-0 mt-2">{error}</div>
+      )}
     </div>
   );
 }
