@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useFinanceStore } from "../stores/finance";
 import { formatCurrency } from "../types";
 import type { Transaction, TransactionWithCategory } from "../types";
@@ -9,8 +9,20 @@ import TransactionModal from "../components/TransactionModal.vue";
 const store = useFinanceStore();
 
 onMounted(() => {
-  store.fetchTransactions(null);
+  // If a period is already selected (from Sidebar), fetch for that period.
+  // If not (Global Mode), fetch all.
+  const periodId = store.currentPeriod?.id || null;
+  store.fetchTransactions(periodId);
 });
+
+// Reactively update when period changes
+watch(
+  () => store.currentPeriod,
+  async (newPeriod) => {
+    const periodId = newPeriod?.id || null;
+    await store.fetchTransactions(periodId);
+  }
+);
 
 // Modal state
 const showModal = ref(false);
@@ -93,7 +105,11 @@ function closeModal() {
           Transactions
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          All Transactions ({{ filteredTransactions.length }})
+          <span v-if="store.currentPeriod">
+            {{ store.currentPeriod.month }}/{{ store.currentPeriod.year }}
+          </span>
+          <span v-else>All Transactions</span>
+          ({{ filteredTransactions.length }})
         </p>
       </div>
 

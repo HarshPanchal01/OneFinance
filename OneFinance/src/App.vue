@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { useFinanceStore } from "./stores/finance";
+import { useFinanceStore } from "../stores/finance";
 
 // Components
 import Sidebar from "./components/Sidebar.vue";
@@ -26,9 +26,11 @@ function navigateTo(view: string) {
   currentView.value = view as ViewName;
 
   if (view === "dashboard") {
-    // Reset to current period (today/this month)
-    store.initialize();
+    // Keep the current period context when going to Dashboard
+    // But fetch summary to ensure cards are up to date
+    store.fetchPeriodSummary();
   }
+  // Transactions logic is handled by Sidebar emitting specific events or store actions
 }
 
 // Initialize on mount
@@ -66,9 +68,6 @@ function handleKeydown(e: KeyboardEvent) {
     }
   }
 }
-
-// View titles
-
 </script>
 
 <template>

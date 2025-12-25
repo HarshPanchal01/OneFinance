@@ -22,9 +22,9 @@ export const useFinanceStore = defineStore("finance", () => {
   // Categories
   const categories = ref<Category[]>([]);
 
-  // Transactions for current period
+  // Transactions for current period (or Global if null)
   const transactions = ref<TransactionWithCategory[]>([]);
-  // Global recent transactions
+  // Global recent transactions (always Global)
   const recentTransactions = ref<TransactionWithCategory[]>([]);
 
   // Summary data - always have default values
@@ -70,10 +70,6 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchCategories();
       console.log("[Store] Categories loaded:", categories.value.length);
 
-      // Get or create the current period
-      currentPeriod.value = await window.electronAPI.getOrCreateCurrentPeriod();
-      console.log("[Store] Current period:", currentPeriod.value);
-
       // Load years and periods
       ledgerYears.value = await window.electronAPI.getLedgerYears();
       ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
@@ -84,17 +80,9 @@ export const useFinanceStore = defineStore("finance", () => {
         ledgerPeriods.value.length
       );
 
-      // Load transactions and summary for current period
-      if (currentPeriod.value) {
-        // Fetch global recent transactions for Dashboard
-        await fetchRecentTransactions(5);
-        // Fetch summary for dashboard cards (Period Specific)
-        await fetchPeriodSummary();
-        console.log(
-          "[Store] Initial data loaded - recent transactions:",
-          recentTransactions.value.length
-        );
-      }
+      // Default to Global View (no current period)
+      await clearPeriod();
+
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to initialize";
       console.error("[Store] Initialization error:", e);
@@ -126,11 +114,9 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerYears.value = await window.electronAPI.getLedgerYears();
     ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
-    // If deleted current period's year, reset
+    // If deleted current period's year, reset to Global
     if (currentPeriod.value?.year === year) {
-      currentPeriod.value = await window.electronAPI.getOrCreateCurrentPeriod();
-      await fetchTransactions();
-      await fetchPeriodSummary();
+      await clearPeriod();
     }
   }
 
@@ -149,18 +135,34 @@ export const useFinanceStore = defineStore("finance", () => {
       // Refresh periods list in case a new one was created
       ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
-      // We don't necessarily need to fetch transactions here if we are on Dashboard
-      // But if we are on Transactions view, it will reactively update?
-      // Actually Transactions View handles its own fetch now (Global),
-      // but if the user wants period specific transactions view?
-      // The requirement says Transactions View is Global.
-      // So selectPeriod mostly affects Dashboard Summary.
+      // Fetch data for the selected period
+      if (currentPeriod.value) {
+        await fetchTransactions(currentPeriod.value.id);
+        await fetchPeriodSummary();
+      }
 
-      await fetchPeriodSummary();
-      console.log(`[Store] Summary fetched:`, periodSummary.value);
+      console.log(`[Store] Period data fetched`);
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to select period";
       console.error("[Store] Select period error:", e);
+    } finally {
+      isChangingPeriod.value = false;
+    }
+  }
+
+  async function clearPeriod() {
+    console.log("[Store] clearPeriod called (Global Mode)");
+    isChangingPeriod.value = true;
+    currentPeriod.value = null;
+
+    try {
+      // Fetch Global Data
+      await fetchRecentTransactions(5); // Ensure recent list is up to date
+      await fetchTransactions(null); // All transactions
+      await fetchPeriodSummary(); // Global summary
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to load global data";
+      console.error("[Store] Clear period error:", e);
     } finally {
       isChangingPeriod.value = false;
     }
@@ -231,20 +233,42 @@ export const useFinanceStore = defineStore("finance", () => {
   async function addTransaction(
     input: Omit<CreateTransactionInput, "ledgerPeriodId">
   ) {
-    if (!currentPeriod.value) {
-      throw new Error("No period selected");
+    // Determine which period to attach this to.
+    // If Global Mode (currentPeriod is null), we must infer or ask for period.
+    // For now, if currentPeriod is null, we can try to find the period based on the date
+    // or default to "current real world month" if we want to be smart.
+    // BUT the simpler logic is: IF we are in a specific period, use it.
+    // IF we are in Global Mode, we might need the User to specify, or we can auto-assign based on date.
+
+    let targetPeriodId: number;
+
+    if (currentPeriod.value) {
+      targetPeriodId = currentPeriod.value.id;
+    } else {
+      // Global Mode: infer from date
+      const date = new Date(input.date);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const period = await window.electronAPI.createLedgerPeriod(year, month);
+      targetPeriodId = period.id;
     }
 
     const newTransaction = await window.electronAPI.createTransaction({
       ...input,
-      ledgerPeriodId: currentPeriod.value.id,
+      ledgerPeriodId: targetPeriodId,
     });
 
-    // Update local state if needed (add to front of list if it's the main list)
-    // We might need to refetch recent transactions to keep Dashboard accurate
+    // Refresh Data
     await fetchRecentTransactions(5);
-    transactions.value.unshift(newTransaction);
-    await fetchPeriodSummary(); // Refresh summary
+
+    // Only update main list if it matches current filter (Global or Specific Period)
+    if (!currentPeriod.value || currentPeriod.value.id === targetPeriodId) {
+        // Add to front if valid
+        transactions.value.unshift(newTransaction);
+        // Refresh summary
+        await fetchPeriodSummary();
+    }
+
     return newTransaction;
   }
 
@@ -256,7 +280,17 @@ export const useFinanceStore = defineStore("finance", () => {
     if (updated) {
       const index = transactions.value.findIndex((t) => t.id === id);
       if (index !== -1) {
-        transactions.value[index] = updated;
+        // If the date changed such that it moves out of the current view (if period specific),
+        // we might want to remove it. But for simplicity, we just update it in place or re-fetch.
+        // Re-fetching is safer.
+        if (currentPeriod.value) {
+            // Check if it still belongs?
+            // Easier to just re-fetch the list to be safe
+             await fetchTransactions(currentPeriod.value.id);
+        } else {
+             // Global mode, just update
+             transactions.value[index] = updated;
+        }
       }
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchPeriodSummary(); // Refresh summary
@@ -279,34 +313,23 @@ export const useFinanceStore = defineStore("finance", () => {
   // ============================================
 
   async function fetchPeriodSummary() {
-    if (!currentPeriod.value) {
-      // Reset to defaults
-      periodSummary.value = {
-        totalIncome: 0,
-        totalExpenses: 0,
-        balance: 0,
-        transactionCount: 0,
-      };
-      incomeBreakdown.value = [];
-      expenseBreakdown.value = [];
-      return;
-    }
+    const periodId = currentPeriod.value?.id || null; // null = Global
 
-    const summary = await window.electronAPI.getPeriodSummary(
-      currentPeriod.value.id
-    );
+    const summary = await window.electronAPI.getPeriodSummary(periodId);
+
     periodSummary.value = summary || {
       totalIncome: 0,
       totalExpenses: 0,
       balance: 0,
       transactionCount: 0,
     };
+
     incomeBreakdown.value = await window.electronAPI.getCategoryBreakdown(
-      currentPeriod.value.id,
+      periodId,
       "income"
     );
     expenseBreakdown.value = await window.electronAPI.getCategoryBreakdown(
-      currentPeriod.value.id,
+      periodId,
       "expense"
     );
   }
@@ -340,6 +363,7 @@ export const useFinanceStore = defineStore("finance", () => {
     createYear,
     deleteYear,
     selectPeriod,
+    clearPeriod,
     fetchCategories,
     addCategory,
     editCategory,

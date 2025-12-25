@@ -154,14 +154,18 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getPeriodSummary",
-    async (_event, ledgerPeriodId: number) => {
+    async (_event, ledgerPeriodId: number | null) => {
       return getPeriodSummary(ledgerPeriodId);
     }
   );
 
   ipcMain.handle(
     "db:getCategoryBreakdown",
-    async (_event, ledgerPeriodId: number, type: "income" | "expense") => {
+    async (
+      _event,
+      ledgerPeriodId: number | null,
+      type: "income" | "expense"
+    ) => {
       return getCategoryBreakdown(ledgerPeriodId, type);
     }
   );
