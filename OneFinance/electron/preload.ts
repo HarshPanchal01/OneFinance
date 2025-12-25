@@ -120,9 +120,10 @@ const electronAPI = {
   // TRANSACTIONS
   // ============================================
   getTransactions: (
-    ledgerPeriodId?: number
+    ledgerPeriodId?: number | null,
+    limit?: number
   ): Promise<TransactionWithCategory[]> =>
-    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId),
+    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId, limit),
 
   getTransactionById: (
     id: number
@@ -146,11 +147,11 @@ const electronAPI = {
   // ============================================
   // SUMMARY / DASHBOARD
   // ============================================
-  getPeriodSummary: (ledgerPeriodId: number): Promise<PeriodSummary> =>
+  getPeriodSummary: (ledgerPeriodId: number | null): Promise<PeriodSummary> =>
     ipcRenderer.invoke("db:getPeriodSummary", ledgerPeriodId),
 
   getCategoryBreakdown: (
-    ledgerPeriodId: number,
+    ledgerPeriodId: number | null,
     type: "income" | "expense"
   ): Promise<CategoryBreakdown[]> =>
     ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type),

@@ -3,7 +3,7 @@ import { ref, computed, watch } from "vue";
 import { useFinanceStore } from "../stores/finance";
 import { getMonthName } from "../types";
 
-defineProps<{
+const props = defineProps<{
   currentView: string;
 }>();
 
@@ -75,8 +75,21 @@ async function selectPeriod(year: number, month: number) {
   emit("navigate", "transactions");
 }
 
+// Handle navigation click
+async function handleNavClick(viewId: string) {
+  if (viewId === "transactions") {
+    // Top-level Transactions click = Global View
+    await store.clearPeriod();
+  }
+  emit("navigate", viewId);
+}
+
 // Check if period is selected
 function isPeriodSelected(year: number, month: number): boolean {
+  // Only highlight if we are effectively viewing transactions for this period
+  if (props.currentView !== "transactions") {
+    return false;
+  }
   return (
     store.currentPeriod?.year === year && store.currentPeriod?.month === month
   );
@@ -122,6 +135,12 @@ async function deleteYear(year: number) {
             {{ getMonthName(store.currentPeriod.month) }}
             {{ store.currentPeriod.year }}
           </p>
+          <p
+            v-else
+            class="text-xs text-gray-500 dark:text-gray-400"
+          >
+            Global View
+          </p>
         </div>
       </div>
     </div>
@@ -134,11 +153,11 @@ async function deleteYear(year: number) {
           :key="item.id"
           :class="[
             'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            currentView === item.id
+            currentView === item.id && (!store.currentPeriod || item.id !== 'transactions')
               ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
           ]"
-          @click="emit('navigate', item.id)"
+          @click="handleNavClick(item.id)"
         >
           <i :class="['pi mr-3 text-base', item.icon]" />
           {{ item.label }}

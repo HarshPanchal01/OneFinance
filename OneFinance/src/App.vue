@@ -24,6 +24,13 @@ const showQuickAddModal = ref(false);
 // Navigate to view
 function navigateTo(view: string) {
   currentView.value = view as ViewName;
+
+  if (view === "dashboard") {
+    // Keep the current period context when going to Dashboard
+    // But fetch summary to ensure cards are up to date
+    store.fetchPeriodSummary();
+  }
+  // Transactions logic is handled by Sidebar emitting specific events or store actions
 }
 
 // Initialize on mount
@@ -61,9 +68,6 @@ function handleKeydown(e: KeyboardEvent) {
     }
   }
 }
-
-// View titles
-
 </script>
 
 <template>
@@ -101,7 +105,10 @@ function handleKeydown(e: KeyboardEvent) {
 
         <!-- Views -->
         <template v-else>
-          <DashboardView v-if="currentView === 'dashboard'" />
+          <DashboardView
+            v-if="currentView === 'dashboard'"
+            @add-transaction="showQuickAddModal = true"
+          />
           <TransactionsView v-else-if="currentView === 'transactions'" />
           <CategoriesView v-else-if="currentView === 'categories'" />
           <SettingsView v-else-if="currentView === 'settings'" />

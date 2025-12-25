@@ -1,4 +1,4 @@
-import { ipcMain, shell, app } from "electron";
+import { ipcMain, shell } from "electron";
 import fs from "node:fs";
 import {
   // Ledger Years
@@ -121,8 +121,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getTransactions",
-    async (_event, ledgerPeriodId?: number) => {
-      return getTransactions(ledgerPeriodId);
+    async (_event, ledgerPeriodId?: number | null, limit?: number) => {
+      return getTransactions(ledgerPeriodId, limit);
     }
   );
 
@@ -154,14 +154,18 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getPeriodSummary",
-    async (_event, ledgerPeriodId: number) => {
+    async (_event, ledgerPeriodId: number | null) => {
       return getPeriodSummary(ledgerPeriodId);
     }
   );
 
   ipcMain.handle(
     "db:getCategoryBreakdown",
-    async (_event, ledgerPeriodId: number, type: "income" | "expense") => {
+    async (
+      _event,
+      ledgerPeriodId: number | null,
+      type: "income" | "expense"
+    ) => {
       return getCategoryBreakdown(ledgerPeriodId, type);
     }
   );
@@ -194,12 +198,7 @@ export function registerIpcHandlers(): void {
         fs.unlinkSync(dbPath + "-shm");
       }
 
-      console.log("[IPC] Database deleted, relaunching app...");
-
-      // Relaunch the app
-      app.relaunch();
-      app.exit(0);
-
+      console.log("[IPC] Database deleted.");
       return true;
     } catch (error) {
       console.error("[IPC] Failed to delete database:", error);

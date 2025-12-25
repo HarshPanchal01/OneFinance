@@ -14,27 +14,53 @@ Desktop.ini
 # Linux
 *~
 
-## Node/Electron/Vite
-node_modules/
-dist/
-dist-ssr/
-dist-electron/
-release/
-out/
-.vite/
-.cache/
-.eslintcache
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ----------------------------------------------------
+# Project-specific ignores (Vite + Vue + Electron)
+# ----------------------------------------------------
+
+# Build outputs (inside app folder)
+OneFinance/dist/
+OneFinance/dist-ssr/
+OneFinance/dist-electron/
+
+# Electron Builder release artifacts
+OneFinance/release/
+*.AppImage
+*.asar
+*.asar.unpacked
+
+# TypeScript incremental build info
 *.tsbuildinfo
 
-## Electron builder
-*.AppImage
-*.dmg
-*.exe
-*.msi
-*.zip
+# Environment files (provide .env.example instead)
+.env
+.env.*
+!.env.example
 
-## Local DB files (just in case)
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
+# Tooling caches
+.eslintcache

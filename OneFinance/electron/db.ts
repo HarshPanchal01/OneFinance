@@ -335,7 +335,8 @@ export interface CreateTransactionInput {
 }
 
 export function getTransactions(
-  ledgerPeriodId?: number
+  ledgerPeriodId?: number | null,
+  limit?: number
 ): TransactionWithCategory[] {
   const baseQuery = `
     SELECT 
@@ -347,17 +348,22 @@ export function getTransactions(
     LEFT JOIN categories c ON t.categoryId = c.id
   `;
 
+  let query = baseQuery;
+  const params: (number | string)[] = [];
+
   if (ledgerPeriodId) {
-    return db
-      .prepare(
-        `${baseQuery} WHERE t.ledgerPeriodId = ? ORDER BY t.date DESC, t.id DESC`
-      )
-      .all(ledgerPeriodId) as TransactionWithCategory[];
+    query += " WHERE t.ledgerPeriodId = ?";
+    params.push(ledgerPeriodId);
   }
 
-  return db
-    .prepare(`${baseQuery} ORDER BY t.date DESC, t.id DESC`)
-    .all() as TransactionWithCategory[];
+  query += " ORDER BY t.date DESC, t.id DESC";
+
+  if (limit) {
+    query += " LIMIT ?";
+    params.push(limit);
+  }
+
+  return db.prepare(query).all(...params) as TransactionWithCategory[];
 }
 
 export function getTransactionById(
@@ -444,19 +450,25 @@ export interface PeriodSummary {
   transactionCount: number;
 }
 
-export function getPeriodSummary(ledgerPeriodId: number): PeriodSummary {
-  const result = db
-    .prepare(
-      `
+export function getPeriodSummary(
+  ledgerPeriodId: number | null
+): PeriodSummary {
+  let query = `
     SELECT 
       COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as totalIncome,
       COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as totalExpenses,
       COUNT(*) as transactionCount
     FROM transactions
-    WHERE ledgerPeriodId = ?
-  `
-    )
-    .get(ledgerPeriodId) as {
+  `;
+
+  const params: (number | string)[] = [];
+
+  if (ledgerPeriodId !== null) {
+    query += " WHERE ledgerPeriodId = ?";
+    params.push(ledgerPeriodId);
+  }
+
+  const result = db.prepare(query).get(...params) as {
     totalIncome: number;
     totalExpenses: number;
     transactionCount: number;
@@ -478,12 +490,10 @@ export interface CategoryBreakdown {
 }
 
 export function getCategoryBreakdown(
-  ledgerPeriodId: number,
+  ledgerPeriodId: number | null,
   type: "income" | "expense"
 ): CategoryBreakdown[] {
-  return db
-    .prepare(
-      `
+  let query = `
     SELECT 
       t.categoryId,
       COALESCE(c.name, 'Uncategorized') as categoryName,
@@ -493,12 +503,22 @@ export function getCategoryBreakdown(
       COUNT(*) as count
     FROM transactions t
     LEFT JOIN categories c ON t.categoryId = c.id
-    WHERE t.ledgerPeriodId = ? AND t.type = ?
+    WHERE t.type = ?
+  `;
+
+  const params: (number | string)[] = [type];
+
+  if (ledgerPeriodId !== null) {
+    query += " AND t.ledgerPeriodId = ?";
+    params.push(ledgerPeriodId);
+  }
+
+  query += `
     GROUP BY t.categoryId
     ORDER BY total DESC
-  `
-    )
-    .all(ledgerPeriodId, type) as CategoryBreakdown[];
+  `;
+
+  return db.prepare(query).all(...params) as CategoryBreakdown[];
 }
 
 // Export the database instance for advanced operations if needed
