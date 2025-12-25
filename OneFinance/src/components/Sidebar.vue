@@ -3,7 +3,7 @@ import { ref, computed, watch } from "vue";
 import { useFinanceStore } from "../stores/finance";
 import { getMonthName } from "../types";
 
-defineProps<{
+const props = defineProps<{
   currentView: string;
 }>();
 
@@ -77,6 +77,10 @@ async function selectPeriod(year: number, month: number) {
 
 // Check if period is selected
 function isPeriodSelected(year: number, month: number): boolean {
+  // Only highlight if we are effectively viewing transactions for this period
+  if (props.currentView !== "transactions") {
+    return false;
+  }
   return (
     store.currentPeriod?.year === year && store.currentPeriod?.month === month
   );

@@ -24,6 +24,11 @@ const showQuickAddModal = ref(false);
 // Navigate to view
 function navigateTo(view: string) {
   currentView.value = view as ViewName;
+
+  if (view === "dashboard") {
+    // Reset to current period (today/this month)
+    store.initialize();
+  }
 }
 
 // Initialize on mount
@@ -101,7 +106,10 @@ function handleKeydown(e: KeyboardEvent) {
 
         <!-- Views -->
         <template v-else>
-          <DashboardView v-if="currentView === 'dashboard'" />
+          <DashboardView
+            v-if="currentView === 'dashboard'"
+            @add-transaction="showQuickAddModal = true"
+          />
           <TransactionsView v-else-if="currentView === 'transactions'" />
           <CategoriesView v-else-if="currentView === 'categories'" />
           <SettingsView v-else-if="currentView === 'settings'" />

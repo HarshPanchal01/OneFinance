@@ -196,9 +196,11 @@ export function registerIpcHandlers(): void {
 
       console.log("[IPC] Database deleted, relaunching app...");
 
-      // Relaunch the app
-      app.relaunch();
-      app.exit(0);
+      // Relaunch the app after a short delay to allow the IPC response to return
+      setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 500);
 
       return true;
     } catch (error) {
