@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { useFinanceStore } from "../stores/finance";
+import { useFinanceStore } from "./stores/finance";
 
 // Components
 import Sidebar from "./components/Sidebar.vue";

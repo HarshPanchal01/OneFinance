@@ -147,11 +147,11 @@ const electronAPI = {
   // ============================================
   // SUMMARY / DASHBOARD
   // ============================================
-  getPeriodSummary: (ledgerPeriodId: number): Promise<PeriodSummary> =>
+  getPeriodSummary: (ledgerPeriodId: number | null): Promise<PeriodSummary> =>
     ipcRenderer.invoke("db:getPeriodSummary", ledgerPeriodId),
 
   getCategoryBreakdown: (
-    ledgerPeriodId: number,
+    ledgerPeriodId: number | null,
     type: "income" | "expense"
   ): Promise<CategoryBreakdown[]> =>
     ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type),
