@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useFinanceStore } from "../stores/finance";
-import { formatCurrency, getMonthName } from "../types";
+import { formatCurrency } from "../types";
 import type { Transaction, TransactionWithCategory } from "../types";
 import TransactionItem from "../components/TransactionItem.vue";
 import TransactionModal from "../components/TransactionModal.vue";
 
 const store = useFinanceStore();
+
+onMounted(() => {
+  store.fetchTransactions(null);
+});
 
 // Modal state
 const showModal = ref(false);
@@ -89,11 +93,7 @@ function closeModal() {
           Transactions
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          {{ filteredTransactions.length }} transactions
-          <span v-if="store.currentPeriod">
-            in {{ getMonthName(store.currentPeriod.month) }}
-            {{ store.currentPeriod.year }}
-          </span>
+          All Transactions ({{ filteredTransactions.length }})
         </p>
       </div>
 

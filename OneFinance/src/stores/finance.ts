@@ -24,6 +24,8 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Transactions for current period
   const transactions = ref<TransactionWithCategory[]>([]);
+  // Global recent transactions
+  const recentTransactions = ref<TransactionWithCategory[]>([]);
 
   // Summary data - always have default values
   const periodSummary = ref<PeriodSummary>({
@@ -84,11 +86,13 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Load transactions and summary for current period
       if (currentPeriod.value) {
-        await fetchTransactions();
+        // Fetch global recent transactions for Dashboard
+        await fetchRecentTransactions(5);
+        // Fetch summary for dashboard cards (Period Specific)
         await fetchPeriodSummary();
         console.log(
-          "[Store] Initial data loaded - transactions:",
-          transactions.value.length
+          "[Store] Initial data loaded - recent transactions:",
+          recentTransactions.value.length
         );
       }
     } catch (e) {
@@ -144,10 +148,14 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Refresh periods list in case a new one was created
       ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
-      await fetchTransactions();
-      console.log(
-        `[Store] Transactions fetched: ${transactions.value.length} items`
-      );
+
+      // We don't necessarily need to fetch transactions here if we are on Dashboard
+      // But if we are on Transactions view, it will reactively update?
+      // Actually Transactions View handles its own fetch now (Global),
+      // but if the user wants period specific transactions view?
+      // The requirement says Transactions View is Global.
+      // So selectPeriod mostly affects Dashboard Summary.
+
       await fetchPeriodSummary();
       console.log(`[Store] Summary fetched:`, periodSummary.value);
     } catch (e) {
@@ -209,10 +217,14 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Transactions
   // ============================================
 
-  async function fetchTransactions() {
-    if (!currentPeriod.value) return;
-    transactions.value = await window.electronAPI.getTransactions(
-      currentPeriod.value.id
+  async function fetchTransactions(periodId?: number | null) {
+    transactions.value = await window.electronAPI.getTransactions(periodId);
+  }
+
+  async function fetchRecentTransactions(limit: number) {
+    recentTransactions.value = await window.electronAPI.getTransactions(
+      null,
+      limit
     );
   }
 
@@ -228,6 +240,9 @@ export const useFinanceStore = defineStore("finance", () => {
       ledgerPeriodId: currentPeriod.value.id,
     });
 
+    // Update local state if needed (add to front of list if it's the main list)
+    // We might need to refetch recent transactions to keep Dashboard accurate
+    await fetchRecentTransactions(5);
     transactions.value.unshift(newTransaction);
     await fetchPeriodSummary(); // Refresh summary
     return newTransaction;
@@ -243,6 +258,7 @@ export const useFinanceStore = defineStore("finance", () => {
       if (index !== -1) {
         transactions.value[index] = updated;
       }
+      await fetchRecentTransactions(5); // Update dashboard list
       await fetchPeriodSummary(); // Refresh summary
     }
     return updated;
@@ -252,6 +268,7 @@ export const useFinanceStore = defineStore("finance", () => {
     const success = await window.electronAPI.deleteTransaction(id);
     if (success) {
       transactions.value = transactions.value.filter((t) => t.id !== id);
+      await fetchRecentTransactions(5); // Update dashboard list
       await fetchPeriodSummary(); // Refresh summary
     }
     return success;
@@ -305,6 +322,7 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerPeriods,
     categories,
     transactions,
+    recentTransactions,
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
@@ -327,6 +345,7 @@ export const useFinanceStore = defineStore("finance", () => {
     editCategory,
     removeCategory,
     fetchTransactions,
+    fetchRecentTransactions,
     addTransaction,
     editTransaction,
     removeTransaction,

@@ -155,13 +155,10 @@ const emit = defineEmits<{
     <div class="card p-6">
       <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
         Recent Transactions
-        <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-          ({{ store.transactions.length }} this period)
-        </span>
       </h2>
 
       <div
-        v-if="store.transactions.length === 0"
+        v-if="store.recentTransactions.length === 0"
         class="text-center py-8 text-gray-500 dark:text-gray-400"
       >
         <i
@@ -178,7 +175,7 @@ const emit = defineEmits<{
         class="space-y-2"
       >
         <div
-          v-for="transaction in store.transactions.slice(0, 5)"
+          v-for="transaction in store.recentTransactions"
           :key="transaction.id"
           class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50"
         >

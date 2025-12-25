@@ -335,7 +335,8 @@ export interface CreateTransactionInput {
 }
 
 export function getTransactions(
-  ledgerPeriodId?: number
+  ledgerPeriodId?: number | null,
+  limit?: number
 ): TransactionWithCategory[] {
   const baseQuery = `
     SELECT 
@@ -347,17 +348,22 @@ export function getTransactions(
     LEFT JOIN categories c ON t.categoryId = c.id
   `;
 
+  let query = baseQuery;
+  const params: (number | string)[] = [];
+
   if (ledgerPeriodId) {
-    return db
-      .prepare(
-        `${baseQuery} WHERE t.ledgerPeriodId = ? ORDER BY t.date DESC, t.id DESC`
-      )
-      .all(ledgerPeriodId) as TransactionWithCategory[];
+    query += " WHERE t.ledgerPeriodId = ?";
+    params.push(ledgerPeriodId);
   }
 
-  return db
-    .prepare(`${baseQuery} ORDER BY t.date DESC, t.id DESC`)
-    .all() as TransactionWithCategory[];
+  query += " ORDER BY t.date DESC, t.id DESC";
+
+  if (limit) {
+    query += " LIMIT ?";
+    params.push(limit);
+  }
+
+  return db.prepare(query).all(...params) as TransactionWithCategory[];
 }
 
 export function getTransactionById(

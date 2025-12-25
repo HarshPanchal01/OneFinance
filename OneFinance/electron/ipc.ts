@@ -121,8 +121,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getTransactions",
-    async (_event, ledgerPeriodId?: number) => {
-      return getTransactions(ledgerPeriodId);
+    async (_event, ledgerPeriodId?: number | null, limit?: number) => {
+      return getTransactions(ledgerPeriodId, limit);
     }
   );
 

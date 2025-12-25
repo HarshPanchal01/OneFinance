@@ -120,9 +120,10 @@ const electronAPI = {
   // TRANSACTIONS
   // ============================================
   getTransactions: (
-    ledgerPeriodId?: number
+    ledgerPeriodId?: number | null,
+    limit?: number
   ): Promise<TransactionWithCategory[]> =>
-    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId),
+    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId, limit),
 
   getTransactionById: (
     id: number
