@@ -1,490 +1,491 @@
-import { app } from "electron";
 import { createRequire } from "node:module";
-import fs from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
+import { app } from "electron";
 
+// Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
-const BetterSqlite3 =
-  require("better-sqlite3") as typeof import("better-sqlite3");
+const Database = require("better-sqlite3");
 
-export type TransactionType = "income" | "expense";
+// Database file path - stored in user data directory
+export const dbPath = path.join(app.getPath("userData"), "one-finance.db");
+export const dbDir = app.getPath("userData");
 
-export interface DbCategory {
-  id: number;
-  name: string;
-  colorCode: string | null;
-  icon: string | null;
-}
+// Database instance - will be initialized lazily
+let _db: ReturnType<typeof Database> | null = null;
 
-export interface DbLedgerPeriod {
-  id: number;
-  year: number;
-  month: number;
-}
+/**
+ * Get or create the database instance
+ */
+export function getDb(): ReturnType<typeof Database> {
+  if (!_db) {
+    // Ensure the directory exists
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
 
-export interface DbTransaction {
-  id: number;
-  ledgerPeriodId: number;
-  title: string;
-  amount: number;
-  date: string;
-  type: TransactionType;
-  notes: string | null;
-  categoryId: number | null;
-  categoryName: string | null;
-}
-
-export interface DbRecentTransaction extends DbTransaction {
-  year: number;
-  month: number;
-}
-
-export interface DbSummary {
-  incomeTotal: number;
-  expenseTotal: number;
-  balance: number;
-}
-
-let db: import("better-sqlite3").Database | null = null;
-
-export function getDbFilePath() {
-  return path.join(app.getPath("userData"), "onefinance.db");
-}
-
-function assertInt(name: string, value: unknown) {
-  if (typeof value !== "number" || !Number.isInteger(value)) {
-    throw new Error(`${name} must be an integer`);
+    _db = new Database(dbPath);
+    _db.pragma("journal_mode = WAL");
+    _db.pragma("foreign_keys = ON");
   }
+  return _db;
 }
 
-function assertNonEmptyString(name: string, value: unknown) {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${name} is required`);
-  }
-}
+// Export db as a getter for backward compatibility
+export const db = new Proxy({} as ReturnType<typeof Database>, {
+  get(_target, prop) {
+    return getDb()[prop];
+  },
+});
 
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function parseIsoDateToYearMonth(date: string) {
-  // Expected: YYYY-MM-DD
-  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(date);
-  if (!m) throw new Error("date must be YYYY-MM-DD");
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (!Number.isInteger(year) || year < 1900 || year > 3000)
-    throw new Error("date year out of range");
-  if (!Number.isInteger(month) || month < 1 || month > 12)
-    throw new Error("date month out of range");
-  return { year, month };
-}
-
-export function initDb() {
-  if (db) return db;
-
-  const dbPath = getDbFilePath();
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-  db = new BetterSqlite3(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-
+/**
+ * Initialize the database schema
+ * Creates all tables if they don't exist
+ */
+export function initializeDatabase(): void {
+  // Ledger Years - Primary key is the year itself
   db.exec(`
     CREATE TABLE IF NOT EXISTS ledger_years (
-      year INTEGER PRIMARY KEY,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      year INTEGER PRIMARY KEY
+    )
+  `);
 
+  // Ledger Periods - Links to a year, represents a month
+  db.exec(`
     CREATE TABLE IF NOT EXISTS ledger_periods (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       year INTEGER NOT NULL,
-      month INTEGER NOT NULL,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(year, month),
-      FOREIGN KEY (year) REFERENCES ledger_years(year) ON DELETE CASCADE
-    );
+      month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+      FOREIGN KEY (year) REFERENCES ledger_years(year) ON DELETE CASCADE,
+      UNIQUE (year, month)
+    )
+  `);
 
+  // Categories - For organizing transactions
+  db.exec(`
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
-      colorCode TEXT NULL,
-      icon TEXT NULL,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      colorCode TEXT NOT NULL DEFAULT '#6366f1',
+      icon TEXT NOT NULL DEFAULT 'pi-tag'
+    )
+  `);
 
+  // Transactions - The main data
+  db.exec(`
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ledgerPeriodId INTEGER NOT NULL,
       title TEXT NOT NULL,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income','expense')),
-      notes TEXT NULL,
-      categoryId INTEGER NULL,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      notes TEXT,
+      categoryId INTEGER,
       FOREIGN KEY (ledgerPeriodId) REFERENCES ledger_periods(id) ON DELETE CASCADE,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_transactions_ledgerPeriodId ON transactions(ledgerPeriodId);
-    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
-    CREATE INDEX IF NOT EXISTS idx_transactions_categoryId ON transactions(categoryId);
+    )
   `);
 
-  const seedDefaults = db.prepare(
-    `INSERT OR IGNORE INTO categories (name, colorCode, icon)
-       VALUES (@name, @colorCode, @icon)`
-  );
+  // Create indexes for better query performance
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_transactions_ledger_period ON transactions(ledgerPeriodId);
+    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(categoryId);
+    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_ledger_periods_year ON ledger_periods(year);
+  `);
 
-  const defaults: Array<Pick<DbCategory, "name" | "colorCode" | "icon">> = [
-    { name: "Food", colorCode: null, icon: null },
-    { name: "Rent", colorCode: null, icon: null },
-    { name: "Utilities", colorCode: null, icon: null },
-    { name: "Entertainment", colorCode: null, icon: null },
-    { name: "Salary", colorCode: null, icon: null },
-    { name: "Other", colorCode: null, icon: null },
+  // Seed default categories if none exist
+  const categoryCount = db
+    .prepare("SELECT COUNT(*) as count FROM categories")
+    .get() as { count: number };
+  if (categoryCount.count === 0) {
+    seedDefaultCategories();
+  }
+
+  console.log(`[DB] Database initialized at: ${dbPath}`);
+}
+
+/**
+ * Seed default categories
+ */
+function seedDefaultCategories(): void {
+  const defaultCategories = [
+    { name: "Salary", colorCode: "#22c55e", icon: "pi-wallet" },
+    { name: "Food & Dining", colorCode: "#f97316", icon: "pi-shopping-cart" },
+    { name: "Transportation", colorCode: "#3b82f6", icon: "pi-car" },
+    { name: "Entertainment", colorCode: "#a855f7", icon: "pi-ticket" },
+    { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag" },
+    { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt" },
+    { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart" },
+    { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h" },
   ];
 
-  const tx = db.transaction(() => {
-    for (const row of defaults) seedDefaults.run(row);
-  });
-  tx();
-
-  return db;
-}
-
-export function closeDb() {
-  if (!db) return;
-  db.close();
-  db = null;
-}
-
-export function deleteDbFile() {
-  const dbPath = getDbFilePath();
-  closeDb();
-  try {
-    fs.rmSync(dbPath, { force: true });
-  } catch {
-    // ignore
-  }
-}
-
-export function listTree(): Array<{ year: number; months: DbLedgerPeriod[] }> {
-  const database = initDb();
-
-  const years = database
-    .prepare("SELECT year FROM ledger_years ORDER BY year DESC")
-    .all() as Array<{ year: number }>;
-
-  const months = database
-    .prepare(
-      "SELECT id, year, month FROM ledger_periods ORDER BY year DESC, month ASC"
-    )
-    .all() as DbLedgerPeriod[];
-
-  const monthsByYear = new Map<number, DbLedgerPeriod[]>();
-  for (const m of months) {
-    const list = monthsByYear.get(m.year);
-    if (list) list.push(m);
-    else monthsByYear.set(m.year, [m]);
-  }
-
-  return years.map((y) => ({
-    year: y.year,
-    months: monthsByYear.get(y.year) ?? [],
-  }));
-}
-
-export function createYear(year: number) {
-  assertInt("year", year);
-  if (year < 1900 || year > 3000) throw new Error("year out of range");
-
-  const database = initDb();
-  const tx = database.transaction(() => {
-    database
-      .prepare("INSERT OR IGNORE INTO ledger_years (year) VALUES (?)")
-      .run(year);
-
-    const insertMonth = database.prepare(
-      "INSERT OR IGNORE INTO ledger_periods (year, month) VALUES (?, ?)"
-    );
-    for (let month = 1; month <= 12; month++) insertMonth.run(year, month);
-  });
-
-  tx();
-  return { year };
-}
-
-export function createMonth(year: number, month: number): DbLedgerPeriod {
-  assertInt("year", year);
-  assertInt("month", month);
-  if (month < 1 || month > 12) throw new Error("month must be 1-12");
-
-  const database = initDb();
-  database
-    .prepare("INSERT OR IGNORE INTO ledger_years (year) VALUES (?)")
-    .run(year);
-
-  database
-    .prepare("INSERT OR IGNORE INTO ledger_periods (year, month) VALUES (?, ?)")
-    .run(year, month);
-
-  const row = database
-    .prepare(
-      "SELECT id, year, month FROM ledger_periods WHERE year = ? AND month = ?"
-    )
-    .get(year, month) as DbLedgerPeriod | undefined;
-
-  if (!row) throw new Error("failed to create month");
-  return row;
-}
-
-export function deleteYear(year: number) {
-  assertInt("year", year);
-  const database = initDb();
-  database.prepare("DELETE FROM ledger_years WHERE year = ?").run(year);
-  return { ok: true };
-}
-
-export function getSummary(): DbSummary {
-  const database = initDb();
-
-  const row = database
-    .prepare(
-      `SELECT
-         COALESCE(SUM(CASE WHEN type = 'income' THEN amount END), 0) AS incomeTotal,
-         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount END), 0) AS expenseTotal
-       FROM transactions`
-    )
-    .get() as { incomeTotal: number; expenseTotal: number } | undefined;
-
-  const incomeTotal = Number(row?.incomeTotal ?? 0);
-  const expenseTotal = Number(row?.expenseTotal ?? 0);
-  return {
-    incomeTotal,
-    expenseTotal,
-    balance: incomeTotal - expenseTotal,
-  };
-}
-
-export function listRecentTransactions(limit = 8): DbRecentTransaction[] {
-  assertInt("limit", limit);
-  if (limit < 1 || limit > 100) throw new Error("limit out of range");
-
-  const database = initDb();
-  return database
-    .prepare(
-      `SELECT
-         t.id,
-         t.ledgerPeriodId,
-         t.title,
-         t.amount,
-         t.date,
-         t.type,
-         t.notes,
-         t.categoryId,
-         c.name AS categoryName,
-         p.year,
-         p.month
-       FROM transactions t
-       JOIN ledger_periods p ON p.id = t.ledgerPeriodId
-       LEFT JOIN categories c ON c.id = t.categoryId
-       ORDER BY t.date DESC, t.id DESC
-       LIMIT ?`
-    )
-    .all(limit) as DbRecentTransaction[];
-}
-
-export function listCategories(): DbCategory[] {
-  const database = initDb();
-  return database
-    .prepare(
-      "SELECT id, name, colorCode, icon FROM categories ORDER BY name ASC"
-    )
-    .all() as DbCategory[];
-}
-
-export function createCategory(input: {
-  name: string;
-  colorCode?: string | null;
-  icon?: string | null;
-}) {
-  const name = input.name?.trim();
-  assertNonEmptyString("name", name);
-
-  const database = initDb();
-  const stmt = database.prepare(
-    "INSERT INTO categories (name, colorCode, icon) VALUES (@name, @colorCode, @icon)"
+  const insert = db.prepare(
+    "INSERT INTO categories (name, colorCode, icon) VALUES (?, ?, ?)"
   );
-  const info = stmt.run({
-    name,
-    colorCode: input.colorCode ?? null,
-    icon: input.icon ?? null,
-  });
+  for (const cat of defaultCategories) {
+    insert.run(cat.name, cat.colorCode, cat.icon);
+  }
+  console.log("[DB] Default categories seeded");
+}
+
+// ============================================
+// LEDGER YEARS OPERATIONS
+// ============================================
+
+export function getLedgerYears(): number[] {
+  const rows = db
+    .prepare("SELECT year FROM ledger_years ORDER BY year DESC")
+    .all() as { year: number }[];
+  return rows.map((r) => r.year);
+}
+
+export function createLedgerYear(year: number): number {
+  const stmt = db.prepare(
+    "INSERT OR IGNORE INTO ledger_years (year) VALUES (?)"
+  );
+  stmt.run(year);
+  return year;
+}
+
+export function deleteLedgerYear(year: number): boolean {
+  // This will cascade delete all periods and their transactions due to FK constraints
+  const stmt = db.prepare("DELETE FROM ledger_years WHERE year = ?");
+  const result = stmt.run(year);
+  return result.changes > 0;
+}
+
+// ============================================
+// LEDGER PERIODS OPERATIONS
+// ============================================
+
+export interface LedgerPeriod {
+  id: number;
+  year: number;
+  month: number;
+}
+
+export function getLedgerPeriods(year?: number): LedgerPeriod[] {
+  if (year) {
+    return db
+      .prepare("SELECT * FROM ledger_periods WHERE year = ? ORDER BY month")
+      .all(year) as LedgerPeriod[];
+  }
+  return db
+    .prepare("SELECT * FROM ledger_periods ORDER BY year DESC, month DESC")
+    .all() as LedgerPeriod[];
+}
+
+export function getLedgerPeriodByYearMonth(
+  year: number,
+  month: number
+): LedgerPeriod | undefined {
+  return db
+    .prepare("SELECT * FROM ledger_periods WHERE year = ? AND month = ?")
+    .get(year, month) as LedgerPeriod | undefined;
+}
+
+export function createLedgerPeriod(year: number, month: number): LedgerPeriod {
+  // Ensure the year exists
+  createLedgerYear(year);
+
+  // Check if period already exists
+  const existing = getLedgerPeriodByYearMonth(year, month);
+  if (existing) return existing;
+
+  const stmt = db.prepare(
+    "INSERT INTO ledger_periods (year, month) VALUES (?, ?)"
+  );
+  const result = stmt.run(year, month);
+
   return {
-    id: Number(info.lastInsertRowid),
-    name,
-    colorCode: input.colorCode ?? null,
-    icon: input.icon ?? null,
+    id: result.lastInsertRowid as number,
+    year,
+    month,
   };
 }
 
-export function updateCategory(input: {
+export function getOrCreateCurrentPeriod(): LedgerPeriod {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // Ensure year exists
+  createLedgerYear(year);
+
+  // Create all 12 months for the year if they don't exist
+  for (let m = 1; m <= 12; m++) {
+    const existing = getLedgerPeriodByYearMonth(year, m);
+    if (!existing) {
+      db.prepare("INSERT INTO ledger_periods (year, month) VALUES (?, ?)").run(
+        year,
+        m
+      );
+    }
+  }
+
+  // Return the current month's period
+  return getLedgerPeriodByYearMonth(year, month) as LedgerPeriod;
+}
+
+// ============================================
+// CATEGORIES OPERATIONS
+// ============================================
+
+export interface Category {
   id: number;
   name: string;
-  colorCode?: string | null;
-  icon?: string | null;
-}) {
-  assertInt("id", input.id);
-  const name = input.name?.trim();
-  assertNonEmptyString("name", name);
+  colorCode: string;
+  icon: string;
+}
 
-  const database = initDb();
-  database
-    .prepare(
-      "UPDATE categories SET name = @name, colorCode = @colorCode, icon = @icon WHERE id = @id"
-    )
-    .run({
-      id: input.id,
-      name,
-      colorCode: input.colorCode ?? null,
-      icon: input.icon ?? null,
-    });
+export function getCategories(): Category[] {
+  return db
+    .prepare("SELECT * FROM categories ORDER BY name")
+    .all() as Category[];
+}
+
+export function getCategoryById(id: number): Category | undefined {
+  return db.prepare("SELECT * FROM categories WHERE id = ?").get(id) as
+    | Category
+    | undefined;
+}
+
+export function createCategory(
+  name: string,
+  colorCode: string,
+  icon: string
+): Category {
+  const stmt = db.prepare(
+    "INSERT INTO categories (name, colorCode, icon) VALUES (?, ?, ?)"
+  );
+  const result = stmt.run(name, colorCode, icon);
 
   return {
-    id: input.id,
+    id: result.lastInsertRowid as number,
     name,
-    colorCode: input.colorCode ?? null,
-    icon: input.icon ?? null,
+    colorCode,
+    icon,
   };
 }
 
-export function deleteCategory(id: number) {
-  assertInt("id", id);
-  const database = initDb();
-  database.prepare("DELETE FROM categories WHERE id = ?").run(id);
-  return { ok: true };
+export function updateCategory(
+  id: number,
+  name: string,
+  colorCode: string,
+  icon: string
+): Category | undefined {
+  const stmt = db.prepare(
+    "UPDATE categories SET name = ?, colorCode = ?, icon = ? WHERE id = ?"
+  );
+  stmt.run(name, colorCode, icon, id);
+  return getCategoryById(id);
 }
 
-export function listTransactions(ledgerPeriodId: number): DbTransaction[] {
-  assertInt("ledgerPeriodId", ledgerPeriodId);
-
-  const database = initDb();
-  const period = database
-    .prepare("SELECT year, month FROM ledger_periods WHERE id = ?")
-    .get(ledgerPeriodId) as { year: number; month: number } | undefined;
-  if (!period) return [];
-  const prefix = `${period.year}-${pad2(period.month)}-`;
-  return database
-    .prepare(
-      `SELECT 
-        t.id,
-        t.ledgerPeriodId,
-        t.title,
-        t.amount,
-        t.date,
-        t.type,
-        t.notes,
-        t.categoryId,
-        c.name AS categoryName
-      FROM transactions t
-      LEFT JOIN categories c ON c.id = t.categoryId
-      WHERE t.date LIKE ?
-      ORDER BY t.date DESC, t.id DESC`
-    )
-    .all(`${prefix}%`) as DbTransaction[];
+export function deleteCategory(id: number): boolean {
+  const stmt = db.prepare("DELETE FROM categories WHERE id = ?");
+  const result = stmt.run(id);
+  return result.changes > 0;
 }
 
-export function createTransaction(input: {
-  ledgerPeriodId: number;
-  title: string;
-  amount: number;
-  date: string;
-  type: TransactionType;
-  notes?: string | null;
-  categoryId?: number | null;
-}) {
-  assertNonEmptyString("title", input.title);
-  if (typeof input.amount !== "number" || !Number.isFinite(input.amount))
-    throw new Error("amount must be a number");
-  assertNonEmptyString("date", input.date);
-  if (input.type !== "income" && input.type !== "expense")
-    throw new Error("invalid type");
-  if (input.categoryId != null) assertInt("categoryId", input.categoryId);
+// ============================================
+// TRANSACTIONS OPERATIONS
+// ============================================
 
-  const database = initDb();
-  const { year, month } = parseIsoDateToYearMonth(input.date);
-  const period = createMonth(year, month);
-  const info = database
-    .prepare(
-      `INSERT INTO transactions (ledgerPeriodId, title, amount, date, type, notes, categoryId)
-       VALUES (@ledgerPeriodId, @title, @amount, @date, @type, @notes, @categoryId)`
-    )
-    .run({
-      ledgerPeriodId: period.id,
-      title: input.title.trim(),
-      amount: input.amount,
-      date: input.date,
-      type: input.type,
-      notes: input.notes ?? null,
-      categoryId: input.categoryId ?? null,
-    });
-
-  return { id: Number(info.lastInsertRowid) };
-}
-
-export function updateTransaction(input: {
+export interface Transaction {
   id: number;
   ledgerPeriodId: number;
   title: string;
   amount: number;
   date: string;
-  type: TransactionType;
-  notes?: string | null;
-  categoryId?: number | null;
-}) {
-  assertInt("id", input.id);
-  assertNonEmptyString("title", input.title);
-  if (typeof input.amount !== "number" || !Number.isFinite(input.amount))
-    throw new Error("amount must be a number");
-  assertNonEmptyString("date", input.date);
-  if (input.type !== "income" && input.type !== "expense")
-    throw new Error("invalid type");
-  if (input.categoryId != null) assertInt("categoryId", input.categoryId);
+  type: "income" | "expense";
+  notes: string | null;
+  categoryId: number | null;
+}
 
-  const database = initDb();
-  const { year, month } = parseIsoDateToYearMonth(input.date);
-  const period = createMonth(year, month);
-  database
+export interface TransactionWithCategory extends Transaction {
+  categoryName: string | null;
+  categoryColor: string | null;
+  categoryIcon: string | null;
+}
+
+export interface CreateTransactionInput {
+  ledgerPeriodId: number;
+  title: string;
+  amount: number;
+  date: string;
+  type: "income" | "expense";
+  notes?: string;
+  categoryId?: number;
+}
+
+export function getTransactions(
+  ledgerPeriodId?: number
+): TransactionWithCategory[] {
+  const baseQuery = `
+    SELECT 
+      t.*,
+      c.name as categoryName,
+      c.colorCode as categoryColor,
+      c.icon as categoryIcon
+    FROM transactions t
+    LEFT JOIN categories c ON t.categoryId = c.id
+  `;
+
+  if (ledgerPeriodId) {
+    return db
+      .prepare(
+        `${baseQuery} WHERE t.ledgerPeriodId = ? ORDER BY t.date DESC, t.id DESC`
+      )
+      .all(ledgerPeriodId) as TransactionWithCategory[];
+  }
+
+  return db
+    .prepare(`${baseQuery} ORDER BY t.date DESC, t.id DESC`)
+    .all() as TransactionWithCategory[];
+}
+
+export function getTransactionById(
+  id: number
+): TransactionWithCategory | undefined {
+  return db
     .prepare(
-      `UPDATE transactions
-       SET ledgerPeriodId = @ledgerPeriodId,
-           title = @title,
-           amount = @amount,
-           date = @date,
-           type = @type,
-           notes = @notes,
-           categoryId = @categoryId
-       WHERE id = @id`
+      `
+    SELECT 
+      t.*,
+      c.name as categoryName,
+      c.colorCode as categoryColor,
+      c.icon as categoryIcon
+    FROM transactions t
+    LEFT JOIN categories c ON t.categoryId = c.id
+    WHERE t.id = ?
+  `
     )
-    .run({
-      id: input.id,
-      ledgerPeriodId: period.id,
-      title: input.title.trim(),
-      amount: input.amount,
-      date: input.date,
-      type: input.type,
-      notes: input.notes ?? null,
-      categoryId: input.categoryId ?? null,
-    });
-
-  return { ok: true };
+    .get(id) as TransactionWithCategory | undefined;
 }
 
-export function deleteTransaction(id: number) {
-  assertInt("id", id);
-  const database = initDb();
-  database.prepare("DELETE FROM transactions WHERE id = ?").run(id);
-  return { ok: true };
+export function createTransaction(
+  input: CreateTransactionInput
+): TransactionWithCategory {
+  const stmt = db.prepare(`
+    INSERT INTO transactions (ledgerPeriodId, title, amount, date, type, notes, categoryId)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    input.ledgerPeriodId,
+    input.title,
+    input.amount,
+    input.date,
+    input.type,
+    input.notes || null,
+    input.categoryId || null
+  );
+
+  return getTransactionById(result.lastInsertRowid as number)!;
 }
+
+export function updateTransaction(
+  id: number,
+  input: Partial<CreateTransactionInput>
+): TransactionWithCategory | undefined {
+  const current = getTransactionById(id);
+  if (!current) return undefined;
+
+  const stmt = db.prepare(`
+    UPDATE transactions 
+    SET ledgerPeriodId = ?, title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?
+    WHERE id = ?
+  `);
+
+  stmt.run(
+    input.ledgerPeriodId ?? current.ledgerPeriodId,
+    input.title ?? current.title,
+    input.amount ?? current.amount,
+    input.date ?? current.date,
+    input.type ?? current.type,
+    input.notes !== undefined ? input.notes : current.notes,
+    input.categoryId !== undefined ? input.categoryId : current.categoryId,
+    id
+  );
+
+  return getTransactionById(id);
+}
+
+export function deleteTransaction(id: number): boolean {
+  const stmt = db.prepare("DELETE FROM transactions WHERE id = ?");
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
+// ============================================
+// DASHBOARD / SUMMARY OPERATIONS
+// ============================================
+
+export interface PeriodSummary {
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  transactionCount: number;
+}
+
+export function getPeriodSummary(ledgerPeriodId: number): PeriodSummary {
+  const result = db
+    .prepare(
+      `
+    SELECT 
+      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as totalIncome,
+      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as totalExpenses,
+      COUNT(*) as transactionCount
+    FROM transactions
+    WHERE ledgerPeriodId = ?
+  `
+    )
+    .get(ledgerPeriodId) as {
+    totalIncome: number;
+    totalExpenses: number;
+    transactionCount: number;
+  };
+
+  return {
+    ...result,
+    balance: result.totalIncome - result.totalExpenses,
+  };
+}
+
+export interface CategoryBreakdown {
+  categoryId: number | null;
+  categoryName: string;
+  categoryColor: string;
+  categoryIcon: string;
+  total: number;
+  count: number;
+}
+
+export function getCategoryBreakdown(
+  ledgerPeriodId: number,
+  type: "income" | "expense"
+): CategoryBreakdown[] {
+  return db
+    .prepare(
+      `
+    SELECT 
+      t.categoryId,
+      COALESCE(c.name, 'Uncategorized') as categoryName,
+      COALESCE(c.colorCode, '#6b7280') as categoryColor,
+      COALESCE(c.icon, 'pi-question') as categoryIcon,
+      SUM(t.amount) as total,
+      COUNT(*) as count
+    FROM transactions t
+    LEFT JOIN categories c ON t.categoryId = c.id
+    WHERE t.ledgerPeriodId = ? AND t.type = ?
+    GROUP BY t.categoryId
+    ORDER BY total DESC
+  `
+    )
+    .all(ledgerPeriodId, type) as CategoryBreakdown[];
+}
+
+// Export the database instance for advanced operations if needed
+export default db;

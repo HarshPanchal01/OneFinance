@@ -1,111 +1,213 @@
-import { app, ipcMain, shell } from "electron";
-import path from "node:path";
+import { ipcMain, shell, app } from "electron";
+import fs from "node:fs";
 import {
+  // Ledger Years
+  getLedgerYears,
+  createLedgerYear,
+  deleteLedgerYear,
+  // Ledger Periods
+  getLedgerPeriods,
+  getLedgerPeriodByYearMonth,
+  createLedgerPeriod,
+  getOrCreateCurrentPeriod,
+  // Categories
+  getCategories,
+  getCategoryById,
   createCategory,
-  createMonth,
-  createTransaction,
-  createYear,
-  deleteDbFile,
-  deleteCategory,
-  deleteYear,
-  deleteTransaction,
-  getDbFilePath,
-  getSummary,
-  listCategories,
-  listRecentTransactions,
-  listTransactions,
-  listTree,
   updateCategory,
+  deleteCategory,
+  // Transactions
+  getTransactions,
+  getTransactionById,
+  createTransaction,
   updateTransaction,
+  deleteTransaction,
+  // Summary
+  getPeriodSummary,
+  getCategoryBreakdown,
+  // Types
+  type CreateTransactionInput,
+  // DB paths and instance
+  dbPath,
+  getDb,
 } from "./db";
 
-function wrap<T>(
-  fn: () => T
-): { ok: true; data: T } | { ok: false; error: string } {
-  try {
-    return { ok: true, data: fn() };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { ok: false, error: message };
-  }
-}
+/**
+ * Register all IPC handlers for database operations
+ * Call this once in main.ts after app is ready
+ */
+export function registerIpcHandlers(): void {
+  // ============================================
+  // LEDGER YEARS HANDLERS
+  // ============================================
 
-export function registerIpcHandlers() {
-  ipcMain.handle("app:getInfo", () =>
-    wrap(() => ({
-      name: app.getName(),
-      version: app.getVersion(),
-      userDataPath: app.getPath("userData"),
-      dbFilePath: getDbFilePath(),
-    }))
+  ipcMain.handle("db:getLedgerYears", async () => {
+    return getLedgerYears();
+  });
+
+  ipcMain.handle("db:createLedgerYear", async (_event, year: number) => {
+    return createLedgerYear(year);
+  });
+
+  ipcMain.handle("db:deleteLedgerYear", async (_event, year: number) => {
+    return deleteLedgerYear(year);
+  });
+
+  // ============================================
+  // LEDGER PERIODS HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getLedgerPeriods", async (_event, year?: number) => {
+    return getLedgerPeriods(year);
+  });
+
+  ipcMain.handle(
+    "db:getLedgerPeriodByYearMonth",
+    async (_event, year: number, month: number) => {
+      return getLedgerPeriodByYearMonth(year, month);
+    }
   );
 
-  ipcMain.handle("app:openDbFolder", () =>
-    wrap(() => {
-      const folder = path.dirname(getDbFilePath());
-      void shell.openPath(folder);
-      return { ok: true };
-    })
+  ipcMain.handle(
+    "db:createLedgerPeriod",
+    async (_event, year: number, month: number) => {
+      return createLedgerPeriod(year, month);
+    }
   );
 
-  ipcMain.handle("app:deleteDb", () =>
-    wrap(() => {
-      deleteDbFile();
-      // In dev, relaunching breaks the electron-vite dev server session and can
-      // result in a white window. Only relaunch for packaged apps.
-      if (app.isPackaged) {
-        setTimeout(() => {
-          app.relaunch();
-          app.exit(0);
-        }, 100);
+  ipcMain.handle("db:getOrCreateCurrentPeriod", async () => {
+    return getOrCreateCurrentPeriod();
+  });
+
+  // ============================================
+  // CATEGORIES HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getCategories", async () => {
+    return getCategories();
+  });
+
+  ipcMain.handle("db:getCategoryById", async (_event, id: number) => {
+    return getCategoryById(id);
+  });
+
+  ipcMain.handle(
+    "db:createCategory",
+    async (_event, name: string, colorCode: string, icon: string) => {
+      return createCategory(name, colorCode, icon);
+    }
+  );
+
+  ipcMain.handle(
+    "db:updateCategory",
+    async (
+      _event,
+      id: number,
+      name: string,
+      colorCode: string,
+      icon: string
+    ) => {
+      return updateCategory(id, name, colorCode, icon);
+    }
+  );
+
+  ipcMain.handle("db:deleteCategory", async (_event, id: number) => {
+    return deleteCategory(id);
+  });
+
+  // ============================================
+  // TRANSACTIONS HANDLERS
+  // ============================================
+
+  ipcMain.handle(
+    "db:getTransactions",
+    async (_event, ledgerPeriodId?: number) => {
+      return getTransactions(ledgerPeriodId);
+    }
+  );
+
+  ipcMain.handle("db:getTransactionById", async (_event, id: number) => {
+    return getTransactionById(id);
+  });
+
+  ipcMain.handle(
+    "db:createTransaction",
+    async (_event, input: CreateTransactionInput) => {
+      return createTransaction(input);
+    }
+  );
+
+  ipcMain.handle(
+    "db:updateTransaction",
+    async (_event, id: number, input: Partial<CreateTransactionInput>) => {
+      return updateTransaction(id, input);
+    }
+  );
+
+  ipcMain.handle("db:deleteTransaction", async (_event, id: number) => {
+    return deleteTransaction(id);
+  });
+
+  // ============================================
+  // SUMMARY / DASHBOARD HANDLERS
+  // ============================================
+
+  ipcMain.handle(
+    "db:getPeriodSummary",
+    async (_event, ledgerPeriodId: number) => {
+      return getPeriodSummary(ledgerPeriodId);
+    }
+  );
+
+  ipcMain.handle(
+    "db:getCategoryBreakdown",
+    async (_event, ledgerPeriodId: number, type: "income" | "expense") => {
+      return getCategoryBreakdown(ledgerPeriodId, type);
+    }
+  );
+
+  // ============================================
+  // SYSTEM HANDLERS
+  // ============================================
+
+  ipcMain.handle("system:getDbPath", async () => {
+    return dbPath;
+  });
+
+  ipcMain.handle("system:openDbLocation", async () => {
+    shell.showItemInFolder(dbPath);
+  });
+
+  ipcMain.handle("system:deleteDatabase", async () => {
+    try {
+      // Close the database connection first
+      try {
+        getDb().close();
+      } catch {
+        // Database might not be open, that's okay
       }
-      return { ok: true };
-    })
-  );
 
-  ipcMain.handle("app:getPaths", () =>
-    wrap(() => ({
-      userDataPath: app.getPath("userData"),
-      dbFilePath: getDbFilePath(),
-    }))
-  );
+      // Delete the database file and related files
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath);
+      }
+      if (fs.existsSync(dbPath + "-wal")) {
+        fs.unlinkSync(dbPath + "-wal");
+      }
+      if (fs.existsSync(dbPath + "-shm")) {
+        fs.unlinkSync(dbPath + "-shm");
+      }
 
-  ipcMain.handle("ledger:listTree", () => wrap(() => listTree()));
-  ipcMain.handle("ledger:createYear", (_event, year: number) =>
-    wrap(() => createYear(year))
-  );
-  ipcMain.handle("ledger:createMonth", (_event, year: number, month: number) =>
-    wrap(() => createMonth(year, month))
-  );
-  ipcMain.handle("ledger:deleteYear", (_event, year: number) =>
-    wrap(() => deleteYear(year))
-  );
+      // Relaunch the app
+      app.relaunch();
+      app.exit(0);
 
-  ipcMain.handle("categories:list", () => wrap(() => listCategories()));
-  ipcMain.handle("categories:create", (_event, input) =>
-    wrap(() => createCategory(input))
-  );
-  ipcMain.handle("categories:update", (_event, input) =>
-    wrap(() => updateCategory(input))
-  );
-  ipcMain.handle("categories:delete", (_event, id: number) =>
-    wrap(() => deleteCategory(id))
-  );
+      return true;
+    } catch (error) {
+      console.error("[IPC] Failed to delete database:", error);
+      return false;
+    }
+  });
 
-  ipcMain.handle("transactions:list", (_event, ledgerPeriodId: number) =>
-    wrap(() => listTransactions(ledgerPeriodId))
-  );
-  ipcMain.handle("transactions:summary", () => wrap(() => getSummary()));
-  ipcMain.handle("transactions:recent", (_event, limit?: number) =>
-    wrap(() => listRecentTransactions(typeof limit === "number" ? limit : 8))
-  );
-  ipcMain.handle("transactions:create", (_event, input) =>
-    wrap(() => createTransaction(input))
-  );
-  ipcMain.handle("transactions:update", (_event, input) =>
-    wrap(() => updateTransaction(input))
-  );
-  ipcMain.handle("transactions:delete", (_event, id: number) =>
-    wrap(() => deleteTransaction(id))
-  );
+  console.log("[IPC] All database handlers registered");
 }

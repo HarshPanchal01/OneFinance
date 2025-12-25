@@ -12,7 +12,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
+
+    /* Vue */
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
 
     /* Linting */
     "strict": true,
@@ -20,6 +29,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "electron"],
+  "include": ["src/**/*.ts", "src/**/*.vue", "electron"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

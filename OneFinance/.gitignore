@@ -10,21 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-dist-electron
-release
-out
-.vite
-.cache
-.eslintcache
 *.local
-
-# Local DB files (should not be committed)
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
 
 # Editor directories and files
 .vscode/*
