@@ -334,6 +334,80 @@ export interface CreateTransactionInput {
   categoryId?: number;
 }
 
+export function searchTransactions(
+  query: string,
+  limit: number = 50
+): TransactionWithCategory[] {
+  // Parse query for special filters
+  let typeFilter: string | null = null;
+  let categoryFilter: string | null = null;
+  
+  // Extract "is:income" or "is:expense"
+  const typeMatch = query.match(/\bis:(income|expense)\b/i);
+  if (typeMatch) {
+    typeFilter = typeMatch[1].toLowerCase();
+    query = query.replace(typeMatch[0], "");
+  }
+
+  // Extract "label:Category" or "category:Category"
+  const categoryMatch = query.match(/\b(?:label|category):(\S+)\b/i);
+  if (categoryMatch) {
+    categoryFilter = categoryMatch[1];
+    query = query.replace(categoryMatch[0], "");
+  }
+
+  // Clean up the query string for text search
+  const textQuery = query.trim();
+  const searchTerm = `%${textQuery}%`;
+
+  let sql = `
+    SELECT 
+      t.*,
+      c.name as categoryName,
+      c.colorCode as categoryColor,
+      c.icon as categoryIcon
+    FROM transactions t
+    LEFT JOIN categories c ON t.categoryId = c.id
+    WHERE 1=1
+  `;
+  
+  const params: (string | number)[] = [];
+
+  // Add type filter
+  if (typeFilter) {
+    sql += " AND t.type = ?";
+    params.push(typeFilter);
+  }
+
+  // Add category filter
+  if (categoryFilter) {
+    if (categoryFilter.toLowerCase() === 'none') {
+        sql += " AND t.categoryId IS NULL";
+    } else {
+        // Check if it's exact or like. GitHub style uses exact often but for user ease LIKE is better if they type partial.
+        // However, "label:Salary" usually implies searching for that specific label.
+        // Let's use LIKE for flexibility as requested "label:<CategoryName>"
+        sql += " AND c.name LIKE ?";
+        params.push(`%${categoryFilter}%`);
+    }
+  }
+
+  // Add text search if there is any remaining text
+  if (textQuery.length > 0) {
+    sql += ` AND (
+      t.title LIKE ? 
+      OR COALESCE(t.notes, '') LIKE ?
+      OR COALESCE(c.name, '') LIKE ?
+    )`;
+    params.push(searchTerm, searchTerm, searchTerm);
+  }
+
+  sql += " ORDER BY t.date DESC, t.id DESC LIMIT ?";
+  params.push(limit);
+
+  return db.prepare(sql).all(...params) as TransactionWithCategory[];
+}
+
 export function getTransactions(
   ledgerPeriodId?: number | null,
   limit?: number
