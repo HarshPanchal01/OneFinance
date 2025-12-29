@@ -16,6 +16,20 @@ export interface Category {
   icon: string
 }
 
+export interface AccountType{
+  id: number
+  type: string
+}
+
+export interface Account{
+  id: number
+  accountName: string
+  institutionName?: string
+  startingBalance: number
+  accountTypeId?: number
+  isDefault: boolean
+}
+
 export interface Transaction {
   id: number
   ledgerPeriodId: number

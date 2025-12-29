@@ -1,4 +1,6 @@
+import { Account, AccountType } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
+import { deleteAccountByAccountId, editAccount, editAccountType, getAccountById, getAccountTypeById, getAccountTypes, insertAccount, insertAccountType, resetDefault } from "./db";
 
 // Type definitions for our database operations
 export interface LedgerPeriod {
@@ -115,6 +117,22 @@ const electronAPI = {
 
   deleteCategory: (id: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteCategory", id),
+
+  // ============================================
+  // ACCOUNTS
+  // ============================================
+
+  getAccounts: (): Promise<Account[]> => ipcRenderer.invoke("db:getAccounts"),
+  getAccountTypes: (): Promise<AccountType[]> => ipcRenderer.invoke("db:getAccountTypes"),
+  getAccountById: (id: number): Promise<Account | undefined> => ipcRenderer.invoke("db:getTransactions", id),
+  getAccountTypeById: (id: number): Promise<AccountType | undefined> => ipcRenderer.invoke("db:getAccountTypeById", id),
+  insertAccount: (account: Account): Promise<void> => ipcRenderer.invoke("db:insertAccount", account),
+  insertAccountType: (accountType: AccountType): Promise<void> => ipcRenderer.invoke("db:insertAccountType", accountType),
+  resetDefault: (): Promise<void> => ipcRenderer.invoke("db:resetDefault"),
+  editAccount: (account: Account): Promise<Account | undefined> => ipcRenderer.invoke("db:editAccount", account),
+  editAccountType: (accountType: AccountType): Promise<AccountType | undefined> => ipcRenderer.invoke("db:editAccountType", accountType),
+  deleteAccountByAccountId: (id: number): Promise<boolean> => ipcRenderer.invoke("db:deleteAccountByAccountId", id),
+  deleteAccountTypeById: (id: number): Promise<boolean> => ipcRenderer.invoke("db:deleteAccountTypeById", id),
 
   // ============================================
   // TRANSACTIONS

@@ -3,6 +3,8 @@ import { ref, computed } from "vue";
 import type {
   LedgerPeriod,
   Category,
+  Account,
+  AccountType,
   TransactionWithCategory,
   CreateTransactionInput,
   PeriodSummary,
@@ -21,6 +23,12 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Categories
   const categories = ref<Category[]>([]);
+
+  // Accounts
+  const accounts = ref<Account[]>([]);
+
+  // AccountTypes
+  const accountTypes = ref<AccountType[]>([]);
 
   // Transactions for current period (or Global if null)
   const transactions = ref<TransactionWithCategory[]>([]);
@@ -166,6 +174,14 @@ export const useFinanceStore = defineStore("finance", () => {
     } finally {
       isChangingPeriod.value = false;
     }
+  }
+
+  // ============================================
+  // ACTIONS - Accounts
+  // ============================================
+
+  async function fetchAccounts(){
+    accounts.value = await window.electronAPI.getAccounts();
   }
 
   // ============================================

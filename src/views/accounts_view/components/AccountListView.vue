@@ -2,8 +2,8 @@
     <div class="divide-y">
         <AccountListTile v-for="account in accountArray"
         :key="account.id"
-        :account_name="account.accountName"
-        :account_balance="account.balance"
+        :accountName="account.accountName"
+        :balance="account.balance"
         @select="$emit('select', account)"
         />
     </div>

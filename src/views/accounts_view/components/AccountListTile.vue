@@ -8,7 +8,7 @@
         <button
         @click="$emit('select')"
         class="text-blue-500 hover:underline">
-        {{ buttonText }}
+        {{ buttonText}}
         </button>
     </div>
 </template>
