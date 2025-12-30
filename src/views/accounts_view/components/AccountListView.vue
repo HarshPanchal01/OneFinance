@@ -5,7 +5,7 @@
         :accountName="account.accountName"
         :startingBalance="account.startingBalance"
         :institutionName="account.institutionName ?? ''"
-        :accountTypeId="account.accountTypeId ?? 0"
+        :accountTypeId="account.accountTypeId"
         :isDefault="account.isDefault"
         @edit="() => emit('edit', account)"
         @delete="() => emit('delete', account)"

@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { useFinanceStore } from '@/stores/finance'
+import { computed } from 'vue';
 
 
     interface Props {
@@ -58,8 +59,11 @@ import { useFinanceStore } from '@/stores/finance'
 
     const props = defineProps<Props>()
 
-    const accountType = props.accountTypeId !== null
-  ? store.accountTypes.find((value) => value.id === props.accountTypeId)?.type ?? 'N/A'
-  : 'N/A';
+    const accountType = computed(() =>
+      props.accountTypeId != null
+        ? store.accountTypes.find((t) => t.id === props.accountTypeId)?.type ?? 'N/A'
+        : 'N/A'
+    );
+
 
 </script>

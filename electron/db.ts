@@ -347,27 +347,38 @@ export function resetDefault(): void {
 
 export function editAccount(account: Account): void {
 
-  if (account.isDefault){
-    resetDefault();
-  }
+  try{
 
-  db.prepare(`
-    UPDATE accounts
-    SET
-      accountName = ?,
-      institutionName = ?,
-      startingBalance = ?,
-      accountTypeId = ?,
-      isDefault = ?
-    WHERE id = ?
-  `).run(
-    account.accountName,
-    account.institutionName,
-    account.startingBalance,
-    account.accountTypeId,
-    account.isDefault ? 1 : 0, 
-    account.id
-  );
+    const accountInDatabase = getAccountById(account.id);
+
+    if(accountInDatabase === undefined){
+      throw new Error("Account being edited not found in database")
+    }
+
+    if (account.isDefault){
+      resetDefault();
+    }
+
+    db.prepare(`
+      UPDATE accounts
+      SET
+        accountName = ?,
+        institutionName = ?,
+        startingBalance = ?,
+        accountTypeId = ?,
+        isDefault = ?
+      WHERE id = ?
+    `).run(
+      account.accountName,
+      account.institutionName,
+      account.startingBalance,
+      account.accountTypeId,
+      account.isDefault ? 1 : 0, 
+      account.id
+    );
+  } catch(e){
+    console.log(e);
+  }
 }
 
 export function editAccountType(accountType: AccountType): void{
@@ -383,11 +394,27 @@ export function editAccountType(accountType: AccountType): void{
 }
 
 export function deleteAccountById(accountId: number): void {
+  const account = getAccountById(accountId);
+
+  if (account === undefined) return;
+
   db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+
+  if (account.isDefault){
+    const accounts = getAccounts();
+    const firstAccount = accounts[0];
+    firstAccount.isDefault = true;
+    editAccount(firstAccount); 
+  }
+    
 }
 
-export function deleteAccountTypeById(accountTypeId: number): void {
-  db.prepare("DELETE FROM accountType WHERE id = ?").run(accountTypeId);
+export function deleteAccount(account: Account): void {
+
+  db.prepare("DELETE FROM accountType WHERE id = ?").run(account.id);
+
+
+
 }
 
 

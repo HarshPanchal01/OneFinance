@@ -17,12 +17,13 @@
       </button>
     </header>
 
+    <div class="mt-4 overflow-auto bg-white rounded-lg shadow">
     <AccountListView
-      :accountArray="store.accounts"
+      :accountArray="state.accountArray"
       @edit="editAccount"
       @delete="deleteAccount"
-      class="flex-1 overflow-auto"
     />
+    </div>
 
     <div v-if="openDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg w-96 shadow-lg">
@@ -113,6 +114,7 @@ const store = useFinanceStore();
 const openDialog = ref(false);
 
 let isEdit = false;
+let accountEditId = 0;
 
 const state = reactive({
   accountArray: store.accounts,
@@ -122,8 +124,8 @@ const state = reactive({
 const form = reactive({
   accountName: '',
   institutionName: '',
-  startingBalance: '',
-  accountType: '',
+  startingBalance: 0,
+  accountType: 0,
   isDefault: false
 });
 
@@ -132,29 +134,31 @@ function closeDialog() {
   openDialog.value = false;
   form.accountName = '';
   form.institutionName = '';
+  form.startingBalance = 0;
+  form.accountType = 0;
+  form.isDefault = false;
   isEdit = false;
 }
 
 async function submitForm() {
-
 
   if(!isEdit){
     store.addAccount({
       id : 0,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: Number(form.startingBalance),
-      accountTypeId: store.accountTypes.find((value) => value.type === form.accountType)?.id ?? null,
+      startingBalance: form.startingBalance,
+      accountTypeId:  form.accountType,
       isDefault: form.isDefault,
     } as Account);
   }
   else{
     store.editAccount({
-      id : 0,
+      id : accountEditId,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: Number(form.startingBalance),
-      accountTypeId: store.accountTypes.find((value) => value.type === form.accountType)?.id ?? null,
+      startingBalance: form.startingBalance,
+      accountTypeId: form.accountType,
       isDefault: form.isDefault} as Account);
   }
 
@@ -163,19 +167,29 @@ async function submitForm() {
   await store.fetchAccounts(); 
   state.accountArray = store.accounts; 
 
+  console.log(store.accounts);
+
 }
 
 function editAccount(account: Account) {
+
   openDialog.value = true;
   form.accountName= account.accountName;
-  form.institutionName = account.institutionName ?? "N/A";
-  form.startingBalance = String(account.startingBalance);
-  form.accountType = store.accountTypes.find((value) => value.id === account.accountTypeId)?.type ?? 'N/A';
-  form.isDefault=Boolean(account.startingBalance)
+  form.institutionName = account.institutionName ?? "";
+  form.startingBalance = account.startingBalance;
+  form.accountType = account.accountTypeId;
+  form.isDefault = Boolean(account.isDefault);
   isEdit = true;
+  accountEditId = account.id;
 }
 
 async function deleteAccount(account: Account){ 
+
+  if (store.accounts.length <= 1) {
+    alert("You must have at least one account.");
+    return;
+  }
+
   if (confirm("Delete this account? This cannot be undone.")) { 
     await store.removeAccount(account.id); 
     await store.fetchAccounts(); 

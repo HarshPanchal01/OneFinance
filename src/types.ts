@@ -26,7 +26,7 @@ export interface Account{
   accountName: string
   institutionName?: string
   startingBalance: number
-  accountTypeId?: number
+  accountTypeId: number
   isDefault: boolean
 }
 
