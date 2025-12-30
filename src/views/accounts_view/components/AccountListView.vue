@@ -1,16 +1,17 @@
 <template>
-    <div class="divide-y">
-        <AccountListTile v-for="account in accountArray"
-        :key="account.id"
-        :accountName="account.accountName"
-        :startingBalance="account.startingBalance"
-        :institutionName="account.institutionName ?? ''"
-        :accountTypeId="account.accountTypeId"
-        :isDefault="account.isDefault"
-        @edit="() => emit('edit', account)"
-        @delete="() => emit('delete', account)"
-        />
-    </div>
+  <div class="divide-y">
+    <AccountListTile
+      v-for="account in accountArray"
+      :key="account.id"
+      :account-name="account.accountName"
+      :starting-balance="account.startingBalance"
+      :institution-name="account.institutionName ?? ''"
+      :account-type-id="account.accountTypeId"
+      :is-default="account.isDefault"
+      @edit="() => emit('edit', account)"
+      @delete="() => emit('delete', account)"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -25,6 +26,6 @@ const emit = defineEmits<{
 
 defineProps({
     accountArray: Array<Account>
-})
+});
 
 </script>

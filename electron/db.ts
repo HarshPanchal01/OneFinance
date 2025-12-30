@@ -195,7 +195,7 @@ function seedDefaultAccountData(): void{
     result = insertAccountType.run(accType.type);
   }
 
-  let id = result?.lastInsertRowid ?? 0; 
+  const id = result?.lastInsertRowid ?? 0; 
 
   const insertAccount = db.prepare(
     "INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)"
