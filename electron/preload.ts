@@ -24,6 +24,7 @@ export interface Transaction {
   type: "income" | "expense";
   notes: string | null;
   categoryId: number | null;
+  accountId: number | null;
 }
 
 export interface TransactionWithCategory extends Transaction {
@@ -40,6 +41,7 @@ export interface CreateTransactionInput {
   type: "income" | "expense";
   notes?: string;
   categoryId?: number;
+  accountId?: number;
 }
 
 export interface PeriodSummary {

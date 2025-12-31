@@ -86,22 +86,6 @@ export function initializeDatabase(): void {
     )
   `);
 
-  // Transactions - The main data
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ledgerPeriodId INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-      notes TEXT,
-      categoryId INTEGER,
-      FOREIGN KEY (ledgerPeriodId) REFERENCES ledger_periods(id) ON DELETE CASCADE,
-      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL
-    )
-  `);
-
   // Account Type
   db.exec(`
     CREATE TABLE IF NOT EXISTS accountType (
@@ -123,12 +107,22 @@ export function initializeDatabase(): void {
     )
   `);
 
-  // Create indexes for better query performance
+  // Transactions - The main data
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_transactions_ledger_period ON transactions(ledgerPeriodId);
-    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(categoryId);
-    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
-    CREATE INDEX IF NOT EXISTS idx_ledger_periods_year ON ledger_periods(year);
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ledgerPeriodId INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      notes TEXT,
+      categoryId INTEGER,
+      accountId INTEGER,
+      FOREIGN KEY (ledgerPeriodId) REFERENCES ledger_periods(id) ON DELETE CASCADE,
+      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE SET NULL
+    )
   `);
 
   // Seed default categories if none exist
@@ -146,6 +140,33 @@ export function initializeDatabase(): void {
   if (accountTypesCount.count === 0) {
     seedDefaultAccountData();
   }
+
+  // MIGRATION: Check if accountId exists in transactions (for existing installs)
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(transactions)").all() as { name: string }[];
+    const hasAccountId = tableInfo.some((col) => col.name === 'accountId');
+    
+    if (!hasAccountId) {
+      console.log("[DB] Migrating: Adding accountId to transactions table");
+      // We can't easily add a FK constraint via ALTER TABLE in SQLite without recreating the table usually, 
+      // but for this simple case, just adding the column is the first step.
+      // However, SQLite supports ADD COLUMN with REFERENCES in newer versions.
+      // If it fails, we might need a more complex migration, but let's try the simple one.
+      db.prepare("ALTER TABLE transactions ADD COLUMN accountId INTEGER REFERENCES accounts(id) ON DELETE SET NULL").run();
+      // Index creation is handled below
+    }
+  } catch (error) {
+    console.error("[DB] Migration error:", error);
+  }
+
+  // Create indexes for better query performance
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_transactions_ledger_period ON transactions(ledgerPeriodId);
+    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(categoryId);
+    CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(accountId);
+    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_ledger_periods_year ON ledger_periods(year);
+  `);
 
   console.log(`[DB] Database initialized at: ${dbPath}`);
 }
@@ -493,6 +514,7 @@ export interface Transaction {
   type: "income" | "expense";
   notes: string | null;
   categoryId: number | null;
+  accountId: number | null;
 }
 
 export interface TransactionWithCategory extends Transaction {
@@ -509,6 +531,7 @@ export interface CreateTransactionInput {
   type: "income" | "expense";
   notes?: string;
   categoryId?: number;
+  accountId?: number;
 }
 
 export function getTransactions(
@@ -566,8 +589,8 @@ export function createTransaction(
   input: CreateTransactionInput
 ): TransactionWithCategory {
   const stmt = db.prepare(`
-    INSERT INTO transactions (ledgerPeriodId, title, amount, date, type, notes, categoryId)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (ledgerPeriodId, title, amount, date, type, notes, categoryId, accountId)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -577,7 +600,8 @@ export function createTransaction(
     input.date,
     input.type,
     input.notes || null,
-    input.categoryId || null
+    input.categoryId || null,
+    input.accountId || null
   );
 
   return getTransactionById(result.lastInsertRowid as number)!;
@@ -592,7 +616,7 @@ export function updateTransaction(
 
   const stmt = db.prepare(`
     UPDATE transactions 
-    SET ledgerPeriodId = ?, title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?
+    SET ledgerPeriodId = ?, title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?
     WHERE id = ?
   `);
 
@@ -604,6 +628,7 @@ export function updateTransaction(
     input.type ?? current.type,
     input.notes !== undefined ? input.notes : current.notes,
     input.categoryId !== undefined ? input.categoryId : current.categoryId,
+    input.accountId !== undefined ? input.accountId : current.accountId,
     id
   );
 
