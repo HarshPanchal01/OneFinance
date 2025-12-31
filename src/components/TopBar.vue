@@ -32,12 +32,18 @@ function isCategorySelected(id: number): boolean {
 }
 
 // Toggle a category selection
-function toggleCategory(id: number) {
+async function toggleCategory(id: number) {
   if (selectedCategoryIds.value.includes(id)) {
     selectedCategoryIds.value = selectedCategoryIds.value.filter(cId => cId !== id);
   } else {
     selectedCategoryIds.value.push(id);
   }
+  await handleSearch();
+}
+
+function applyAmountFilter() {
+  handleSearch();
+  showAmountPicker.value = false;
 }
 
 // Filter categories for the picker list
@@ -229,6 +235,7 @@ onUnmounted(() => {
             :manual-input="false"
             date-format="yy-mm-dd"
             class="absolute opacity-0 w-1 h-1 overflow-hidden"
+            @hide="handleSearch"
           />
            
           <button
@@ -291,6 +298,12 @@ onUnmounted(() => {
                 class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all"
               />
             </div>
+            <button
+              class="w-1/2 mx-auto py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded transition-colors"
+              @click="applyAmountFilter"
+            >
+              Apply
+            </button>
           </div>
         </div>
         
