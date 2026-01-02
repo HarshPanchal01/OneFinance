@@ -102,7 +102,7 @@
             <input
               type="checkbox"
               v-model="form.isDefault"
-              class="h-4 w-4 appearance-none rounded-full border border-gray-400
+              class="h-4 w-4 appearance-none rounded-md border border-gray-400
                     checked:bg-primary-500 checked:bg-primary-500 hover:bg-primary-300
                     "
             />
