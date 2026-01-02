@@ -100,8 +100,8 @@
           </div>
           <div class="flex items-center space-x-2">
             <input
-              type="checkbox"
               v-model="form.isDefault"
+              type="checkbox"
               class="h-4 w-4 appearance-none rounded-md border border-gray-400
                     checked:bg-primary-500 checked:bg-primary-500 hover:bg-primary-300
                     "
@@ -131,27 +131,33 @@
       </div>
     </div>
   </div>
-  <ConfirmationModal ref="confirmModal" />
+  <AccountDeleteModal
+    :visible="showDeleteModal"
+    :account="accountToDelete"
+    @close="showDeleteModal = false"
+    @confirm="handleDeleteConfirm"
+  />
   <ErrorModal ref="errorModal" />
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import AccountListView from './components/AccountListView.vue';
 import { Account } from '@/types';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
+import AccountDeleteModal from '@/components/AccountDeleteModal.vue';
 
 const store = useFinanceStore();
 
 //Deep copy because the compiler is stupid and can't handle nested reactives
 const accounts = store.accounts.filter(() => true);
 const accountsTypeArray = store.accountTypes.filter(() => true);
-const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 
 const openDialog = ref(false);
+const showDeleteModal = ref(false);
+const accountToDelete = ref<Account | null>(null);
 
 let isEdit = false;
 let accountEditId = 0;
@@ -159,6 +165,11 @@ let accountEditId = 0;
 const state = reactive({
   accountArray: accounts,
   accountTypeArray: accountsTypeArray
+});
+
+onMounted(async () => {
+  await store.fetchAccounts();
+  state.accountArray = store.accounts;
 });
 
 const form = reactive({
@@ -237,18 +248,19 @@ async function deleteAccount(account: Account) {
     });
     return;
   }
+  
+  accountToDelete.value = account;
+  showDeleteModal.value = true;
+}
 
-  const confirmed = await confirmModal.value?.openConfirmation({
-    title: 'Delete Account?',
-    message: `Are you sure you want to delete "${account.accountName}"? This cannot be undone.`,
-    cancelText: 'Cancel',
-    confirmText: 'Delete'
-  });
+async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAccountId?: number) {
+  if (!accountToDelete.value) return;
 
-  if (confirmed) {
-    await store.removeAccount(account.id);
-    await store.fetchAccounts();
-    state.accountArray = store.accounts.filter(() => true);
-  }
+  await store.removeAccount(accountToDelete.value.id, strategy, transferToAccountId);
+  await store.fetchAccounts();
+  state.accountArray = store.accounts.filter(() => true);
+  
+  showDeleteModal.value = false;
+  accountToDelete.value = null;
 }
 </script>

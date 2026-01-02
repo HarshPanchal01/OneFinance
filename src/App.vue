@@ -66,6 +66,10 @@ function handleKeydown(e: KeyboardEvent) {
         e.preventDefault();
         currentView.value = "categories";
         break;
+      case "a":
+        e.preventDefault();
+        currentView.value = "accounts";
+        break;
     }
   }
 }

@@ -97,8 +97,8 @@ export function registerIpcHandlers(): void {
     return getAccountTypes();
   });
 
-  ipcMain.handle("db:deleteAccountById", async (_event, id: number) =>{
-    return deleteAccountById(id);
+  ipcMain.handle("db:deleteAccountById", async (_event, id: number, strategy: 'transfer' | 'delete', transferToAccountId?: number) =>{
+    return deleteAccountById(id, strategy, transferToAccountId);
   });
 
   ipcMain.handle("db:insertAccount", async (_event, account: Account) => {

@@ -20,19 +20,19 @@
 
     <div class="flex space-x-2">
       <button
-          class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-primary-500 transition-colors"
-          title="Edit"
-          @click="handleEditClick"
-        >
-          <i class="pi pi-pencil text-sm" />
+        class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-primary-500 transition-colors"
+        title="Edit"
+        @click="handleEditClick"
+      >
+        <i class="pi pi-pencil text-sm" />
       </button>
       <button
-          class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-expense transition-colors"
-          title="Delete"
-          @click="handleDeleteClick"
-        >
-          <i class="pi pi-trash text-sm" />
-        </button>
+        class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-expense transition-colors"
+        title="Delete"
+        @click="handleDeleteClick"
+      >
+        <i class="pi pi-trash text-sm" />
+      </button>
     </div>
   </div>
 </template>

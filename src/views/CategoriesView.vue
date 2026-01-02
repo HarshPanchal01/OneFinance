@@ -349,5 +349,4 @@ function closeModal() {
   </div>
   <ConfirmationModal ref="confirmModal" />
   <ErrorModal ref="errorModal" />
-  
 </template>

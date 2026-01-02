@@ -193,9 +193,10 @@ export const useFinanceStore = defineStore("finance", () => {
 
     accountsRaw.forEach(account => {
       const accountTransactions = transactionsRaw.filter(t => t.accountId === account.id);
-      account.balance = accountTransactions.reduce((sum, t) => {
+      const transactionSum = accountTransactions.reduce((sum, t) => {
         return t.type === 'income' ? sum + t.amount : sum - t.amount;
       }, 0);
+      account.balance = account.startingBalance + transactionSum;
     });
 
     accounts.value = accountsRaw;
@@ -214,8 +215,8 @@ export const useFinanceStore = defineStore("finance", () => {
     await window.electronAPI.editAccount(account);
   }
 
-  async function removeAccount(id: number){
-    await window.electronAPI.deleteAccountById(id);
+  async function removeAccount(id: number, strategy: 'transfer' | 'delete', transferToAccountId?: number){
+    await window.electronAPI.deleteAccountById(id, strategy, transferToAccountId);
   }
 
   // ============================================

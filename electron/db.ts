@@ -414,20 +414,55 @@ export function editAccountType(accountType: AccountType): void{
   );
 }
 
-export function deleteAccountById(accountId: number): void {
-  const account = getAccountById(accountId);
+export function deleteAccountById(
+  accountId: number,
+  strategy: "transfer" | "delete",
+  transferToAccountId?: number
+): void {
+  const accounts = getAccounts();
+  const account = accounts.find((a) => a.id === accountId);
 
   if (account === undefined) return;
 
+  // Requirement: An account will always exist.
+  if (accounts.length <= 1) {
+    throw new Error("Cannot delete the only remaining account.");
+  }
+
+  if (strategy === "transfer") {
+    if (!transferToAccountId) {
+      throw new Error("Transfer target account ID is required.");
+    }
+    // Transfer transactions
+    db.prepare("UPDATE transactions SET accountId = ? WHERE accountId = ?").run(
+      transferToAccountId,
+      accountId
+    );
+  } else {
+    // Delete transactions associated with this account
+    db.prepare("DELETE FROM transactions WHERE accountId = ?").run(accountId);
+  }
+
+  // Now delete the account
   db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
 
-  if (account.isDefault){
-    const accounts = getAccounts();
-    const firstAccount = accounts[0];
-    firstAccount.isDefault = true;
-    editAccount(firstAccount); 
+  // If we deleted the default account, ensure a new default is set
+  if (account.isDefault) {
+    if (strategy === "transfer" && transferToAccountId) {
+      const target = accounts.find((a) => a.id === transferToAccountId);
+      if (target) {
+        target.isDefault = true;
+        editAccount(target);
+      }
+    } else {
+      // Pick first available
+      const nextDefault = getAccounts()[0];
+      if (nextDefault) {
+        nextDefault.isDefault = true;
+        editAccount(nextDefault);
+      }
+    }
   }
-    
 }
 
 export function deleteAccount(account: Account): void {
