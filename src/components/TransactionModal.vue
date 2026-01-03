@@ -70,7 +70,7 @@ watch(
           date: getDefaultDate(),
           type: "expense",
           categoryId: null,
-          accountId: defaultAccount ? defaultAccount.id : (store.accounts[0]?.id || null),
+          accountId: defaultAccount ? defaultAccount.id : (store.accounts[0]?.id),
           notes: "",
         };
       }
@@ -108,7 +108,7 @@ async function save() {
         date: form.value.date,
         type: form.value.type,
         categoryId: form.value.categoryId ?? undefined,
-        accountId: form.value.accountId ?? undefined,
+        accountId: form.value.accountId!,
         notes: form.value.notes || undefined,
       });
     } else {
@@ -118,7 +118,7 @@ async function save() {
         date: form.value.date,
         type: form.value.type,
         categoryId: form.value.categoryId ?? undefined,
-        accountId: form.value.accountId ?? undefined,
+        accountId: form.value.accountId!,
         notes: form.value.notes || undefined,
       });
     }

@@ -118,10 +118,10 @@ export function initializeDatabase(): void {
       type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
       notes TEXT,
       categoryId INTEGER,
-      accountId INTEGER,
+      accountId INTEGER NOT NULL,
       FOREIGN KEY (ledgerPeriodId) REFERENCES ledger_periods(id) ON DELETE CASCADE,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
-      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE SET NULL
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
 
@@ -139,24 +139,6 @@ export function initializeDatabase(): void {
     .get() as { count: number };
   if (accountTypesCount.count === 0) {
     seedDefaultAccountData();
-  }
-
-  // MIGRATION: Check if accountId exists in transactions (for existing installs)
-  try {
-    const tableInfo = db.prepare("PRAGMA table_info(transactions)").all() as { name: string }[];
-    const hasAccountId = tableInfo.some((col) => col.name === 'accountId');
-    
-    if (!hasAccountId) {
-      console.log("[DB] Migrating: Adding accountId to transactions table");
-      // We can't easily add a FK constraint via ALTER TABLE in SQLite without recreating the table usually, 
-      // but for this simple case, just adding the column is the first step.
-      // However, SQLite supports ADD COLUMN with REFERENCES in newer versions.
-      // If it fails, we might need a more complex migration, but let's try the simple one.
-      db.prepare("ALTER TABLE transactions ADD COLUMN accountId INTEGER REFERENCES accounts(id) ON DELETE SET NULL").run();
-      // Index creation is handled below
-    }
-  } catch (error) {
-    console.error("[DB] Migration error:", error);
   }
 
   // Create indexes for better query performance
@@ -726,7 +708,7 @@ export function createTransaction(
     input.type,
     input.notes || null,
     input.categoryId || null,
-    input.accountId || null
+    input.accountId
   );
 
   return getTransactionById(result.lastInsertRowid as number)!;
