@@ -1,8 +1,9 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initializeDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
+import fs from 'fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,6 +47,26 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
+
+ipcMain.handle('save-file', async (_event, {data, defaultName}) => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: 'Save File',
+    defaultPath: defaultName ?? "data.json",
+    filters:[
+      {name: 'JSON Files', extensions: ['json']},
+      {name: 'All Files', extensions:['*']}
+    ]
+  })
+
+  if (canceled || !filePath){
+    return{success:false}
+  }
+
+  fs.writeFileSync(filePath, data, 'utf-8')
+
+  return { success: true, path: filePath}
+  }
+)
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

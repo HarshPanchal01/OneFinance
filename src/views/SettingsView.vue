@@ -2,11 +2,14 @@
 import { ref, onMounted } from "vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
+import { useFinanceStore } from "@/stores/finance";
 
 const appVersion = "0.0.1";
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
+
+const store = useFinanceStore();
 
 // Keyboard shortcuts
 const shortcuts = [
@@ -55,6 +58,46 @@ async function deleteDatabase() {
       });
     }
   }
+}
+
+async function exportData() {
+
+  const accountsValue = store.accounts;
+  const transactionsValue = store.transactions;
+  const categoriesValue = store.categories;
+  const accountTypesValue = store.accountTypes;
+
+  const data = {
+    accounts: accountsValue,
+    transactions: transactionsValue,
+    categories: categoriesValue,
+    accountTypes: accountTypesValue,
+  };
+
+
+  const timestamp = new Date().toDateString();
+
+
+  const dataStr = JSON.stringify(data, null, 2);
+  
+  const result = await window.electronAPI.exportDatabase({
+    data: dataStr,
+    defaultName: 'One-Finance Export ' + timestamp
+  });
+
+
+  if (!result.success){return}
+
+  await errorModal.value?.openConfirmation({
+        title: "Database Exported",
+        message: "A JSON file is available with the data at the location",
+        confirmText: "Okay",
+  });
+
+
+}
+async function importData() {
+
 }
 </script>
 
@@ -143,13 +186,16 @@ async function deleteDatabase() {
           </button>
           <button
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
+            @click="exportData"
+            >
             <i class="pi pi-download mr-2" />
+            
             Export Data
           </button>
           <button
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
+            @click="importData"
+            >
             <i class="pi pi-upload mr-2" />
             Import Data
           </button>
