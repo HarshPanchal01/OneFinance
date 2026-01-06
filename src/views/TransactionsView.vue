@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed } from "vue";
 import { useFinanceStore } from "../stores/finance";
 import { formatCurrency } from "../types";
 import type { Transaction, TransactionWithCategory } from "../types";
@@ -15,22 +15,6 @@ const emit = defineEmits<{
 }>();
 
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
-
-onMounted(() => {
-  // If a period is already selected (from Sidebar), fetch for that period.
-  // If not (Global Mode), fetch all.
-  const periodId = store.currentPeriod?.id || null;
-  store.fetchTransactions(periodId);
-});
-
-// Reactively update when period changes
-watch(
-  () => store.currentPeriod,
-  async (newPeriod) => {
-    const periodId = newPeriod?.id || null;
-    await store.fetchTransactions(periodId);
-  }
-);
 
 // Modal state
 const showModal = ref(false);
@@ -118,6 +102,9 @@ function goToAccount(accountId: number) {
           <span v-if="store.isSearching">Global Search</span>
           <span v-else-if="store.currentPeriod">
             {{ store.currentPeriod.month }}/{{ store.currentPeriod.year }}
+          </span>
+          <span v-else-if="store.selectedYear">
+            {{ store.selectedYear }} (All Months)
           </span>
           <span v-else>All Transactions</span>
           ({{ filteredTransactions.length }})
@@ -258,7 +245,7 @@ function goToAccount(accountId: number) {
     <TransactionModal
       :visible="showModal"
       :transaction="editingTransaction"
-      :default-year="store.currentPeriod?.year"
+      :default-year="store.currentPeriod?.year || store.selectedYear || undefined"
       :default-month="store.currentPeriod?.month"
       @close="closeModal"
       @saved="closeModal"

@@ -72,6 +72,14 @@ export interface CategoryBreakdown {
   count: number;
 }
 
+export interface MonthlyTrend {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+}
+
 export interface SearchOptions {
   text?: string;
   categoryIds?: number[];

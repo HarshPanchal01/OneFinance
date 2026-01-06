@@ -10,6 +10,7 @@ import type {
   PeriodSummary,
   CategoryBreakdown,
   SearchOptions,
+  MonthlyTrend,
 } from "../types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -19,6 +20,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Current period selection
   const currentPeriod = ref<LedgerPeriod | null>(null);
+  const selectedYear = ref<number | null>(null);
   const ledgerYears = ref<number[]>([]);
   const ledgerPeriods = ref<LedgerPeriod[]>([]);
 
@@ -48,6 +50,7 @@ export const useFinanceStore = defineStore("finance", () => {
   });
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
+  const monthlyTrends = ref<MonthlyTrend[]>([]);
 
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load
@@ -58,7 +61,7 @@ export const useFinanceStore = defineStore("finance", () => {
   // GETTERS (Computed)
   // ============================================
 
-  const hasCurrentPeriod = computed(() => currentPeriod.value !== null);
+  const hasCurrentPeriod = computed(() => currentPeriod.value !== null || selectedYear.value !== null);
 
   const incomeTransactions = computed(() =>
     transactions.value.filter((t) => t.type === "income")
@@ -134,8 +137,31 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
     // If deleted current period's year, reset to Global
-    if (currentPeriod.value?.year === year) {
+    if (currentPeriod.value?.year === year || selectedYear.value === year) {
       await clearPeriod();
+    }
+  }
+
+  async function selectYear(year: number) {
+    console.log(`[Store] selectYear called: ${year}`);
+    isChangingPeriod.value = true;
+    error.value = null;
+
+    try {
+      currentPeriod.value = null;
+      selectedYear.value = year;
+
+      // Fetch data for the selected year
+      await fetchTransactions(null, year);
+      await fetchPeriodSummary();
+      await fetchMonthlyTrends(year);
+
+      console.log(`[Store] Year data fetched`);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to select year";
+      console.error("[Store] Select year error:", e);
+    } finally {
+      isChangingPeriod.value = false;
     }
   }
 
@@ -145,6 +171,7 @@ export const useFinanceStore = defineStore("finance", () => {
     error.value = null;
 
     try {
+      selectedYear.value = null; // Clear selected year
       currentPeriod.value = await window.electronAPI.createLedgerPeriod(
         year,
         month
@@ -158,6 +185,7 @@ export const useFinanceStore = defineStore("finance", () => {
       if (currentPeriod.value) {
         await fetchTransactions(currentPeriod.value.id);
         await fetchPeriodSummary();
+        await fetchMonthlyTrends(currentPeriod.value.year);
       }
 
       console.log(`[Store] Period data fetched`);
@@ -173,12 +201,14 @@ export const useFinanceStore = defineStore("finance", () => {
     console.log("[Store] clearPeriod called (Global Mode)");
     isChangingPeriod.value = true;
     currentPeriod.value = null;
+    selectedYear.value = null;
 
     try {
       // Fetch Global Data
       await fetchRecentTransactions(5); // Ensure recent list is up to date
       await fetchTransactions(null); // All transactions
       await fetchPeriodSummary(); // Global summary
+      await fetchMonthlyTrends(new Date().getFullYear()); // Default to current year for trends
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to load global data";
       console.error("[Store] Clear period error:", e);
@@ -274,8 +304,8 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Transactions
   // ============================================
 
-  async function fetchTransactions(periodId?: number | null) {
-    transactions.value = await window.electronAPI.getTransactions(periodId);
+  async function fetchTransactions(periodId?: number | null, year?: number | null) {
+    transactions.value = await window.electronAPI.getTransactions(periodId, undefined, year);
   }
 
   async function fetchRecentTransactions(limit: number) {
@@ -317,11 +347,14 @@ export const useFinanceStore = defineStore("finance", () => {
     await fetchRecentTransactions(5);
 
     // Only update main list if it matches current filter (Global or Specific Period)
-    if (!currentPeriod.value || currentPeriod.value.id === targetPeriodId) {
+    if (!currentPeriod.value || currentPeriod.value.id === targetPeriodId || (selectedYear.value && selectedYear.value === new Date(newTransaction.date).getFullYear())) {
         // Add to front if valid
         transactions.value.unshift(newTransaction);
         // Refresh summary
         await fetchPeriodSummary();
+        // Refresh trends (use current viewed year, or transaction year)
+        const yearToRefresh = currentPeriod.value ? currentPeriod.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
     }
 
     return newTransaction;
@@ -331,7 +364,20 @@ export const useFinanceStore = defineStore("finance", () => {
     id: number,
     input: Partial<CreateTransactionInput>
   ) {
-    const updated = await window.electronAPI.updateTransaction(id, input);
+    // If date is changing, we MUST ensure the ledgerPeriodId is updated to match
+    const updateInput = { ...input };
+    
+    if (input.date) {
+        const date = new Date(input.date);
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        
+        // Ensure the period exists
+        const period = await window.electronAPI.createLedgerPeriod(year, month);
+        updateInput.ledgerPeriodId = period.id;
+    }
+
+    const updated = await window.electronAPI.updateTransaction(id, updateInput);
     if (updated) {
       const index = transactions.value.findIndex((t) => t.id === id);
       if (index !== -1) {
@@ -342,6 +388,8 @@ export const useFinanceStore = defineStore("finance", () => {
             // Check if it still belongs?
             // Easier to just re-fetch the list to be safe
              await fetchTransactions(currentPeriod.value.id);
+        } else if (selectedYear.value) {
+             await fetchTransactions(null, selectedYear.value);
         } else {
              // Global mode, just update
              transactions.value[index] = updated;
@@ -349,6 +397,9 @@ export const useFinanceStore = defineStore("finance", () => {
       }
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchPeriodSummary(); // Refresh summary
+      // Refresh trends
+      const yearToRefresh = currentPeriod.value ? currentPeriod.value.year : (selectedYear.value || new Date().getFullYear());
+      await fetchMonthlyTrends(yearToRefresh);
     }
     return updated;
   }
@@ -364,6 +415,9 @@ export const useFinanceStore = defineStore("finance", () => {
       if (isSearching.value) {
         searchResults.value = searchResults.value.filter((t) => t.id !== id);
       }
+      // Refresh trends
+      const yearToRefresh = currentPeriod.value ? currentPeriod.value.year : (selectedYear.value || new Date().getFullYear());
+      await fetchMonthlyTrends(yearToRefresh);
     }
     return success;
   }
@@ -406,8 +460,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function fetchPeriodSummary() {
     const periodId = currentPeriod.value?.id || null; // null = Global
+    const year = selectedYear.value || null;
 
-    const summary = await window.electronAPI.getPeriodSummary(periodId);
+    const summary = await window.electronAPI.getPeriodSummary(periodId, year);
 
     periodSummary.value = summary || {
       totalIncome: 0,
@@ -418,12 +473,24 @@ export const useFinanceStore = defineStore("finance", () => {
 
     incomeBreakdown.value = await window.electronAPI.getCategoryBreakdown(
       periodId,
-      "income"
+      "income",
+      year
     );
     expenseBreakdown.value = await window.electronAPI.getCategoryBreakdown(
       periodId,
-      "expense"
+      "expense",
+      year
     );
+  }
+
+  async function fetchMonthlyTrends(year: number) {
+    try {
+      monthlyTrends.value = await window.electronAPI.getMonthlyTrends(year);
+    } catch (e) {
+      console.error("[Store] Failed to fetch monthly trends:", e);
+      // Don't break the UI, just empty trends
+      monthlyTrends.value = [];
+    }
   }
 
   // ============================================
@@ -433,6 +500,7 @@ export const useFinanceStore = defineStore("finance", () => {
   return {
     // State
     currentPeriod,
+    selectedYear,
     ledgerYears,
     ledgerPeriods,
     categories,
@@ -445,6 +513,7 @@ export const useFinanceStore = defineStore("finance", () => {
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
+    monthlyTrends,
     isLoading,
     isChangingPeriod,
     error,
@@ -459,6 +528,7 @@ export const useFinanceStore = defineStore("finance", () => {
     createYear,
     deleteYear,
     selectPeriod,
+    selectYear,
     clearPeriod,
     fetchCategories,
     addCategory,
@@ -472,6 +542,7 @@ export const useFinanceStore = defineStore("finance", () => {
     searchTransactions,
     clearSearch,
     fetchPeriodSummary,
+    fetchMonthlyTrends,
     fetchAccounts,
     fetchAccountTypes,
     removeAccount,

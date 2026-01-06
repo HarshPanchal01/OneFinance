@@ -643,7 +643,8 @@ export function searchTransactions(
 
 export function getTransactions(
   ledgerPeriodId?: number | null,
-  limit?: number
+  limit?: number,
+  year?: number | null
 ): TransactionWithCategory[] {
   const baseQuery = `
     SELECT 
@@ -653,14 +654,24 @@ export function getTransactions(
       c.icon as categoryIcon
     FROM transactions t
     LEFT JOIN categories c ON t.categoryId = c.id
+    LEFT JOIN ledger_periods lp ON t.ledgerPeriodId = lp.id
   `;
 
   let query = baseQuery;
   const params: (number | string)[] = [];
 
+  const conditions: string[] = [];
+
   if (ledgerPeriodId) {
-    query += " WHERE t.ledgerPeriodId = ?";
+    conditions.push("t.ledgerPeriodId = ?");
     params.push(ledgerPeriodId);
+  } else if (year) {
+    conditions.push("lp.year = ?");
+    params.push(year);
+  }
+
+  if (conditions.length > 0) {
+    query += " WHERE " + conditions.join(" AND ");
   }
 
   query += " ORDER BY t.date DESC, t.id DESC";
@@ -759,22 +770,80 @@ export interface PeriodSummary {
   transactionCount: number;
 }
 
+export interface MonthlyTrend {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+}
+
+export function getMonthlyTrends(year: number): MonthlyTrend[] {
+  // Ensure we have periods for this year so we can join against them
+  createLedgerYear(year);
+  // Auto-create all 12 months for the year if they don't exist
+  for (let month = 1; month <= 12; month++) {
+    const existing = getLedgerPeriodByYearMonth(year, month);
+    if (!existing) {
+      db.prepare("INSERT INTO ledger_periods (year, month) VALUES (?, ?)").run(
+        year,
+        month
+      );
+    }
+  }
+
+  const query = `
+    SELECT 
+      lp.month,
+      lp.year,
+      COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) as totalIncome,
+      COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as totalExpenses
+    FROM ledger_periods lp
+    LEFT JOIN transactions t ON lp.id = t.ledgerPeriodId
+    WHERE lp.year = ?
+    GROUP BY lp.month
+    ORDER BY lp.month
+  `;
+
+  const results = db.prepare(query).all(year) as {
+    month: number;
+    year: number;
+    totalIncome: number;
+    totalExpenses: number;
+  }[];
+
+  return results.map((r) => ({
+    ...r,
+    balance: r.totalIncome - r.totalExpenses,
+  }));
+}
+
 export function getPeriodSummary(
-  ledgerPeriodId: number | null
+  ledgerPeriodId: number | null,
+  year?: number | null
 ): PeriodSummary {
   let query = `
     SELECT 
       COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as totalIncome,
       COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as totalExpenses,
       COUNT(*) as transactionCount
-    FROM transactions
+    FROM transactions t
   `;
 
   const params: (number | string)[] = [];
+  const conditions: string[] = [];
 
-  if (ledgerPeriodId !== null) {
-    query += " WHERE ledgerPeriodId = ?";
+  if (ledgerPeriodId !== null && ledgerPeriodId !== undefined) {
+    conditions.push("t.ledgerPeriodId = ?");
     params.push(ledgerPeriodId);
+  } else if (year) {
+    query += " LEFT JOIN ledger_periods lp ON t.ledgerPeriodId = lp.id ";
+    conditions.push("lp.year = ?");
+    params.push(year);
+  }
+
+  if (conditions.length > 0) {
+    query += " WHERE " + conditions.join(" AND ");
   }
 
   const result = db.prepare(query).get(...params) as {
@@ -800,7 +869,8 @@ export interface CategoryBreakdown {
 
 export function getCategoryBreakdown(
   ledgerPeriodId: number | null,
-  type: "income" | "expense"
+  type: "income" | "expense",
+  year?: number | null
 ): CategoryBreakdown[] {
   let query = `
     SELECT 
@@ -812,15 +882,24 @@ export function getCategoryBreakdown(
       COUNT(*) as count
     FROM transactions t
     LEFT JOIN categories c ON t.categoryId = c.id
-    WHERE t.type = ?
   `;
 
+  if (year) {
+    query += " LEFT JOIN ledger_periods lp ON t.ledgerPeriodId = lp.id ";
+  }
+
+  const conditions: string[] = ["t.type = ?"];
   const params: (number | string)[] = [type];
 
-  if (ledgerPeriodId !== null) {
-    query += " AND t.ledgerPeriodId = ?";
+  if (ledgerPeriodId !== null && ledgerPeriodId !== undefined) {
+    conditions.push("t.ledgerPeriodId = ?");
     params.push(ledgerPeriodId);
+  } else if (year) {
+    conditions.push("lp.year = ?");
+    params.push(year);
   }
+
+  query += " WHERE " + conditions.join(" AND ");
 
   query += `
     GROUP BY t.categoryId

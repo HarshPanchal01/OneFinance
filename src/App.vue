@@ -180,7 +180,7 @@ function handleKeydown(e: KeyboardEvent) {
     <!-- Quick Add Transaction Modal -->
     <TransactionModal
       :visible="showQuickAddModal"
-      :default-year="store.currentPeriod?.year"
+      :default-year="store.currentPeriod?.year || store.selectedYear || undefined"
       :default-month="store.currentPeriod?.month"
       @close="showQuickAddModal = false"
       @saved="showQuickAddModal = false"

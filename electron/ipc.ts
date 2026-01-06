@@ -27,6 +27,7 @@ import {
   // Summary
   getPeriodSummary,
   getCategoryBreakdown,
+  getMonthlyTrends,
   // Types
   type CreateTransactionInput,
   // DB paths and instance
@@ -153,8 +154,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getTransactions",
-    async (_event, ledgerPeriodId?: number | null, limit?: number) => {
-      return getTransactions(ledgerPeriodId, limit);
+    async (_event, ledgerPeriodId?: number | null, limit?: number, year?: number | null) => {
+      return getTransactions(ledgerPeriodId, limit, year);
     }
   );
 
@@ -193,8 +194,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getPeriodSummary",
-    async (_event, ledgerPeriodId: number | null) => {
-      return getPeriodSummary(ledgerPeriodId);
+    async (_event, ledgerPeriodId: number | null, year?: number | null) => {
+      return getPeriodSummary(ledgerPeriodId, year);
+    }
+  );
+
+  ipcMain.handle(
+    "db:getMonthlyTrends",
+    async (_event, year: number) => {
+      return getMonthlyTrends(year);
     }
   );
 
@@ -203,9 +211,10 @@ export function registerIpcHandlers(): void {
     async (
       _event,
       ledgerPeriodId: number | null,
-      type: "income" | "expense"
+      type: "income" | "expense",
+      year?: number | null
     ) => {
-      return getCategoryBreakdown(ledgerPeriodId, type);
+      return getCategoryBreakdown(ledgerPeriodId, type, year);
     }
   );
 

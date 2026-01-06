@@ -60,6 +60,14 @@ export interface CategoryBreakdown {
   count: number;
 }
 
+export interface MonthlyTrend {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+}
+
 export interface SearchOptions {
   text?: string;
   categoryIds?: number[];
@@ -151,9 +159,10 @@ const electronAPI = {
   // ============================================
   getTransactions: (
     ledgerPeriodId?: number | null,
-    limit?: number
+    limit?: number,
+    year?: number | null
   ): Promise<TransactionWithCategory[]> =>
-    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId, limit),
+    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId, limit, year),
 
   getTransactionById: (
     id: number
@@ -183,14 +192,18 @@ const electronAPI = {
   // ============================================
   // SUMMARY / DASHBOARD
   // ============================================
-  getPeriodSummary: (ledgerPeriodId: number | null): Promise<PeriodSummary> =>
-    ipcRenderer.invoke("db:getPeriodSummary", ledgerPeriodId),
+  getPeriodSummary: (ledgerPeriodId: number | null, year?: number | null): Promise<PeriodSummary> =>
+    ipcRenderer.invoke("db:getPeriodSummary", ledgerPeriodId, year),
+
+  getMonthlyTrends: (year: number): Promise<MonthlyTrend[]> =>
+    ipcRenderer.invoke("db:getMonthlyTrends", year),
 
   getCategoryBreakdown: (
     ledgerPeriodId: number | null,
-    type: "income" | "expense"
+    type: "income" | "expense",
+    year?: number | null
   ): Promise<CategoryBreakdown[]> =>
-    ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type),
+    ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type, year),
 
   // ============================================
   // SYSTEM OPERATIONS

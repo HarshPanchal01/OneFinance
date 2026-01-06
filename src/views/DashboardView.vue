@@ -2,6 +2,7 @@
 import { useFinanceStore } from "../stores/finance";
 import { formatCurrency } from "../types";
 import TransactionItem from "../components/TransactionItem.vue";
+import TrendChart from "../components/TrendChart.vue";
 
 const store = useFinanceStore();
 
@@ -92,6 +93,17 @@ const emit = defineEmits<{
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Trends Chart -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Financial Trends ({{ store.currentPeriod ? store.currentPeriod.year : new Date().getFullYear() }})
+        </h2>
+        <!-- Optional: Year selector or indication if looking at a specific year -->
+      </div>
+      <TrendChart />
     </div>
 
     <!-- Expense Breakdown -->

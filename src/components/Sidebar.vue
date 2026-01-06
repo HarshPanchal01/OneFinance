@@ -17,6 +17,11 @@ const store = useFinanceStore();
 // Track expanded years in the tree
 const expandedYears = ref<Set<number>>(new Set());
 
+// Context Menu State
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuYear = ref<number | null>(null);
+
 // Modal states
 const showAddYearModal = ref(false);
 const newYear = ref(new Date().getFullYear());
@@ -119,6 +124,30 @@ async function deleteYear(year: number) {
     expandedYears.value.delete(year);
   }
 }
+
+// Open Context Menu
+function openContextMenu(event: MouseEvent, year: number) {
+  event.preventDefault();
+  contextMenuYear.value = year;
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+
+  // Close menu when clicking elsewhere
+  const closeMenu = () => {
+    contextMenuVisible.value = false;
+    document.removeEventListener("click", closeMenu);
+  };
+  // Use timeout to avoid immediate close
+  window.setTimeout(() => document.addEventListener("click", closeMenu), 0);
+}
+
+async function viewYearDetails() {
+  if (contextMenuYear.value) {
+    await store.selectYear(contextMenuYear.value);
+    emit("navigate", "transactions");
+  }
+  contextMenuVisible.value = false;
+}
 </script>
 
 <template>
@@ -143,6 +172,12 @@ async function deleteYear(year: number) {
           >
             {{ getMonthName(store.currentPeriod.month) }}
             {{ store.currentPeriod.year }}
+          </p>
+          <p
+            v-else-if="store.selectedYear"
+            class="text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ store.selectedYear }} (All Months)
           </p>
           <p
             v-else
@@ -227,6 +262,7 @@ async function deleteYear(year: number) {
             <button
               class="flex-1 flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
               @click="toggleYear(yearNode.year)"
+              @contextmenu="openContextMenu($event, yearNode.year)"
             >
               <i
                 :class="[
@@ -322,5 +358,23 @@ async function deleteYear(year: number) {
       </div>
     </Teleport>
     <ConfirmationModal ref="confirmModal" />
+
+    <!-- Custom Context Menu -->
+    <Teleport to="body">
+      <div
+        v-if="contextMenuVisible"
+        class="fixed z-[100] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[160px]"
+        :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
+        @click.stop
+      >
+        <button
+          class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          @click="viewYearDetails"
+        >
+          <i class="pi pi-eye mr-2 text-gray-400" />
+          View Year Details
+        </button>
+      </div>
+    </Teleport>
   </aside>
 </template>
