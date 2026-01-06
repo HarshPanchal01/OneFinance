@@ -103,6 +103,9 @@ const electronAPI = {
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),
 
+  exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
+    ipcRenderer.invoke("save-file", payload),
+
   // ============================================
   // GENERIC IPC (for future use)
   // ============================================
