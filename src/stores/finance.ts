@@ -11,6 +11,7 @@ import type {
   CategoryBreakdown,
   SearchOptions,
 } from "../types";
+import { Transaction } from "electron";
 
 export const useFinanceStore = defineStore("finance", () => {
   // ============================================
@@ -91,7 +92,14 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Load years and periods
       ledgerYears.value = await window.electronAPI.getLedgerYears();
-      ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+
+      //const ledgerPeriodsList: LedgerPeriod[] = [];
+      for (const year of ledgerYears.value) {
+        createLedgerPeriodSync(year);
+      }
+
+      //ledgerPeriods.value = ledgerPeriodsList;
+
       console.log(
         "[Store] Years:",
         ledgerYears.value,
@@ -118,20 +126,62 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Period Management
   // ============================================
 
+  function createLedgerPeriodSync(year: number){
+    for (let month = 1; month <= 12; month++) {
+      const id = 0;
+      const period = {id, year, month};
+      ledgerPeriods.value.push(period);
+    }
+  }
+
+  function deleteLedgerPeriodsByYearSync(year: number){
+    ledgerPeriods.value = ledgerPeriods.value.filter((item) => item.year !== year);
+  }
+
+
+  function fetchTransactionsForPeriodSync(year: number, month: number){
+    transactions.value = transactions.value.filter((value) => {
+      const strDate = value.date;
+      const dateList = strDate.split("-");
+      const dateYear = dateList.at(0);
+      const dateMonth = dateList.at(1);
+
+      return dateMonth === month.toString() && dateYear === year.toString();
+    });
+  }
+
+  function fetchPeriodSummarySync(){
+    // periodSummary
+    // incomeBreakdown
+    // expenseBreakdown
+
+    const transactionsByIncome = transactions.value.filter((value) => value.type==="income");
+    const transactionsByExpense = transactions.value.filter((value) => value.type==="expense");
+
+    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount,0);
+    const transactionsExpenseSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+
+    periodSummary.value.balance = transactionsIncomeSum - transactionsExpenseSum;
+    periodSummary.value.totalExpenses = transactionsExpenseSum;
+    periodSummary.value.totalIncome = transactionsIncomeSum;
+
+    incomeBreakdown.value = ico
+
+  }
+
   async function createYear(year: number) {
     await window.electronAPI.createLedgerYear(year);
+    createLedgerPeriodSync(year);
     // Auto-create all 12 months for the year
-    for (let month = 1; month <= 12; month++) {
-      await window.electronAPI.createLedgerPeriod(year, month);
-    }
     ledgerYears.value = await window.electronAPI.getLedgerYears();
-    ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+    ledgerPeriods.value;
   }
 
   async function deleteYear(year: number) {
     await window.electronAPI.deleteLedgerYear(year);
+    deleteLedgerPeriodsByYearSync(year);
     ledgerYears.value = await window.electronAPI.getLedgerYears();
-    ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+    //ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
     // If deleted current period's year, reset to Global
     if (currentPeriod.value?.year === year) {
@@ -145,19 +195,17 @@ export const useFinanceStore = defineStore("finance", () => {
     error.value = null;
 
     try {
-      currentPeriod.value = await window.electronAPI.createLedgerPeriod(
-        year,
-        month
-      );
+      currentPeriod.value = {id: 0, year: year, month: month};
       console.log(`[Store] currentPeriod set to:`, currentPeriod.value);
 
       // Refresh periods list in case a new one was created
-      ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+      //ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
       // Fetch data for the selected period
       if (currentPeriod.value) {
-        await fetchTransactions(currentPeriod.value.id);
-        await fetchPeriodSummary();
+        fetchTransactionsForPeriodSync(year, month);
+
+        //await fetchPeriodSummary();
       }
 
       console.log(`[Store] Period data fetched`);
