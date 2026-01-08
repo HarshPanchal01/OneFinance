@@ -48,7 +48,7 @@ function navigateTo(view: string) {
   if (view === "dashboard") {
     // Keep the current period context when going to Dashboard
     // But fetch summary to ensure cards are up to date
-    store.fetchPeriodSummary();
+    store.fetchPeriodSummarySync();
   }
   // Transactions logic is handled by Sidebar emitting specific events or store actions
 }
@@ -180,8 +180,8 @@ function handleKeydown(e: KeyboardEvent) {
     <!-- Quick Add Transaction Modal -->
     <TransactionModal
       :visible="showQuickAddModal"
-      :default-year="store.currentPeriod?.year"
-      :default-month="store.currentPeriod?.month"
+      :default-year="store.currentLedgerMonth?.year"
+      :default-month="store.currentLedgerMonth?.month"
       @close="showQuickAddModal = false"
       @saved="showQuickAddModal = false"
     />

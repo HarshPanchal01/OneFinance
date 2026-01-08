@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, toRaw } from "vue";
 import type {
   Category,
   Account,
@@ -160,11 +160,11 @@ export const useFinanceStore = defineStore("finance", () => {
     // incomeBreakdown
     // expenseBreakdown
 
-    const transactionsByIncome = transactions.value.filter((value) => value.type==="income");
-    const transactionsByExpense = transactions.value.filter((value) => value.type==="expense");
+    const transactionsByIncome = toRaw(transactions.value).filter((value) => value.type === "income");
+    const transactionsByExpense = toRaw(transactions.value).filter((value) => value.type === "expense");
 
-    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount,0);
-    const transactionsExpenseSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+    const transactionsExpenseSum = transactionsByExpense.reduce((sum, currentValue) => sum + currentValue.amount, 0);
 
     const incomeCategoryBreakdown = new Map<number, CategoryBreakdown>();
     const expenseCategoryBreakdown = new Map<number, CategoryBreakdown>();
@@ -192,15 +192,27 @@ export const useFinanceStore = defineStore("finance", () => {
       }
     }
 
+
     for(const expense of transactionsByExpense){
 
-      const entry = expenseCategoryBreakdown.get(expense.id);
-      if (entry !== undefined) {
+
+      if (expense.categoryId == undefined) {
+        continue
+      }
+
+      const entry = expenseCategoryBreakdown.get(expense.categoryId);
+      if (entry != undefined) {
         entry.count += 1;
         entry.total += expense.amount;
+
+        expenseCategoryBreakdown.set(expense.categoryId, entry);
       }
-      else{
-        if (expense.categoryId == undefined || expense.categoryName == undefined || expense.categoryColor == undefined || expense.categoryIcon == undefined) {continue}
+      else {
+
+        if (expense.categoryId == undefined || expense.categoryName == undefined || expense.categoryColor == undefined || expense.categoryIcon == undefined) {
+          continue
+        }
+
         expenseCategoryBreakdown.set(expense.categoryId, 
           { categoryId: expense.categoryId,
             categoryName: expense.categoryName,
@@ -218,6 +230,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
     incomeBreakdown.value = Array.from(incomeCategoryBreakdown.values());
     expenseBreakdown.value = Array.from(expenseCategoryBreakdown.values());
+
 
   }
 
@@ -553,6 +566,7 @@ export const useFinanceStore = defineStore("finance", () => {
     removeCategory,
     fetchTransactions,
     fetchRecentTransactions,
+    fetchPeriodSummarySync,
     addTransaction,
     editTransaction,
     removeTransaction,

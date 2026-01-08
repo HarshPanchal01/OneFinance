@@ -19,9 +19,9 @@ import {
   updateTransaction,
   deleteTransaction,
   searchTransactions,
-  type SearchOptions,
+
   // Types
-  type CreateTransactionInput,
+
   // DB paths and instance
   dbPath,
   closeDb,
@@ -31,7 +31,7 @@ import {
   insertAccount,
   editAccount,
 } from "./db";
-import { Account } from "@/types";
+import { Account, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -120,8 +120,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getTransactions",
-    async (_event, ledgerPeriodId?: number | null, limit?: number) => {
-      return getTransactions(ledgerPeriodId, limit);
+    async (_event, ledgerMonth?: LedgerMonth, limit?: number) => {
+      return getTransactions(ledgerMonth, limit);
     }
   );
 
