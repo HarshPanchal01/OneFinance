@@ -1,4 +1,4 @@
-import { Account, AccountType } from "@/types";
+import { Account, AccountType, DailyTransactionSum } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // Type definitions for our database operations
@@ -204,6 +204,13 @@ const electronAPI = {
     year?: number | null
   ): Promise<CategoryBreakdown[]> =>
     ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type, year),
+
+  getDailyTransactionSum: (
+    year: number,
+    month: number,
+    type: "income" | "expense"
+  ): Promise<DailyTransactionSum[]> =>
+    ipcRenderer.invoke("db:getDailyTransactionSum", year, month, type),
 
   // ============================================
   // SYSTEM OPERATIONS

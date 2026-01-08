@@ -13,6 +13,7 @@ const shortcuts = [
   { keys: ["Ctrl", "N"], description: "New transaction" },
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
+  { keys: ["Ctrl", "I"], description: "Go to Insights" },
   { keys: ["Ctrl", "Shift", "C"], description: "Go to Categories" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },

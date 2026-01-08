@@ -28,6 +28,7 @@ import {
   getPeriodSummary,
   getCategoryBreakdown,
   getMonthlyTrends,
+  getDailyTransactionSum,
   // Types
   type CreateTransactionInput,
   // DB paths and instance
@@ -215,6 +216,13 @@ export function registerIpcHandlers(): void {
       year?: number | null
     ) => {
       return getCategoryBreakdown(ledgerPeriodId, type, year);
+    }
+  );
+
+  ipcMain.handle(
+    "db:getDailyTransactionSum",
+    async (_event, year: number, month: number, type: "income" | "expense") => {
+      return getDailyTransactionSum(year, month, type);
     }
   );
 

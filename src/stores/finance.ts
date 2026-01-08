@@ -11,6 +11,7 @@ import type {
   CategoryBreakdown,
   SearchOptions,
   MonthlyTrend,
+  DailyTransactionSum,
 } from "../types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -51,6 +52,10 @@ export const useFinanceStore = defineStore("finance", () => {
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
+  const pacingTrends = ref<{
+    currentMonth: DailyTransactionSum[];
+    previousAverage: DailyTransactionSum[];
+  }>({ currentMonth: [], previousAverage: [] });
 
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load
@@ -493,6 +498,106 @@ export const useFinanceStore = defineStore("finance", () => {
     }
   }
 
+  async function fetchPacingTrends() {
+    try {
+      // Determine the reference month/year
+      let year, month;
+      if (currentPeriod.value) {
+        year = currentPeriod.value.year;
+        month = currentPeriod.value.month;
+      } else {
+        const now = new Date();
+        year = now.getFullYear();
+        month = now.getMonth() + 1;
+      }
+
+      // 1. Fetch Current Month Daily Spend
+      const currentMonthData = await window.electronAPI.getDailyTransactionSum(year, month, 'expense');
+
+      // 2. Fetch Previous 3 Months and Calculate Average
+      // We need to handle year rollover (e.g., if current is Jan, previous is Dec of last year)
+      const previousMonthsData: DailyTransactionSum[][] = [];
+      
+      for (let i = 1; i <= 3; i++) {
+        let pMonth = month - i;
+        let pYear = year;
+        if (pMonth <= 0) {
+          pMonth += 12;
+          pYear -= 1;
+        }
+        const pData = await window.electronAPI.getDailyTransactionSum(pYear, pMonth, 'expense');
+        previousMonthsData.push(pData);
+      }
+
+      // Calculate Average for each day (1-31)
+      const avgData: DailyTransactionSum[] = [];
+      for (let day = 1; day <= 31; day++) {
+        let totalSum = 0;
+        let count = 0;
+        
+        for (const pMonthData of previousMonthsData) {
+          // Find day in this month's data
+          // Since getDailyTransactionSum returns cumulative? No, currently it returns daily sum.
+          // Wait, the pacing chart is usually cumulative. 
+          // The DB function returns DAILY SUM.
+          // We should calculate cumulative here or in the DB.
+          // Let's calculate cumulative here.
+          
+          const dayData = pMonthData.find(d => d.day === day);
+          if (dayData) {
+             totalSum += dayData.total;
+             count++;
+          } else {
+             // If day doesn't exist (e.g. 31st in Feb, or just no spend), it counts as 0 spend?
+             // If the month ended (e.g. Feb 28), we shouldn't count it for day 29, 30, 31?
+             // For simplicity, we treat 0 spend as 0.
+             // But for short months, we shouldn't dilute the average?
+             // Standard approach: Divide by 'count' only if the month actually has that day?
+             // Or just assume 0. Let's assume 0 for simplicity of "average daily burn".
+             totalSum += 0;
+             count++; 
+          }
+        }
+        
+        // Actually, logic is simpler: Just sum all and divide by 3 (or number of valid months)
+        if (count > 0) {
+           avgData.push({ day, total: totalSum / 3 }); // Hardcoded 3 months average
+        }
+      }
+
+      // Convert to Cumulative
+      const toCumulative = (data: DailyTransactionSum[]) => {
+        let runningTotal = 0;
+        return data.map(d => {
+          runningTotal += d.total;
+          return { day: d.day, total: runningTotal };
+        });
+      };
+      
+      // We need to make sure the 'currentMonthData' has entries for days with 0 spend if we want a smooth line?
+      // Or just map the existing ones. Chart.js can handle sparse data if x-axis is linear.
+      // But for cumulative, we need all days up to today (or end of month).
+      
+      const fillDays = (data: DailyTransactionSum[]) => {
+          const filled: DailyTransactionSum[] = [];
+          for (let d = 1; d <= 31; d++) {
+              const existing = data.find(item => item.day === d);
+              filled.push(existing || { day: d, total: 0 });
+          }
+          return filled;
+      }
+
+      pacingTrends.value = {
+        currentMonth: toCumulative(fillDays(currentMonthData)),
+        previousAverage: toCumulative(avgData)
+      };
+
+    } catch (e) {
+      console.error("[Store] Failed to fetch pacing trends:", e);
+      pacingTrends.value = { currentMonth: [], previousAverage: [] };
+    }
+  }
+
   // ============================================
   // RETURN STORE
   // ============================================
@@ -514,6 +619,7 @@ export const useFinanceStore = defineStore("finance", () => {
     incomeBreakdown,
     expenseBreakdown,
     monthlyTrends,
+    pacingTrends,
     isLoading,
     isChangingPeriod,
     error,
@@ -543,6 +649,7 @@ export const useFinanceStore = defineStore("finance", () => {
     clearSearch,
     fetchPeriodSummary,
     fetchMonthlyTrends,
+    fetchPacingTrends,
     fetchAccounts,
     fetchAccountTypes,
     removeAccount,

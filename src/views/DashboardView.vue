@@ -2,7 +2,7 @@
 import { useFinanceStore } from "../stores/finance";
 import { formatCurrency } from "../types";
 import TransactionItem from "../components/TransactionItem.vue";
-import TrendChart from "../components/TrendChart.vue";
+import CashFlowChart from "../components/charts/CashFlowChart.vue";
 
 const store = useFinanceStore();
 
@@ -103,7 +103,7 @@ const emit = defineEmits<{
         </h2>
         <!-- Optional: Year selector or indication if looking at a specific year -->
       </div>
-      <TrendChart />
+      <CashFlowChart />
     </div>
 
     <!-- Expense Breakdown -->

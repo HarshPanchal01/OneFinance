@@ -80,6 +80,11 @@ export interface MonthlyTrend {
   balance: number;
 }
 
+export interface DailyTransactionSum {
+  day: number;
+  total: number;
+}
+
 export interface SearchOptions {
   text?: string;
   categoryIds?: number[];

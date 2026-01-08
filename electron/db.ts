@@ -909,5 +909,38 @@ export function getCategoryBreakdown(
   return db.prepare(query).all(...params) as CategoryBreakdown[];
 }
 
+// ============================================
+// ANALYTICS OPERATIONS
+// ============================================
+
+export interface DailyTransactionSum {
+  day: number;
+  total: number;
+}
+
+export function getDailyTransactionSum(
+  year: number,
+  month: number,
+  type: "income" | "expense"
+): DailyTransactionSum[] {
+  // Ensure we are looking at the correct ledger period
+  // We can join or just match date string pattern like 'YYYY-MM-%'
+  // Using date string matching is often faster/simpler if date is ISO string 'YYYY-MM-DD'
+  const monthStr = month.toString().padStart(2, '0');
+  const datePattern = `${year}-${monthStr}-%`;
+
+  const query = `
+    SELECT 
+      CAST(substr(date, 9, 2) AS INTEGER) as day,
+      SUM(amount) as total
+    FROM transactions
+    WHERE type = ? AND date LIKE ?
+    GROUP BY day
+    ORDER BY day ASC
+  `;
+
+  return db.prepare(query).all(type, datePattern) as DailyTransactionSum[];
+}
+
 // Export the database instance for advanced operations if needed
 export default db;
