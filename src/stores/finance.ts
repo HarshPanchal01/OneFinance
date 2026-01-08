@@ -441,7 +441,7 @@ export const useFinanceStore = defineStore("finance", () => {
         if (currentLedgerMonth.value) {
             // Check if it still belongs?
             // Easier to just re-fetch the list to be safe
-             await fetchTransactions(currentLedgerMonth.value);
+             await fetchTransactions(toRaw(currentLedgerMonth.value));
         } else {
              // Global mode, just update
              transactions.value[index] = updated;
