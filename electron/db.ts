@@ -190,7 +190,7 @@ function seedDefaultAccountData(): void{
   ];
 
   const insertAccountType = db.prepare(
-    "INSERT INTO accountType (id, type) VALUES (?, ?)"
+    "INSERT INTO accountType (type) VALUES (?)"
   );
 
   let result = null;
@@ -380,7 +380,7 @@ export function insertAccountWithId(account: Account): void{
 }
 
 export function insertAccountType(accountType: AccountType): void{
-  const insert = db.prepare("INSERT INTO accountType (id, type) VALUES (?, ?)");
+  const insert = db.prepare("INSERT INTO accountType (type) VALUES (?)");
   insert.run(accountType.type);
 }
 
