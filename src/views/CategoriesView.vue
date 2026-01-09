@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import type { Category } from "../types";
+import { useFinanceStore } from "@/stores/finance";
+import type { Category } from "@/types";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 

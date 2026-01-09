@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import { formatCurrency } from "../types";
-import type { Transaction, TransactionWithCategory } from "../types";
-import TransactionItem from "../components/TransactionItem.vue";
-import TransactionModal from "../components/TransactionModal.vue";
+import { ref, computed, onMounted, watch, toRaw } from "vue";
+import { useFinanceStore } from "@/stores/finance";
+import { formatCurrency } from "@/utils";
+import type { TransactionWithCategory } from "@/types";
+import TransactionItem from "@/components/TransactionItem.vue";
+import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
+import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
 
@@ -14,27 +15,37 @@ const emit = defineEmits<{
   (e: "request-edit-account", id: number): void;
 }>();
 
-const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+const {
+  showModal,
+  editingTransaction,
+  confirmModal,
+  openCreateModal,
+  openEditModal,
+  deleteTransaction,
+  closeModal
+} = useTransactionActions();
+
+// Silence unused variable warning for template ref
+void confirmModal;
 
 onMounted(() => {
   // If a period is already selected (from Sidebar), fetch for that period.
   // If not (Global Mode), fetch all.
-  const periodId = store.currentPeriod?.id || null;
-  store.fetchTransactions(periodId);
+  const ledgerMonth = toRaw(store.currentLedgerMonth) ?? undefined;
+  store.fetchTransactions(ledgerMonth);
 });
 
 // Reactively update when period changes
 watch(
-  () => store.currentPeriod,
-  async (newPeriod) => {
-    const periodId = newPeriod?.id || null;
-    await store.fetchTransactions(periodId);
+  () => store.currentLedgerMonth,
+  async (newLedgerMonth) => {
+    const plainMonth = newLedgerMonth
+      ? toRaw(newLedgerMonth)
+      : undefined;
+
+    await store.fetchTransactions(plainMonth);
   }
 );
-
-// Modal state
-const showModal = ref(false);
-const editingTransaction = ref<Transaction | null>(null);
 
 // Filter state
 const searchQuery = ref("");
@@ -66,38 +77,6 @@ const filteredSummary = computed(() => {
   return { income, expenses, balance: income - expenses };
 });
 
-// Open create modal
-function openCreateModal() {
-  editingTransaction.value = null;
-  showModal.value = true;
-}
-
-// Open edit modal
-function openEditModal(transaction: TransactionWithCategory) {
-  editingTransaction.value = transaction;
-  showModal.value = true;
-}
-
-// Delete transaction
-async function deleteTransaction(id: number) {
-  const confirmed = await confirmModal.value?.openConfirmation({
-    title: "Delete Transaction",
-    message: "Are you sure you want to delete this transaction?",
-    cancelText: "Cancel",
-    confirmText: "Delete",
-  });
-
-  if (confirmed) {
-    await store.removeTransaction(id);
-  }
-}
-
-// Close modal
-function closeModal() {
-  showModal.value = false;
-  editingTransaction.value = null;
-}
-
 // Navigate to account edit
 function goToAccount(accountId: number) {
   emit("request-edit-account", accountId);
@@ -116,8 +95,8 @@ function goToAccount(accountId: number) {
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
           <span v-if="store.isSearching">Global Search</span>
-          <span v-else-if="store.currentPeriod">
-            {{ store.currentPeriod.month }}/{{ store.currentPeriod.year }}
+          <span v-else-if="store.currentLedgerMonth">
+            {{ store.currentLedgerMonth?.month }}/{{ store.currentLedgerMonth?.year }}
           </span>
           <span v-else>All Transactions</span>
           ({{ filteredTransactions.length }})
@@ -258,8 +237,8 @@ function goToAccount(accountId: number) {
     <TransactionModal
       :visible="showModal"
       :transaction="editingTransaction"
-      :default-year="store.currentPeriod?.year"
-      :default-month="store.currentPeriod?.month"
+      :default-year="store.currentLedgerMonth?.year"
+      :default-month="store.currentLedgerMonth?.month"
       @close="closeModal"
       @saved="closeModal"
     />

@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, toRaw } from "vue";
 import type {
-  LedgerPeriod,
   Category,
   Account,
   AccountType,
@@ -10,7 +9,9 @@ import type {
   PeriodSummary,
   CategoryBreakdown,
   SearchOptions,
-} from "../types";
+  LedgerMonth,
+} from "@/types";
+
 
 export const useFinanceStore = defineStore("finance", () => {
   // ============================================
@@ -18,9 +19,9 @@ export const useFinanceStore = defineStore("finance", () => {
   // ============================================
 
   // Current period selection
-  const currentPeriod = ref<LedgerPeriod | null>(null);
+  const currentLedgerMonth = ref<LedgerMonth | null>(null);
   const ledgerYears = ref<number[]>([]);
-  const ledgerPeriods = ref<LedgerPeriod[]>([]);
+  const ledgerMonths = ref<LedgerMonth[]>([]);
 
   // Categories
   const categories = ref<Category[]>([]);
@@ -58,7 +59,7 @@ export const useFinanceStore = defineStore("finance", () => {
   // GETTERS (Computed)
   // ============================================
 
-  const hasCurrentPeriod = computed(() => currentPeriod.value !== null);
+  const hasCurrentPeriod = computed(() => currentLedgerMonth.value !== null);
 
   const incomeTransactions = computed(() =>
     transactions.value.filter((t) => t.type === "income")
@@ -91,12 +92,19 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Load years and periods
       ledgerYears.value = await window.electronAPI.getLedgerYears();
-      ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+
+      //const ledgerPeriodsList: LedgerPeriod[] = [];
+      for (const year of ledgerYears.value) {
+        createLedgerPeriodSync(year);
+      }
+
+      //ledgerPeriods.value = ledgerPeriodsList;
+
       console.log(
         "[Store] Years:",
         ledgerYears.value,
         "Periods:",
-        ledgerPeriods.value.length
+        ledgerMonths.value.length
       );
 
       // Default to Global View (no current period)
@@ -118,23 +126,129 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Period Management
   // ============================================
 
-  async function createYear(year: number) {
-    await window.electronAPI.createLedgerYear(year);
-    // Auto-create all 12 months for the year
+  function createLedgerPeriodSync(year: number){
     for (let month = 1; month <= 12; month++) {
-      await window.electronAPI.createLedgerPeriod(year, month);
+      const period = {month, year};
+
+      //Prevents duplicates when rebuilding UI (UI bug when running developer mode, not sure if it happens in production though)
+      if (ledgerMonths.value.filter((value) => value.month === month && value.year === year).length > 0){
+        continue;
+      }
+
+      ledgerMonths.value.push(period);
     }
-    ledgerYears.value = await window.electronAPI.getLedgerYears();
-    ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
   }
 
-  async function deleteYear(year: number) {
-    await window.electronAPI.deleteLedgerYear(year);
+  function deleteLedgerPeriodsByYearSync(year: number){
+    ledgerMonths.value = ledgerMonths.value.filter((item) => item.year !== year);
+  }
+
+
+  function fetchTransactionsForPeriodSync(year: number, month: number){
+    transactions.value = transactions.value.filter((value) => {
+      const strDate = value.date;
+      const dateList = strDate.split("-");
+      const dateYear = Number(dateList.at(0));
+      const dateMonth = Number(dateList.at(1));
+
+      return dateMonth === month && dateYear === year;
+    });
+  }
+
+  function fetchPeriodSummarySync(){
+    // periodSummary
+    // incomeBreakdown
+    // expenseBreakdown
+
+    const transactionsByIncome = toRaw(transactions.value).filter((value) => value.type === "income");
+    const transactionsByExpense = toRaw(transactions.value).filter((value) => value.type === "expense");
+
+    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+    const transactionsExpenseSum = transactionsByExpense.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+
+    const incomeCategoryBreakdown = new Map<number, CategoryBreakdown>();
+    const expenseCategoryBreakdown = new Map<number, CategoryBreakdown>();
+
+    for(const income of transactionsByIncome){
+
+      const entry = incomeCategoryBreakdown.get(income.id);
+
+      if (entry !== undefined) {
+        entry.count += 1;
+        entry.total += income.amount;
+      } 
+      else{
+
+        if (income.categoryId == undefined || income.categoryName == undefined || income.categoryColor == undefined || income.categoryIcon == undefined) {continue}
+
+        incomeCategoryBreakdown.set(income.categoryId, 
+          { categoryId: income.categoryId,
+            categoryName: income.categoryName,
+            categoryColor: income.categoryColor,
+            categoryIcon: income.categoryIcon,
+            total: income.amount,
+            count: 1
+        });
+      }
+    }
+
+
+    for(const expense of transactionsByExpense){
+
+
+      if (expense.categoryId == undefined) {
+        continue
+      }
+
+      const entry = expenseCategoryBreakdown.get(expense.categoryId);
+      if (entry != undefined) {
+        entry.count += 1;
+        entry.total += expense.amount;
+
+        expenseCategoryBreakdown.set(expense.categoryId, entry);
+      }
+      else {
+
+        if (expense.categoryId == undefined || expense.categoryName == undefined || expense.categoryColor == undefined || expense.categoryIcon == undefined) {
+          continue
+        }
+
+        expenseCategoryBreakdown.set(expense.categoryId, 
+          { categoryId: expense.categoryId,
+            categoryName: expense.categoryName,
+            categoryColor: expense.categoryColor,
+            categoryIcon: expense.categoryIcon,
+            total: expense.amount,
+            count: 1
+        });
+      }
+    }
+
+    periodSummary.value.balance = transactionsIncomeSum - transactionsExpenseSum;
+    periodSummary.value.totalExpenses = transactionsExpenseSum;
+    periodSummary.value.totalIncome = transactionsIncomeSum;
+
+    incomeBreakdown.value = Array.from(incomeCategoryBreakdown.values());
+    expenseBreakdown.value = Array.from(expenseCategoryBreakdown.values());
+
+
+  }
+
+  async function createYear(year: number) {
+    await window.electronAPI.createLedgerYear(year);
+    createLedgerPeriodSync(year);
+    // Auto-create all 12 months for the year
     ledgerYears.value = await window.electronAPI.getLedgerYears();
-    ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+  }
+
+  async function deleteYear(year: number, deleteTransactions: boolean = false) {
+    await window.electronAPI.deleteLedgerYear(year, deleteTransactions);
+    deleteLedgerPeriodsByYearSync(year);
+    ledgerYears.value = await window.electronAPI.getLedgerYears();
+    //ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
     // If deleted current period's year, reset to Global
-    if (currentPeriod.value?.year === year) {
+    if (currentLedgerMonth.value?.year === year) {
       await clearPeriod();
     }
   }
@@ -145,19 +259,16 @@ export const useFinanceStore = defineStore("finance", () => {
     error.value = null;
 
     try {
-      currentPeriod.value = await window.electronAPI.createLedgerPeriod(
-        year,
-        month
-      );
-      console.log(`[Store] currentPeriod set to:`, currentPeriod.value);
+      currentLedgerMonth.value = {year: year, month: month};
+      console.log(`[Store] currentPeriod set to:`, currentLedgerMonth.value);
 
       // Refresh periods list in case a new one was created
-      ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
+      //ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
 
       // Fetch data for the selected period
-      if (currentPeriod.value) {
-        await fetchTransactions(currentPeriod.value.id);
-        await fetchPeriodSummary();
+      if (currentLedgerMonth.value) {
+        fetchTransactionsForPeriodSync(year, month);
+        fetchPeriodSummarySync();
       }
 
       console.log(`[Store] Period data fetched`);
@@ -172,13 +283,13 @@ export const useFinanceStore = defineStore("finance", () => {
   async function clearPeriod() {
     console.log("[Store] clearPeriod called (Global Mode)");
     isChangingPeriod.value = true;
-    currentPeriod.value = null;
+    currentLedgerMonth.value = null;
 
     try {
       // Fetch Global Data
       await fetchRecentTransactions(5); // Ensure recent list is up to date
-      await fetchTransactions(null); // All transactions
-      await fetchPeriodSummary(); // Global summary
+      await fetchTransactions(); // All transactions
+      await fetchPeriodSummarySync(); // Global summary
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Failed to load global data";
       console.error("[Store] Clear period error:", e);
@@ -274,8 +385,13 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Transactions
   // ============================================
 
-  async function fetchTransactions(periodId?: number | null) {
-    transactions.value = await window.electronAPI.getTransactions(periodId);
+  async function fetchTransactions(ledgerMonth? : LedgerMonth) {
+
+    const result = await window.electronAPI.getTransactions(ledgerMonth);
+
+    console.log(result);
+
+    transactions.value = await window.electronAPI.getTransactions(ledgerMonth);
   }
 
   async function fetchRecentTransactions(limit: number) {
@@ -285,43 +401,27 @@ export const useFinanceStore = defineStore("finance", () => {
     );
   }
 
-  async function addTransaction(
-    input: Omit<CreateTransactionInput, "ledgerPeriodId">
+  async function addTransaction(transaction: CreateTransactionInput
+    
   ) {
-    // Determine which period to attach this to.
-    // If Global Mode (currentPeriod is null), we must infer or ask for period.
-    // For now, if currentPeriod is null, we can try to find the period based on the date
-    // or default to "current real world month" if we want to be smart.
-    // BUT the simpler logic is: IF we are in a specific period, use it.
-    // IF we are in Global Mode, we might need the User to specify, or we can auto-assign based on date.
 
-    let targetPeriodId: number;
+    const newTransaction = await window.electronAPI.createTransaction(
+      transaction,
+    );
 
-    if (currentPeriod.value) {
-      targetPeriodId = currentPeriod.value.id;
-    } else {
-      // Global Mode: infer from date
-      const date = new Date(input.date);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const period = await window.electronAPI.createLedgerPeriod(year, month);
-      targetPeriodId = period.id;
-    }
+    const targetPeriodDate = transaction.date.split("-");
+    const targetPeriodMonth = Number(targetPeriodDate.at(1));
 
-    const newTransaction = await window.electronAPI.createTransaction({
-      ...input,
-      ledgerPeriodId: targetPeriodId,
-    });
 
     // Refresh Data
     await fetchRecentTransactions(5);
 
     // Only update main list if it matches current filter (Global or Specific Period)
-    if (!currentPeriod.value || currentPeriod.value.id === targetPeriodId) {
+    if (!currentLedgerMonth.value || currentLedgerMonth.value.month === targetPeriodMonth) {
         // Add to front if valid
         transactions.value.unshift(newTransaction);
         // Refresh summary
-        await fetchPeriodSummary();
+        fetchPeriodSummarySync();
     }
 
     return newTransaction;
@@ -338,17 +438,17 @@ export const useFinanceStore = defineStore("finance", () => {
         // If the date changed such that it moves out of the current view (if period specific),
         // we might want to remove it. But for simplicity, we just update it in place or re-fetch.
         // Re-fetching is safer.
-        if (currentPeriod.value) {
+        if (currentLedgerMonth.value) {
             // Check if it still belongs?
             // Easier to just re-fetch the list to be safe
-             await fetchTransactions(currentPeriod.value.id);
+             await fetchTransactions(toRaw(currentLedgerMonth.value));
         } else {
              // Global mode, just update
              transactions.value[index] = updated;
         }
       }
       await fetchRecentTransactions(5); // Update dashboard list
-      await fetchPeriodSummary(); // Refresh summary
+      await fetchPeriodSummarySync(); // Refresh summary
     }
     return updated;
   }
@@ -358,7 +458,7 @@ export const useFinanceStore = defineStore("finance", () => {
     if (success) {
       transactions.value = transactions.value.filter((t) => t.id !== id);
       await fetchRecentTransactions(5); // Update dashboard list
-      await fetchPeriodSummary(); // Refresh summary
+      await fetchPeriodSummarySync(); // Refresh summary
       
       // Also remove from search results if present
       if (isSearching.value) {
@@ -404,37 +504,37 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Summary / Dashboard
   // ============================================
 
-  async function fetchPeriodSummary() {
-    const periodId = currentPeriod.value?.id || null; // null = Global
+  // async function fetchPeriodSummary() {
+  //   const periodId = currentPeriod.value?.id || null; // null = Global
 
-    const summary = await window.electronAPI.getPeriodSummary(periodId);
+  //   const summary = await window.electronAPI.getPeriodSummary(periodId);
 
-    periodSummary.value = summary || {
-      totalIncome: 0,
-      totalExpenses: 0,
-      balance: 0,
-      transactionCount: 0,
-    };
+  //   periodSummary.value = summary || {
+  //     totalIncome: 0,
+  //     totalExpenses: 0,
+  //     balance: 0,
+  //     transactionCount: 0,
+  //   };
 
-    incomeBreakdown.value = await window.electronAPI.getCategoryBreakdown(
-      periodId,
-      "income"
-    );
-    expenseBreakdown.value = await window.electronAPI.getCategoryBreakdown(
-      periodId,
-      "expense"
-    );
-  }
+  //   incomeBreakdown.value = await window.electronAPI.getCategoryBreakdown(
+  //     periodId,
+  //     "income"
+  //   );
+  //   expenseBreakdown.value = await window.electronAPI.getCategoryBreakdown(
+  //     periodId,
+  //     "expense"
+  //   );
+  // }
 
   // ============================================
-  // RETURN STORE
+  // RETURN STORE 
   // ============================================
 
   return {
     // State
-    currentPeriod,
+    currentLedgerMonth,
     ledgerYears,
-    ledgerPeriods,
+    ledgerMonths,
     categories,
     accounts,
     accountTypes,
@@ -466,12 +566,12 @@ export const useFinanceStore = defineStore("finance", () => {
     removeCategory,
     fetchTransactions,
     fetchRecentTransactions,
+    fetchPeriodSummarySync,
     addTransaction,
     editTransaction,
     removeTransaction,
     searchTransactions,
     clearSearch,
-    fetchPeriodSummary,
     fetchAccounts,
     fetchAccountTypes,
     removeAccount,

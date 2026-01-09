@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { TransactionWithCategory } from "../types";
-import { formatCurrency, formatDate } from "../types";
-import { useFinanceStore } from "../stores/finance";
+import type { TransactionWithCategory } from "@/types";
+import { formatCurrency, formatDate } from "@/utils";
+import { useFinanceStore } from "@/stores/finance";
 
 const props = defineProps<{
   transaction: TransactionWithCategory;

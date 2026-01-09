@@ -1,75 +1,5 @@
-import { Account, AccountType } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
-
-// Type definitions for our database operations
-export interface LedgerPeriod {
-  id: number;
-  year: number;
-  month: number;
-}
-
-export interface Category {
-  id: number;
-  name: string;
-  colorCode: string;
-  icon: string;
-}
-
-export interface Transaction {
-  id: number;
-  ledgerPeriodId: number;
-  title: string;
-  amount: number;
-  date: string;
-  type: "income" | "expense";
-  notes: string | null;
-  categoryId: number | null;
-  accountId: number;
-}
-
-export interface TransactionWithCategory extends Transaction {
-  categoryName: string | null;
-  categoryColor: string | null;
-  categoryIcon: string | null;
-}
-
-export interface CreateTransactionInput {
-  ledgerPeriodId: number;
-  title: string;
-  amount: number;
-  date: string;
-  type: "income" | "expense";
-  notes?: string;
-  categoryId?: number;
-  accountId: number;
-}
-
-export interface PeriodSummary {
-  totalIncome: number;
-  totalExpenses: number;
-  balance: number;
-  transactionCount: number;
-}
-
-export interface CategoryBreakdown {
-  categoryId: number | null;
-  categoryName: string;
-  categoryColor: string;
-  categoryIcon: string;
-  total: number;
-  count: number;
-}
-
-export interface SearchOptions {
-  text?: string;
-  categoryIds?: number[];
-  accountIds?: number[];
-  fromDate?: string | null;
-  toDate?: string | null;
-  minAmount?: number | null;
-  maxAmount?: number | null;
-  type?: "income" | "expense" | null;
-}
 
 // The API exposed to the renderer process
 const electronAPI = {
@@ -82,26 +12,8 @@ const electronAPI = {
   createLedgerYear: (year: number): Promise<number> =>
     ipcRenderer.invoke("db:createLedgerYear", year),
 
-  deleteLedgerYear: (year: number): Promise<boolean> =>
-    ipcRenderer.invoke("db:deleteLedgerYear", year),
-
-  // ============================================
-  // LEDGER PERIODS
-  // ============================================
-  getLedgerPeriods: (year?: number): Promise<LedgerPeriod[]> =>
-    ipcRenderer.invoke("db:getLedgerPeriods", year),
-
-  getLedgerPeriodByYearMonth: (
-    year: number,
-    month: number
-  ): Promise<LedgerPeriod | undefined> =>
-    ipcRenderer.invoke("db:getLedgerPeriodByYearMonth", year, month),
-
-  createLedgerPeriod: (year: number, month: number): Promise<LedgerPeriod> =>
-    ipcRenderer.invoke("db:createLedgerPeriod", year, month),
-
-  getOrCreateCurrentPeriod: (): Promise<LedgerPeriod> =>
-    ipcRenderer.invoke("db:getOrCreateCurrentPeriod"),
+  deleteLedgerYear: (year: number, deleteTransactions: boolean = false): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteLedgerYear", year, deleteTransactions),
 
   // ============================================
   // CATEGORIES
@@ -150,10 +62,10 @@ const electronAPI = {
   // TRANSACTIONS
   // ============================================
   getTransactions: (
-    ledgerPeriodId?: number | null,
+    ledgerMonth?: LedgerMonth | null,
     limit?: number
   ): Promise<TransactionWithCategory[]> =>
-    ipcRenderer.invoke("db:getTransactions", ledgerPeriodId, limit),
+    ipcRenderer.invoke("db:getTransactions", ledgerMonth, limit),
 
   getTransactionById: (
     id: number
@@ -179,18 +91,6 @@ const electronAPI = {
     limit?: number
   ): Promise<TransactionWithCategory[]> =>
     ipcRenderer.invoke("db:searchTransactions", options, limit),
-
-  // ============================================
-  // SUMMARY / DASHBOARD
-  // ============================================
-  getPeriodSummary: (ledgerPeriodId: number | null): Promise<PeriodSummary> =>
-    ipcRenderer.invoke("db:getPeriodSummary", ledgerPeriodId),
-
-  getCategoryBreakdown: (
-    ledgerPeriodId: number | null,
-    type: "income" | "expense"
-  ): Promise<CategoryBreakdown[]> =>
-    ipcRenderer.invoke("db:getCategoryBreakdown", ledgerPeriodId, type),
 
   // ============================================
   // SYSTEM OPERATIONS
