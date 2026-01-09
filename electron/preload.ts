@@ -12,8 +12,8 @@ const electronAPI = {
   createLedgerYear: (year: number): Promise<number> =>
     ipcRenderer.invoke("db:createLedgerYear", year),
 
-  deleteLedgerYear: (year: number): Promise<boolean> =>
-    ipcRenderer.invoke("db:deleteLedgerYear", year),
+  deleteLedgerYear: (year: number, deleteTransactions: boolean = false): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteLedgerYear", year, deleteTransactions),
 
   // ============================================
   // CATEGORIES

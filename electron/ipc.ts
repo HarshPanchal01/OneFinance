@@ -50,8 +50,8 @@ export function registerIpcHandlers(): void {
     return createLedgerYear(year);
   });
 
-  ipcMain.handle("db:deleteLedgerYear", async (_event, year: number) => {
-    return deleteLedgerYear(year);
+  ipcMain.handle("db:deleteLedgerYear", async (_event, year: number, deleteTransactions: boolean) => {
+    return deleteLedgerYear(year, deleteTransactions);
   });
 
   // ============================================

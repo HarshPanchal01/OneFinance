@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useFinanceStore } from "../stores/finance";
 import { getMonthName } from "../types";
-import ConfirmationModal from "@/components/ConfirmationModal.vue";
+import YearDeleteModal from "@/components/YearDeleteModal.vue";
 
 const props = defineProps<{
   currentView: string;
@@ -20,7 +20,8 @@ const expandedYears = ref<Set<number>>(new Set());
 // Modal states
 const showAddYearModal = ref(false);
 const newYear = ref(new Date().getFullYear());
-const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+const showDeleteYearModal = ref(false);
+const yearToDelete = ref<number | null>(null);
 
 // Navigation items
 const navItems = [
@@ -106,18 +107,19 @@ async function addYear() {
 }
 
 // Delete year
-async function deleteYear(year: number) {
-  const confirmed = await confirmModal.value?.openConfirmation({
-    title: "Delete Year",
-    message: `Are you sure you want to delete ${year} and all its data? This cannot be undone.`,
-    cancelText: "Cancel",
-    confirmText: "Delete",
-  });
+function deleteYear(year: number) {
+  yearToDelete.value = year;
+  showDeleteYearModal.value = true;
+}
 
-  if (confirmed) {
-    await store.deleteYear(year);
-    expandedYears.value.delete(year);
+// Confirm delete year
+async function handleDeleteYearConfirm(deleteTransactions: boolean) {
+  if (yearToDelete.value) {
+    await store.deleteYear(yearToDelete.value, deleteTransactions);
+    expandedYears.value.delete(yearToDelete.value);
   }
+  showDeleteYearModal.value = false;
+  yearToDelete.value = null;
 }
 </script>
 
@@ -321,6 +323,11 @@ async function deleteYear(year: number) {
         </div>
       </div>
     </Teleport>
-    <ConfirmationModal ref="confirmModal" />
+    <YearDeleteModal
+      :visible="showDeleteYearModal"
+      :year="yearToDelete"
+      @close="showDeleteYearModal = false"
+      @confirm="handleDeleteYearConfirm"
+    />
   </aside>
 </template>

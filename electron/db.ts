@@ -214,11 +214,25 @@ export function createLedgerYear(year: number): number {
   return year;
 }
 
-export function deleteLedgerYear(year: number): boolean {
-  // This will cascade delete all periods and their transactions due to FK constraints
-  const stmt = db.prepare("DELETE FROM ledger_years WHERE year = ?");
-  const result = stmt.run(year);
-  return result.changes > 0;
+export function deleteLedgerYear(year: number, deleteTransactions: boolean = false): boolean {
+  const database = getDb();
+
+  const deleteOp = database.transaction(() => {
+    if (deleteTransactions) {
+      // Delete transactions for that year (dates starting with "YYYY-")
+      database.prepare("DELETE FROM transactions WHERE date LIKE ?").run(`${year}-%`);
+    }
+    // Delete the year from ledger_years
+    database.prepare("DELETE FROM ledger_years WHERE year = ?").run(year);
+  });
+
+  try {
+    deleteOp();
+    return true;
+  } catch (error) {
+    console.error("Delete year failed:", error);
+    return false;
+  }
 }
 
 // ============================================

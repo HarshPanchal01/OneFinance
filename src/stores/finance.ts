@@ -241,8 +241,8 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerYears.value = await window.electronAPI.getLedgerYears();
   }
 
-  async function deleteYear(year: number) {
-    await window.electronAPI.deleteLedgerYear(year);
+  async function deleteYear(year: number, deleteTransactions: boolean = false) {
+    await window.electronAPI.deleteLedgerYear(year, deleteTransactions);
     deleteLedgerPeriodsByYearSync(year);
     ledgerYears.value = await window.electronAPI.getLedgerYears();
     //ledgerPeriods.value = await window.electronAPI.getLedgerPeriods();
