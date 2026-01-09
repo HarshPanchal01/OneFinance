@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { useFinanceStore } from "../stores/finance";
-import { formatCurrency } from "../types";
-import TransactionItem from "../components/TransactionItem.vue";
+import { useFinanceStore } from "@/stores/finance";
+import { formatCurrency } from "@/utils";
+import TransactionItem from "@/components/TransactionItem.vue";
+import TransactionModal from "@/components/TransactionModal.vue";
+import ConfirmationModal from "@/components/ConfirmationModal.vue";
+import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
 
@@ -9,6 +12,18 @@ const emit = defineEmits<{
   (e: "addTransaction"): void;
   (e: "request-edit-account", id: number): void;
 }>();
+
+const {
+  showModal,
+  editingTransaction,
+  confirmModal,
+  openEditModal,
+  deleteTransaction,
+  closeModal
+} = useTransactionActions();
+
+// Silence unused variable warning for template ref
+void confirmModal;
 </script>
 
 <template>
@@ -180,9 +195,22 @@ const emit = defineEmits<{
           v-for="transaction in store.recentTransactions"
           :key="transaction.id"
           :transaction="transaction"
+          @edit="openEditModal"
+          @delete="deleteTransaction"
           @edit-account="(id) => emit('request-edit-account', id)"
         />
       </div>
     </div>
   </div>
+
+  <TransactionModal
+    :visible="showModal"
+    :transaction="editingTransaction"
+    :default-year="store.currentLedgerMonth?.year"
+    :default-month="store.currentLedgerMonth?.month"
+    @close="closeModal"
+    @saved="closeModal"
+  />
+
+  <ConfirmationModal ref="confirmModal" />
 </template>

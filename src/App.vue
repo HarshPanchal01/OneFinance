@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
-import { useFinanceStore } from "./stores/finance";
+import { useFinanceStore } from "@/stores/finance";
 
 // Components
-import Sidebar from "./components/Sidebar.vue";
-import TopBar from "./components/TopBar.vue";
-import TransactionModal from "./components/TransactionModal.vue";
+import Sidebar from "@/components/Sidebar.vue";
+import TopBar from "@/components/TopBar.vue";
+import TransactionModal from "@/components/TransactionModal.vue";
 
 // Views
-import DashboardView from "./views/DashboardView.vue";
-import TransactionsView from "./views/TransactionsView.vue";
-import CategoriesView from "./views/CategoriesView.vue";
-import SettingsView from "./views/SettingsView.vue";
-import AccountsView from "./views/accounts_view/AccountsView.vue";
-
+import DashboardView from "@/views/DashboardView.vue";
+import TransactionsView from "@/views/TransactionsView.vue";
+import CategoriesView from "@/views/CategoriesView.vue";
+import SettingsView from "@/views/SettingsView.vue";
+import AccountsView from "@/views/accounts/AccountsView.vue";
 const store = useFinanceStore();
 
 // Current view

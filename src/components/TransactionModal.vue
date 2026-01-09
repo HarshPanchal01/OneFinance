@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import type { Transaction } from "../types";
+import { useFinanceStore } from "@/stores/finance";
+import type { Transaction } from "@/types";
 
 const props = defineProps<{
   visible: boolean;

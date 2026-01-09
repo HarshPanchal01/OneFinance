@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, toRaw } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import { formatCurrency } from "../types";
-import type { Transaction, TransactionWithCategory } from "../types";
-import TransactionItem from "../components/TransactionItem.vue";
-import TransactionModal from "../components/TransactionModal.vue";
+import { useFinanceStore } from "@/stores/finance";
+import { formatCurrency } from "@/utils";
+import type { TransactionWithCategory } from "@/types";
+import TransactionItem from "@/components/TransactionItem.vue";
+import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
+import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
 
@@ -14,7 +15,18 @@ const emit = defineEmits<{
   (e: "request-edit-account", id: number): void;
 }>();
 
-const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+const {
+  showModal,
+  editingTransaction,
+  confirmModal,
+  openCreateModal,
+  openEditModal,
+  deleteTransaction,
+  closeModal
+} = useTransactionActions();
+
+// Silence unused variable warning for template ref
+void confirmModal;
 
 onMounted(() => {
   // If a period is already selected (from Sidebar), fetch for that period.
@@ -34,10 +46,6 @@ watch(
     await store.fetchTransactions(plainMonth);
   }
 );
-
-// Modal state
-const showModal = ref(false);
-const editingTransaction = ref<Transaction | null>(null);
 
 // Filter state
 const searchQuery = ref("");
@@ -68,38 +76,6 @@ const filteredSummary = computed(() => {
 
   return { income, expenses, balance: income - expenses };
 });
-
-// Open create modal
-function openCreateModal() {
-  editingTransaction.value = null;
-  showModal.value = true;
-}
-
-// Open edit modal
-function openEditModal(transaction: TransactionWithCategory) {
-  editingTransaction.value = transaction;
-  showModal.value = true;
-}
-
-// Delete transaction
-async function deleteTransaction(id: number) {
-  const confirmed = await confirmModal.value?.openConfirmation({
-    title: "Delete Transaction",
-    message: "Are you sure you want to delete this transaction?",
-    cancelText: "Cancel",
-    confirmText: "Delete",
-  });
-
-  if (confirmed) {
-    await store.removeTransaction(id);
-  }
-}
-
-// Close modal
-function closeModal() {
-  showModal.value = false;
-  editingTransaction.value = null;
-}
 
 // Navigate to account edit
 function goToAccount(accountId: number) {

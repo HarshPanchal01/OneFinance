@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import { getMonthName } from "../types";
+import { useFinanceStore } from "@/stores/finance";
+import { getMonthName } from "@/utils";
 import YearDeleteModal from "@/components/YearDeleteModal.vue";
 
 const props = defineProps<{

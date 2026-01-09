@@ -10,7 +10,7 @@ import type {
   CategoryBreakdown,
   SearchOptions,
   LedgerMonth,
-} from "../types";
+} from "@/types";
 
 
 export const useFinanceStore = defineStore("finance", () => {
