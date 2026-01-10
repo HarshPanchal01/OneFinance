@@ -4,11 +4,13 @@ import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import { useFinanceStore } from "@/stores/finance";
 import { Account, AccountType, Category, TransactionWithCategory } from "@/types";
+import NotificationModal from "@/components/NotificationModal.vue";
 
 const appVersion = "0.0.1";
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
+const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 
 const store = useFinanceStore();
 
@@ -45,7 +47,7 @@ async function deleteDatabase() {
   if (confirmed) {
     const success = await window.electronAPI.deleteDatabase();
     if (success) {
-      await errorModal.value?.openConfirmation({
+      await notificationModal.value?.openConfirmation({
         title: "Database Deleted",
         message: "Database deleted. Please restart the application (run npm run dev).",
         confirmText: "Okay",
@@ -91,7 +93,7 @@ async function exportData() {
 
   if (!result.success){return}
 
-  await errorModal.value?.openConfirmation({
+  await notificationModal.value?.openConfirmation({
         title: "Database Exported",
         message: "A JSON file is available with the data at the location",
         confirmText: "Okay",
@@ -208,7 +210,7 @@ async function insertImportData(data: {
   categories?: Category[],
   accountTypes?: AccountType[],
   ledgerYears?: number[]
-}): Promise<boolean> {
+}, replace: boolean): Promise<boolean> {
 
   
   const accounts = data.accounts!;
@@ -228,6 +230,16 @@ async function insertImportData(data: {
   
   try {
     for (const accountType of accountTypes){
+
+      if (!replace){
+        // Check for existing account type
+        const existing = store.accountTypes.find((at) => at.type === accountType.type);
+        if (existing){
+          accountTypeIdMap.set(accountType.id, existing.id);
+          console.log(`Skipping inserting existing account type ${accountType.type}`);
+          continue;
+        }
+      }
   
       const result = await store.addAccountType(accountType);
 
@@ -241,6 +253,16 @@ async function insertImportData(data: {
     }
   
     for (const account of accounts){
+
+      if (!replace){
+        // Check for existing account
+        const existing = store.accounts.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
+        if (existing){
+          accountIdMap.set(account.id, existing.id);
+          console.log(`Skipping inserting existing account ${account.accountName}`);
+          continue;
+        }
+      }
   
       const accountTypeId = accountTypeIdMap.get(account.accountTypeId);
   
@@ -265,6 +287,16 @@ async function insertImportData(data: {
   
   
     for (const category of categories){
+
+      if (!replace){
+        // Check for existing category
+        const existing = store.categories.find((c) => c.name === category.name);
+        if (existing){
+          categoryTypeIdMap.set(category.id, existing.id);
+          console.log(`Skipping inserting existing category ${category.name}`);
+          continue;
+        }
+      }
   
       const result = await store.addCategory(category.name, category.colorCode, category.icon);
 
@@ -280,6 +312,15 @@ async function insertImportData(data: {
   
   
     for (const ledgerYear of ledgerYears){
+
+        if (!replace){
+          // Check for existing ledger year
+          const existing = store.ledgerYears.find((ly) => ly === ledgerYear);
+          if (existing){
+            console.log(`Skipping inserting existing ledger year ${ledgerYear}`);
+            continue;
+          }
+        }
   
         await store.createYear(ledgerYear);
 
@@ -287,6 +328,15 @@ async function insertImportData(data: {
     }
   
     for (const transaction of transactions){
+
+        if (!replace){
+          // Check for existing transaction
+          const existing = store.transactions.find((t) => t.title === transaction.title && t.amount === transaction.amount && t.date === transaction.date);
+          if (existing){
+            console.log(`Skipping inserting existing transaction ${transaction.title}`);
+            continue;
+          }
+        }
   
         if (transaction.categoryId != undefined){
           const mappedCategoryId = categoryTypeIdMap.get(transaction.categoryId);
@@ -356,7 +406,7 @@ async function importData() {
     await store.deleteAllDataFromTables();
 
 
-    const success = await insertImportData(result.data);
+    const success = await insertImportData(result.data, true);
 
     if (!success){
       return await errorModal.value?.openConfirmation({
@@ -369,7 +419,7 @@ async function importData() {
   }
   else{
     
-    const success = await insertImportData(result.data);
+    const success = await insertImportData(result.data, false);
 
     if (!success){
       return await errorModal.value?.openConfirmation({
@@ -381,7 +431,7 @@ async function importData() {
 
   }
 
-  return await errorModal.value?.openConfirmation({
+  return await notificationModal.value?.openConfirmation({
         title: "Import Successful",
         message: "Data imported successfully.",
         confirmText: "Okay",
@@ -545,4 +595,5 @@ async function importData() {
   </div>
   <ConfirmationModal ref="confirmModal" />
   <ErrorModal ref="errorModal" />
+  <NotificationModal ref="notificationModal" />
 </template>
