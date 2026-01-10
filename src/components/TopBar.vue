@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useFinanceStore } from "../stores/finance";
+import { ref, watch, computed, onMounted, onUnmounted } from "vue";
+import { useFinanceStore } from "@/stores/finance";
 import DatePicker from "primevue/datepicker";
 
 const props = defineProps<{

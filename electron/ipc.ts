@@ -5,11 +5,7 @@ import {
   getLedgerYears,
   createLedgerYear,
   deleteLedgerYear,
-  // Ledger Periods
-  getLedgerPeriods,
-  getLedgerPeriodByYearMonth,
-  createLedgerPeriod,
-  getOrCreateCurrentPeriod,
+
   // Categories
   getCategories,
   getCategoryById,
@@ -23,14 +19,9 @@ import {
   updateTransaction,
   deleteTransaction,
   searchTransactions,
-  type SearchOptions,
-  // Summary
-  getPeriodSummary,
-  getCategoryBreakdown,
-  getMonthlyTrends,
-  getDailyTransactionSum,
+
   // Types
-  type CreateTransactionInput,
+
   // DB paths and instance
   dbPath,
   closeDb,
@@ -40,7 +31,7 @@ import {
   insertAccount,
   editAccount,
 } from "./db";
-import { Account } from "@/types";
+import { Account, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -59,34 +50,8 @@ export function registerIpcHandlers(): void {
     return createLedgerYear(year);
   });
 
-  ipcMain.handle("db:deleteLedgerYear", async (_event, year: number) => {
-    return deleteLedgerYear(year);
-  });
-
-  // ============================================
-  // LEDGER PERIODS HANDLERS
-  // ============================================
-
-  ipcMain.handle("db:getLedgerPeriods", async (_event, year?: number) => {
-    return getLedgerPeriods(year);
-  });
-
-  ipcMain.handle(
-    "db:getLedgerPeriodByYearMonth",
-    async (_event, year: number, month: number) => {
-      return getLedgerPeriodByYearMonth(year, month);
-    }
-  );
-
-  ipcMain.handle(
-    "db:createLedgerPeriod",
-    async (_event, year: number, month: number) => {
-      return createLedgerPeriod(year, month);
-    }
-  );
-
-  ipcMain.handle("db:getOrCreateCurrentPeriod", async () => {
-    return getOrCreateCurrentPeriod();
+  ipcMain.handle("db:deleteLedgerYear", async (_event, year: number, deleteTransactions: boolean) => {
+    return deleteLedgerYear(year, deleteTransactions);
   });
 
   // ============================================
@@ -155,8 +120,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:getTransactions",
-    async (_event, ledgerPeriodId?: number | null, limit?: number, year?: number | null) => {
-      return getTransactions(ledgerPeriodId, limit, year);
+    async (_event, ledgerMonth?: LedgerMonth, limit?: number) => {
+      return getTransactions(ledgerMonth, limit);
     }
   );
 
@@ -186,43 +151,6 @@ export function registerIpcHandlers(): void {
     "db:searchTransactions",
     async (_event, options: SearchOptions, limit?: number) => {
       return searchTransactions(options, limit);
-    }
-  );
-
-  // ============================================
-  // SUMMARY / DASHBOARD HANDLERS
-  // ============================================
-
-  ipcMain.handle(
-    "db:getPeriodSummary",
-    async (_event, ledgerPeriodId: number | null, year?: number | null) => {
-      return getPeriodSummary(ledgerPeriodId, year);
-    }
-  );
-
-  ipcMain.handle(
-    "db:getMonthlyTrends",
-    async (_event, year: number) => {
-      return getMonthlyTrends(year);
-    }
-  );
-
-  ipcMain.handle(
-    "db:getCategoryBreakdown",
-    async (
-      _event,
-      ledgerPeriodId: number | null,
-      type: "income" | "expense",
-      year?: number | null
-    ) => {
-      return getCategoryBreakdown(ledgerPeriodId, type, year);
-    }
-  );
-
-  ipcMain.handle(
-    "db:getDailyTransactionSum",
-    async (_event, year: number, month: number, type: "income" | "expense") => {
-      return getDailyTransactionSum(year, month, type);
     }
   );
 

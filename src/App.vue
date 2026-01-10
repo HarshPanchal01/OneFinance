@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
-import { useFinanceStore } from "./stores/finance";
+import { useFinanceStore } from "@/stores/finance";
 
 // Components
-import Sidebar from "./components/Sidebar.vue";
-import TopBar from "./components/TopBar.vue";
-import TransactionModal from "./components/TransactionModal.vue";
+import Sidebar from "@/components/Sidebar.vue";
+import TopBar from "@/components/TopBar.vue";
+import TransactionModal from "@/components/TransactionModal.vue";
 
 // Views
-import DashboardView from "./views/DashboardView.vue";
-import TransactionsView from "./views/TransactionsView.vue";
-import CategoriesView from "./views/CategoriesView.vue";
-import SettingsView from "./views/SettingsView.vue";
-import AccountsView from "./views/accounts_view/AccountsView.vue";
-import InsightsView from "./views/InsightsView.vue";
-
+import DashboardView from "@/views/DashboardView.vue";
+import TransactionsView from "@/views/TransactionsView.vue";
+import CategoriesView from "@/views/CategoriesView.vue";
+import SettingsView from "@/views/SettingsView.vue";
+import AccountsView from "@/views/accounts/AccountsView.vue";
+import InsightsView from "@/views/InsightsView.vue";
+  
 const store = useFinanceStore();
 
 // Current view
@@ -49,7 +49,7 @@ function navigateTo(view: string) {
   if (view === "dashboard") {
     // Keep the current period context when going to Dashboard
     // But fetch summary to ensure cards are up to date
-    store.fetchPeriodSummary();
+    store.fetchPeriodSummarySync();
   }
   // Transactions logic is handled by Sidebar emitting specific events or store actions
 }
@@ -185,8 +185,8 @@ function handleKeydown(e: KeyboardEvent) {
     <!-- Quick Add Transaction Modal -->
     <TransactionModal
       :visible="showQuickAddModal"
-      :default-year="store.currentPeriod?.year || store.selectedYear || undefined"
-      :default-month="store.currentPeriod?.month"
+      :default-year="store.currentLedgerMonth?.year"
+      :default-month="store.currentLedgerMonth?.month"
       @close="showQuickAddModal = false"
       @saved="showQuickAddModal = false"
     />

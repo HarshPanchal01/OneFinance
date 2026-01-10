@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import { getMonthName } from "../types";
-import ConfirmationModal from "@/components/ConfirmationModal.vue";
+import { useFinanceStore } from "@/stores/finance";
+import { getMonthName } from "@/utils";
+import YearDeleteModal from "@/components/YearDeleteModal.vue";
 
 const props = defineProps<{
   currentView: string;
@@ -25,7 +25,8 @@ const contextMenuYear = ref<number | null>(null);
 // Modal states
 const showAddYearModal = ref(false);
 const newYear = ref(new Date().getFullYear());
-const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+const showDeleteYearModal = ref(false);
+const yearToDelete = ref<number | null>(null);
 
 // Navigation items
 const navItems = [
@@ -40,17 +41,17 @@ const navItems = [
 // Build the tree structure
 interface YearNode {
   year: number;
-  months: { month: number; periodId: number }[];
+  months: number[];
 }
 
 const ledgerTree = computed<YearNode[]>(() => {
   const tree: YearNode[] = [];
 
   for (const year of store.ledgerYears) {
-    const months = store.ledgerPeriods
+    const months = store.ledgerMonths
       .filter((p) => p.year === year)
-      .map((p) => ({ month: p.month, periodId: p.id }))
-      .sort((a, b) => a.month - b.month);
+      .map((p) => (p.month))
+      .sort((a, b) => a - b);
 
     tree.push({ year, months });
   }
@@ -60,7 +61,7 @@ const ledgerTree = computed<YearNode[]>(() => {
 
 // Auto-expand current year
 watch(
-  () => store.currentPeriod,
+  () => store.currentLedgerMonth,
   (period) => {
     if (period) {
       expandedYears.value.add(period.year);
@@ -99,7 +100,7 @@ function isPeriodSelected(year: number, month: number): boolean {
     return false;
   }
   return (
-    store.currentPeriod?.year === year && store.currentPeriod?.month === month
+    store.currentLedgerMonth?.year === year && store.currentLedgerMonth?.month === month
   );
 }
 
@@ -112,18 +113,19 @@ async function addYear() {
 }
 
 // Delete year
-async function deleteYear(year: number) {
-  const confirmed = await confirmModal.value?.openConfirmation({
-    title: "Delete Year",
-    message: `Are you sure you want to delete ${year} and all its data? This cannot be undone.`,
-    cancelText: "Cancel",
-    confirmText: "Delete",
-  });
+function deleteYear(year: number) {
+  yearToDelete.value = year;
+  showDeleteYearModal.value = true;
+}
 
-  if (confirmed) {
-    await store.deleteYear(year);
-    expandedYears.value.delete(year);
+// Confirm delete year
+async function handleDeleteYearConfirm(deleteTransactions: boolean) {
+  if (yearToDelete.value) {
+    await store.deleteYear(yearToDelete.value, deleteTransactions);
+    expandedYears.value.delete(yearToDelete.value);
   }
+  showDeleteYearModal.value = false;
+  yearToDelete.value = null;
 }
 
 // Open Context Menu
@@ -175,11 +177,11 @@ async function requestDeleteYear() {
             One Finance
           </h1>
           <p
-            v-if="store.currentPeriod"
+            v-if="store.currentLedgerMonth"
             class="text-xs text-gray-500 dark:text-gray-400"
           >
-            {{ getMonthName(store.currentPeriod.month) }}
-            {{ store.currentPeriod.year }}
+            {{ getMonthName(store.currentLedgerMonth.month) }}
+            {{ store.currentLedgerMonth.year }}
           </p>
           <p
             v-else-if="store.selectedYear"
@@ -205,7 +207,7 @@ async function requestDeleteYear() {
           :key="item.id"
           :class="[
             'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            currentView === item.id && (!store.currentPeriod || item.id !== 'transactions')
+            currentView === item.id && (!store.currentLedgerMonth || item.id !== 'transactions')
               ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
           ]"
@@ -293,18 +295,18 @@ async function requestDeleteYear() {
             class="ml-4 space-y-0.5 mt-0.5"
           >
             <button
-              v-for="monthData in yearNode.months"
-              :key="monthData.month"
+              v-for="month in yearNode.months"
+              :key="month"
               :class="[
                 'w-full flex items-center px-2 py-1.5 rounded-lg text-left text-sm transition-colors',
-                isPeriodSelected(yearNode.year, monthData.month)
+                isPeriodSelected(yearNode.year, month)
                   ? 'bg-primary-500 text-white'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400',
               ]"
-              @click="selectPeriod(yearNode.year, monthData.month)"
+              @click="selectPeriod(yearNode.year, month)"
             >
               <i class="pi pi-calendar mr-2 text-xs" />
-              {{ getMonthName(monthData.month) }}
+              {{ getMonthName(month) }}
             </button>
           </div>
         </div>
@@ -354,31 +356,11 @@ async function requestDeleteYear() {
         </div>
       </div>
     </Teleport>
-    <ConfirmationModal ref="confirmModal" />
-
-    <!-- Custom Context Menu -->
-    <Teleport to="body">
-      <div
-        v-if="contextMenuVisible"
-        class="fixed z-[100] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[160px]"
-        :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
-        @click.stop
-      >
-        <button
-          class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-          @click="viewYearDetails"
-        >
-          <i class="pi pi-eye mr-2 text-gray-400" />
-          View Year Details
-        </button>
-        <button
-          class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center border-t border-gray-100 dark:border-gray-700"
-          @click="requestDeleteYear"
-        >
-          <i class="pi pi-trash mr-2" />
-          Delete Year
-        </button>
-      </div>
-    </Teleport>
+    <YearDeleteModal
+      :visible="showDeleteYearModal"
+      :year="yearToDelete"
+      @close="showDeleteYearModal = false"
+      @confirm="handleDeleteYearConfirm"
+    />
   </aside>
 </template>
