@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory } from "@/types";
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -193,20 +193,6 @@ function seedDefaultAccountData(): void{
     insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, id, Number(acc.isDefault));
   }
   console.log("Account Data Seeded")
-}
-
-export function deleteAllDataFromTables(): void{
-  const tables = [
-    "transactions",
-    "accounts",
-    "accountType",
-    "categories",
-    "ledger_periods",
-    "ledger_years"
-  ];
-  for (const table of tables){
-    db.prepare(`DELETE FROM ${table}`).run();
-  }
 }
 
 export function deleteAllDataFromTables(): void{

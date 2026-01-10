@@ -33,7 +33,7 @@ import {
   insertAccountType,
   deleteAllDataFromTables,
 } from "./db";
-import { Account, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
 /**
  * Register all IPC handlers for database operations

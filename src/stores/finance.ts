@@ -540,21 +540,7 @@ export const useFinanceStore = defineStore("finance", () => {
     categories.value = [];
     transactions.value = [];
     accountTypes.value = [];
-    ledgerPeriods.value = [];
-    ledgerYears.value = [];
-  }
-
-  // ==================================
-  // SETTINGS ACTIONS
-  // ==================================
-
-  async function deleteAllDataFromTables(){
-    await window.electronAPI.deleteAllDataFromTables();
-    accounts.value = [];
-    categories.value = [];
-    transactions.value = [];
-    accountTypes.value = [];
-    ledgerPeriods.value = [];
+    ledgerMonths.value = [];
     ledgerYears.value = [];
   }
 
