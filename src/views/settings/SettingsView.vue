@@ -5,12 +5,14 @@ import ErrorModal from "@/components/ErrorModal.vue";
 import { useFinanceStore } from "@/stores/finance";
 import { Account, AccountType, Category, TransactionWithCategory } from "@/types";
 import NotificationModal from "@/components/NotificationModal.vue";
+import SettingsImportModal from "./SettingsImportModal.vue";
 
 const appVersion = "0.0.1";
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 const notificationModal = ref<InstanceType<typeof NotificationModal>>();
+const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 
 const store = useFinanceStore();
 
@@ -210,7 +212,7 @@ async function insertImportData(data: {
   categories?: Category[],
   accountTypes?: AccountType[],
   ledgerYears?: number[]
-}, replace: boolean): Promise<boolean> {
+}, skipDuplicates: boolean): Promise<boolean> {
 
   
   const accounts = data.accounts!;
@@ -231,7 +233,7 @@ async function insertImportData(data: {
   try {
     for (const accountType of accountTypes){
 
-      if (!replace){
+      if (skipDuplicates){
         // Check for existing account type
         const existing = store.accountTypes.find((at) => at.type === accountType.type);
         if (existing){
@@ -254,7 +256,7 @@ async function insertImportData(data: {
   
     for (const account of accounts){
 
-      if (!replace){
+      if (skipDuplicates){
         // Check for existing account
         const existing = store.accounts.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
         if (existing){
@@ -288,7 +290,7 @@ async function insertImportData(data: {
   
     for (const category of categories){
 
-      if (!replace){
+      if (skipDuplicates){
         // Check for existing category
         const existing = store.categories.find((c) => c.name === category.name);
         if (existing){
@@ -313,7 +315,7 @@ async function insertImportData(data: {
   
     for (const ledgerYear of ledgerYears){
 
-        if (!replace){
+        if (skipDuplicates){
           // Check for existing ledger year
           const existing = store.ledgerYears.find((ly) => ly === ledgerYear);
           if (existing){
@@ -329,7 +331,7 @@ async function insertImportData(data: {
   
     for (const transaction of transactions){
 
-        if (!replace){
+        if (skipDuplicates){
           // Check for existing transaction
           const existing = store.transactions.find((t) => t.title === transaction.title && t.amount === transaction.amount && t.date === transaction.date);
           if (existing){
@@ -393,42 +395,42 @@ async function importData() {
     });
   }
 
-  const replace = await confirmModal.value?.openConfirmation({
-    title: "Append Data",
-    message: "Would you like to append the imported data or replace current data? Appended items that are duplicates will be skipped. Replacing current data is unrecoverable",
-    confirmText: "Replace Data",
-    cancelText: "Append Data",
+  const response = await actionModal.value?.openConfirmation({
+    title: "Import Data",
+    message: "Choose how you want to import the data:",
   });
 
 
-  if (replace){
+  if (response){
 
-    await store.deleteAllDataFromTables();
-
-
-    const success = await insertImportData(result.data, true);
-
-    if (!success){
-      return await errorModal.value?.openConfirmation({
-        title: "Import Error",
-        message: "An error occurred while importing data.",
-        confirmText: "Okay",
-      });
+    if (response.action === 'replace') {
+      await store.deleteAllDataFromTables();
+  
+      const success = await insertImportData(result.data, false);
+  
+      if (!success){
+        return await errorModal.value?.openConfirmation({
+          title: "Import Error",
+          message: "An error occurred while importing data.",
+          confirmText: "Okay",
+        });
+      }
     }
 
-  }
-  else{
-    
-    const success = await insertImportData(result.data, false);
-
-    if (!success){
-      return await errorModal.value?.openConfirmation({
-        title: "Import Error",
-        message: "An error occurred while importing data.",
-        confirmText: "Okay",
-      });
+    else {
+      const success = await insertImportData(result.data, response.skipDuplicates);
+  
+      if (!success){
+        return await errorModal.value?.openConfirmation({
+          title: "Import Error",
+          message: "An error occurred while importing data.",
+          confirmText: "Okay",
+        });
+      }
     }
 
+  } else {
+    return; 
   }
 
   return await notificationModal.value?.openConfirmation({
@@ -596,4 +598,7 @@ async function importData() {
   <ConfirmationModal ref="confirmModal" />
   <ErrorModal ref="errorModal" />
   <NotificationModal ref="notificationModal" />
+  <SettingsImportModal ref="actionModal"
+
+  />
 </template>
