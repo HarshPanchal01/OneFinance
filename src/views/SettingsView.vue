@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, toRaw } from "vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import { useFinanceStore } from "@/stores/finance";
-import { Account, AccountType, Category, LedgerPeriod, TransactionWithCategory } from "@/types";
+import { Account, AccountType, Category, TransactionWithCategory } from "@/types";
 
 const appVersion = "0.0.1";
 const dbPath = ref("");
@@ -63,18 +63,18 @@ async function deleteDatabase() {
 
 async function exportData() {
 
-  const accountsValue = store.accounts;
-  const transactionsValue = store.transactions;
-  const categoriesValue = store.categories;
-  const accountTypesValue = store.accountTypes;
-  const ledgerPeriodsValue = store.ledgerPeriods;
+  const accountsValue = toRaw(store.accounts);
+  const transactionsValue = toRaw(store.transactions);
+  const categoriesValue = toRaw(store.categories);
+  const accountTypesValue = toRaw(store.accountTypes);
+  const ledgerYearsValue = toRaw(store.ledgerYears);
 
   const data = {
     accounts: accountsValue,
     transactions: transactionsValue,
     categories: categoriesValue,
     accountTypes: accountTypesValue,
-    ledgerPeriods: ledgerPeriodsValue,
+    ledgerYears: ledgerYearsValue,
   };
 
 
@@ -100,145 +100,232 @@ async function exportData() {
 
 }
 
+function isValidHexColor(color: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
+}
+
 function verifyImportData(data: {
   accounts?: Account[],
   transactions?: TransactionWithCategory[],
   categories?: Category[],
   accountTypes?: AccountType[],
-  ledgerPeriods?: LedgerPeriod[]
+  ledgerYears?: number[]
 }): boolean 
 {
 
-  const accounts = data.accounts;
-  const transactions = data.transactions;
-  const categories = data.categories;
-  const accountTypes = data.accountTypes;
-  const ledgerPeriods = data.ledgerPeriods;
+  try{
+    const accounts = data.accounts;
+    const transactions = data.transactions;
+    const categories = data.categories;
+    const accountTypes = data.accountTypes;
+    const ledgerYears = data.ledgerYears;
 
-  if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerPeriods == undefined){
-    return false
+    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined){
+      return false
+    }
+
+    accounts.forEach((value) => {
+
+      // Accounts essentials
+      if (value.accountName == undefined || value.accountTypeId == undefined || value.id == undefined || value.startingBalance == undefined || value.isDefault == undefined){
+        return false;
+      }
+
+      // Check if account type id is values
+      if (accountTypes.find((accountTypeValue) => accountTypeValue.id === value.accountTypeId) == undefined){
+        return false;
+      }
+    })
+
+    transactions.forEach((value) => {
+
+      // Check for transaction essentials
+      if (
+        value.id == undefined ||
+        value.title == undefined ||
+        value.amount == undefined ||
+        value.date == undefined ||
+        value.type == undefined ||
+        value.accountId == undefined
+      ){
+        return false;
+      }
+
+      // Check if category provided in transaction is valid
+      if (value.categoryId != undefined){
+        if (value.categoryName == undefined || value.categoryColor == undefined || value.categoryIcon == undefined){
+          return false;
+        }
+        if (categories.find((categoryValue) => categoryValue.id === value.categoryId) == undefined){
+          return false;
+        }
+        if (!isValidHexColor(value.categoryColor)){
+          return false;
+        }
+      }
+
+      // Check if account provided in transaction is valid
+      if (accounts.find((accountValue) => accountValue.id === value.accountId) == undefined){
+        return false;
+      }
+
+    })
+
+    accountTypes.forEach((value) => {
+      if (value.id == undefined || value.type == undefined){
+        return false;
+      }
+    })
+
+    categories.forEach((value) => {
+      if (value.id == undefined || value.name == undefined || value.colorCode == undefined || value.icon == undefined){
+        return false;
+      }
+      if (!isValidHexColor(value.colorCode)){
+        return false;
+      }
+    })
+
+    ledgerYears.forEach((value) => {
+      if (value == undefined){
+        return false;
+      }
+    })
+
+    return true;
+  } catch(e){
+    console.log(`Error verifying import data ${e}`)
+    return false;
   }
-
-  accounts.forEach((value) => {
-    if (value.accountName == undefined || value.accountTypeId == undefined || value.id == undefined || value.startingBalance == undefined || value.isDefault == undefined){
-      return false;
-    }
-  })
-
-  transactions.forEach((value) => {
-    if (
-      value.id == undefined ||
-      value.ledgerPeriodId == undefined ||
-      value.title == undefined ||
-      value.amount == undefined ||
-      value.date == undefined ||
-      value.type == undefined ||
-      value.notes == undefined ||
-      value.categoryId == undefined ||
-      value.accountId == undefined ||
-      value.categoryName == undefined ||
-      value.categoryColor == undefined ||
-      value.categoryIcon == undefined
-  ){
-      return false;
-    }
-  })
-
-  accountTypes.forEach((value) => {
-    if (value.id == undefined || value.type == undefined){
-      return false;
-    }
-  })
-
-  categories.forEach((value) => {
-    if (value.id == undefined || value.name == undefined || value.colorCode == undefined || value.icon == undefined){
-      return false;
-    }
-  })
-
-  ledgerPeriods.forEach((value) => {
-    if (value.id == undefined || value.month == undefined || value.year == undefined){
-      return false;
-    }
-  })
-
-  return true;
+  
 }
+
+
 
 async function insertImportData(data: {
   accounts?: Account[],
   transactions?: TransactionWithCategory[],
   categories?: Category[],
   accountTypes?: AccountType[],
-  ledgerPeriods?: LedgerPeriod[]
-}) {
+  ledgerYears?: number[]
+}): Promise<boolean> {
 
   
   const accounts = data.accounts!;
   const transactions = data.transactions!;
   const categories = data.categories!;
   const accountTypes = data.accountTypes!;
-  const ledgerPeriods = data.ledgerPeriods!;
+  const ledgerYears = data.ledgerYears!;
 
-  console.log(accountTypes);
+  // console.log(accounts);
+  // console.log(transactions);
+  // console.log(accountTypes);
 
-  for (const accountType of accountTypes){
+  const accountTypeIdMap = new Map<number, number>();
+  const categoryTypeIdMap = new Map<number, number>();
+  const accountIdMap = new Map<number, number>();
 
-    if (store.accountTypes.find((value) => value.id === accountType.id) != undefined) {
-      console.log("Account type id: %d name: %s already exists, skipping", accountType.id, accountType.type);
-      continue
-    }
+  
+  try {
+    for (const accountType of accountTypes){
+  
+      const result = await store.addAccountType(accountType);
 
-    console.log("Inserting account type id: %d name: %s", accountType.id, accountType.type);
-    await store.addAccountType(accountType);
-  }
-
-  for (const account of accounts){
-
-    if (store.accounts.find((value) => value.id === account.id) != undefined) {
-      continue
-    }
-    await store.addAccount(account);
-
-  }
-
-  for (const category of categories){
-
-    if (store.categories.find((value) => value.id === category.id || value.id) != undefined) {
-      continue
-    }
-
-    await store.addCategory(category.name, category.colorCode, category.icon);
-  }
-
-  for (const ledgerPeriod of ledgerPeriods){
-
-    if (store.ledgerPeriods.find((value) => value.id === ledgerPeriod.id) != undefined) {
-      continue
-    }
-
-    await store.createYear(ledgerPeriod.year);
-  }
-
-  for (const transaction of transactions){
-
-    if (store.transactions.find((value) => value.id === transaction.id) != undefined) {
-      continue
-    }
-
-    await store.addTransaction({
-        title: transaction.title,
-        amount: transaction.amount,
-        date: transaction.date,
-        type: transaction.type,
-        categoryId: transaction.categoryId ?? undefined,
-        accountId: transaction.accountId!,
-        notes: transaction.notes || undefined,
+      console.log(`Inserting account type ${accountType.type} resulted in id ${result}`);
+  
+      if (result == null){
+        throw new Error("Resulting Id from inserting of account type is null");
       }
-    );
-  }
-}
+  
+      accountTypeIdMap.set(accountType.id, result);
+    }
+  
+    for (const account of accounts){
+  
+      const accountTypeId = accountTypeIdMap.get(account.accountTypeId);
+  
+      if (accountTypeId == undefined){
+        throw new Error("Account type id mapping not found for account id: " + account.id);
+      }
+  
+      account.accountTypeId = accountTypeId;
+  
+      const result = await store.addAccount(account);
 
+      console.log(`Inserting account ${account.accountName} resulted in id ${result}`);
+  
+      if (result == null){
+        throw new Error("Resulting Id from inserting of account is null");
+      }
+  
+      accountIdMap.set(account.id, result);
+  
+    }
+  
+  
+  
+    for (const category of categories){
+  
+      const result = await store.addCategory(category.name, category.colorCode, category.icon);
+
+      console.log(`Inserting category ${category.name} resulted in id ${result}`);
+  
+      if (result == null){
+        throw new Error("Resulting Id from inserting of category is null");
+      }
+  
+      categoryTypeIdMap.set(category.id, result.id);
+  
+    }
+  
+  
+    for (const ledgerYear of ledgerYears){
+  
+        await store.createYear(ledgerYear);
+
+        console.log(`Inserting ledger year ${ledgerYear} completed`);
+    }
+  
+    for (const transaction of transactions){
+  
+        if (transaction.categoryId != undefined){
+          const mappedCategoryId = categoryTypeIdMap.get(transaction.categoryId);
+  
+          if (mappedCategoryId == undefined){
+            throw new Error("Category id mapping not found for transaction id: " + transaction.id);
+          }
+  
+          transaction.categoryId = mappedCategoryId;
+        }
+  
+        const mappedAccountId = accountIdMap.get(transaction.accountId);
+  
+        if (mappedAccountId == undefined){
+          throw new Error("Account id mapping not found for transaction id: " + transaction.id);
+        }
+  
+        transaction.accountId = mappedAccountId;
+  
+        await store.addTransaction({
+            title: transaction.title,
+            amount: transaction.amount,
+            date: transaction.date,
+            type: transaction.type,
+            categoryId: transaction.categoryId ?? undefined,
+            accountId: transaction.accountId!,
+            notes: transaction.notes || undefined,
+          }
+        );
+        console.log(`Inserting transaction ${transaction.title} completed`);
+    }
+  }
+ catch (error) {
+    console.log(error);
+    return false;
+  }
+
+  return true;
+}
 
 async function importData() {
 
@@ -269,16 +356,36 @@ async function importData() {
     await store.deleteAllDataFromTables();
 
 
-    await insertImportData(result.data);
+    const success = await insertImportData(result.data);
 
+    if (!success){
+      return await errorModal.value?.openConfirmation({
+        title: "Import Error",
+        message: "An error occurred while importing data.",
+        confirmText: "Okay",
+      });
+    }
 
   }
   else{
     
-    await insertImportData(result.data);
+    const success = await insertImportData(result.data);
+
+    if (!success){
+      return await errorModal.value?.openConfirmation({
+        title: "Import Error",
+        message: "An error occurred while importing data.",
+        confirmText: "Okay",
+      });
+    }
 
   }
 
+  return await errorModal.value?.openConfirmation({
+        title: "Import Successful",
+        message: "Data imported successfully.",
+        confirmText: "Okay",
+  });
   
 }
 </script>

@@ -322,12 +322,12 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes.value = await window.electronAPI.getAccountTypes();
   }
 
-  async function addAccount(account: Account){
-    await window.electronAPI.insertAccount(account);
+  async function addAccount(account: Account): Promise<number|null>{
+    return await window.electronAPI.insertAccount(account);
   }
 
-  async function addAccountType(accountType: AccountType){
-    await window.electronAPI.insertAccountType(accountType);
+  async function addAccountType(accountType: AccountType): Promise<number|null>{
+    return await window.electronAPI.insertAccountType(accountType);
   }
 
   async function editAccount(account: Account){

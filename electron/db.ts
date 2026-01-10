@@ -201,7 +201,6 @@ export function deleteAllDataFromTables(): void{
     "accounts",
     "accountType",
     "categories",
-    "ledger_periods",
     "ledger_years"
   ];
   for (const table of tables){
@@ -277,36 +276,35 @@ export function getAccountTypeById(id: number): AccountType | undefined{
   return db.prepare("SELECT  * FROM accountType WHERE id = ?").get(id) as AccountType | undefined;
 }
 
-export function insertAccount(account: Account): void{
+export function insertAccount(account: Account): number | null{
 
-  if (account.isDefault){
-    resetDefault();
+  try {
+    if (account.isDefault){
+      resetDefault();
+    }
+  
+    const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)");
+    const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
+
+    return Number(result.lastInsertRowid);
+  } catch (error) {
+    return null;
   }
-
-  const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)");
-  insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
 }
 
-export function insertAccountWithId(account: Account): void{
-  if (account.isDefault){
-    resetDefault();
+export function insertAccountType(accountType: AccountType): number | null {
+  try {
+    const result = db
+      .prepare("INSERT INTO accountType (type) VALUES (?)")
+      .run(accountType.type);
+
+    return Number(result.lastInsertRowid);
+  } catch (err) {
+    return null;
   }
-
-  const insert = db.prepare("INSERT INTO accounts (id, accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?,?)");
-  insert.run(account.id, account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
 }
 
-export function insertAccountType(accountType: AccountType): void{
-  const insert = db.prepare("INSERT INTO accountType (type) VALUES (?)");
-  insert.run(accountType.type);
-}
-
-export function insertAccountTypeWithId(accountType: AccountType): void{
-  const insert = db.prepare("INSERT INTO accountType (id, type) VALUES (?, ?)");
-  insert.run(accountType.id, accountType.type);
-}
-
-export function resetDefault(): void {
+export async function resetDefault(): Promise<void> {
   db.prepare("UPDATE accounts SET isDefault = false WHERE isDefault = true").run();
 }
 
