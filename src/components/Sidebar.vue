@@ -356,6 +356,32 @@ async function requestDeleteYear() {
         </div>
       </div>
     </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="contextMenuVisible"
+        class="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[160px]"
+        :style="{
+          left: `${contextMenuPosition.x}px`,
+          top: `${contextMenuPosition.y}px`,
+        }"
+      >
+        <button
+          class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          @click="viewYearDetails"
+        >
+          <i class="pi pi-search mr-2" />
+          View Year Details
+        </button>
+        <button
+          class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
+          @click="requestDeleteYear"
+        >
+          <i class="pi pi-trash mr-2" />
+          Delete Year
+        </button>
+      </div>
+    </Teleport>
+
     <YearDeleteModal
       :visible="showDeleteYearModal"
       :year="yearToDelete"

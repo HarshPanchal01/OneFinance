@@ -532,11 +532,19 @@ export function getTransactions(
       c.icon as categoryIcon
     FROM transactions t
     LEFT JOIN categories c ON t.categoryId = c.id
-    LEFT JOIN ledger_periods lp ON t.ledgerPeriodId = lp.id
   `;
 
   let query = baseQuery;
   const params: (number | string)[] = [];
+
+  if (ledgerMonth) {
+    // Filter by year and month
+    // SQLite strftime('%Y', date) returns 'YYYY', strftime('%m', date) returns 'MM'
+    query += " WHERE strftime('%Y', t.date) = ? AND strftime('%m', t.date) = ?";
+    // Ensure month is padded (e.g. 1 -> '01')
+    const monthStr = ledgerMonth.month.toString().padStart(2, '0');
+    params.push(ledgerMonth.year.toString(), monthStr);
+  }
 
   query += " ORDER BY t.date DESC, t.id DESC";
 
@@ -545,21 +553,63 @@ export function getTransactions(
     params.push(limit);
   }
 
-  const result = db.prepare(query).all(...params) as TransactionWithCategory[];
+  return db.prepare(query).all(...params) as TransactionWithCategory[];
+}
 
-  if(ledgerMonth == undefined) {
-    return result;
+export function getMonthlyTrends(year: number): any[] {
+  const query = `
+    SELECT 
+      strftime('%m', date) as monthStr,
+      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as totalIncome,
+      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as totalExpenses
+    FROM transactions 
+    WHERE strftime('%Y', date) = ?
+    GROUP BY monthStr
+    ORDER BY monthStr
+  `;
+
+  const rows = db.prepare(query).all(year.toString()) as { monthStr: string, totalIncome: number, totalExpenses: number }[];
+
+  // Fill in missing months and format
+  const trends = [];
+  for (let m = 1; m <= 12; m++) {
+    const monthStr = m.toString().padStart(2, '0');
+    const row = rows.find(r => r.monthStr === monthStr);
+    const income = row ? row.totalIncome : 0;
+    const expense = row ? row.totalExpenses : 0;
+    
+    trends.push({
+      month: m,
+      year: year,
+      totalIncome: income,
+      totalExpenses: expense,
+      balance: income - expense
+    });
   }
+  
+  return trends;
+}
 
-  const transactions = result.filter((item) => {
-    let dateList = item.date.split("-");
-    let transactionMonth = Number(dateList[1]);
-    let transactionYear = Number(dateList[0]);
+export function getDailyTransactionSum(year: number, month: number, type: 'income' | 'expense'): any[] {
+  const query = `
+    SELECT 
+      strftime('%d', date) as dayStr,
+      SUM(amount) as total
+    FROM transactions 
+    WHERE strftime('%Y', date) = ? 
+      AND strftime('%m', date) = ? 
+      AND type = ?
+    GROUP BY dayStr
+    ORDER BY dayStr
+  `;
 
-    return transactionMonth === ledgerMonth.month && transactionYear === ledgerMonth.year;
-  });
+  const monthStr = month.toString().padStart(2, '0');
+  const rows = db.prepare(query).all(year.toString(), monthStr, type) as { dayStr: string, total: number }[];
 
-  return transactions;
+  return rows.map(r => ({
+    day: parseInt(r.dayStr, 10),
+    total: r.total
+  }));
 }
 
 export function getTransactionById(

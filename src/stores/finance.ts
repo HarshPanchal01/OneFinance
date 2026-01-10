@@ -21,6 +21,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Current period selection
   const currentLedgerMonth = ref<LedgerMonth | null>(null);
+  const selectedYear = ref<number | null>(null);
   const ledgerYears = ref<number[]>([]);
   const ledgerMonths = ref<LedgerMonth[]>([]);
 
@@ -265,12 +266,12 @@ export const useFinanceStore = defineStore("finance", () => {
     error.value = null;
 
     try {
-      currentPeriod.value = null;
+      currentLedgerMonth.value = null;
       selectedYear.value = year;
 
       // Fetch data for the selected year
       await fetchTransactions(null, year);
-      await fetchPeriodSummary();
+      fetchPeriodSummarySync();
       await fetchMonthlyTrends(year);
 
       console.log(`[Store] Year data fetched`);
@@ -313,6 +314,7 @@ export const useFinanceStore = defineStore("finance", () => {
     console.log("[Store] clearPeriod called (Global Mode)");
     isChangingPeriod.value = true;
     currentLedgerMonth.value = null;
+    selectedYear.value = null;
 
     try {
       // Fetch Global Data
@@ -414,13 +416,20 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Transactions
   // ============================================
 
-  async function fetchTransactions(ledgerMonth? : LedgerMonth) {
+  async function fetchTransactions(ledgerMonth?: LedgerMonth | null, yearOnly?: number) {
 
-    const result = await window.electronAPI.getTransactions(ledgerMonth);
+    let result = await window.electronAPI.getTransactions(ledgerMonth);
 
-    console.log(result);
+    if (yearOnly && !ledgerMonth) {
+      result = result.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === yearOnly;
+      });
+    }
 
-    transactions.value = await window.electronAPI.getTransactions(ledgerMonth);
+    console.log(`[Store] Fetched ${result.length} transactions`);
+
+    transactions.value = result;
   }
 
   async function fetchRecentTransactions(limit: number) {
@@ -463,15 +472,7 @@ export const useFinanceStore = defineStore("finance", () => {
     // If date is changing, we MUST ensure the ledgerPeriodId is updated to match
     const updateInput = { ...input };
     
-    if (input.date) {
-        const date = new Date(input.date);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        
-        // Ensure the period exists
-        const period = await window.electronAPI.createLedgerPeriod(year, month);
-        updateInput.ledgerPeriodId = period.id;
-    }
+    // Logic for ledgerPeriodId is removed as it's no longer manually managed or required in input
 
     const updated = await window.electronAPI.updateTransaction(id, updateInput);
     if (updated) {
@@ -507,7 +508,7 @@ export const useFinanceStore = defineStore("finance", () => {
         searchResults.value = searchResults.value.filter((t) => t.id !== id);
       }
       // Refresh trends
-      const yearToRefresh = currentPeriod.value ? currentPeriod.value.year : (selectedYear.value || new Date().getFullYear());
+      const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
       await fetchMonthlyTrends(yearToRefresh);
     }
     return success;
@@ -585,9 +586,9 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       // Determine the reference month/year
       let year, month;
-      if (currentPeriod.value) {
-        year = currentPeriod.value.year;
-        month = currentPeriod.value.month;
+      if (currentLedgerMonth.value) {
+        year = currentLedgerMonth.value.year;
+        month = currentLedgerMonth.value.month;
       } else {
         const now = new Date();
         year = now.getFullYear();
@@ -688,6 +689,7 @@ export const useFinanceStore = defineStore("finance", () => {
   return {
     // State
     currentLedgerMonth,
+    selectedYear,
     ledgerYears,
     ledgerMonths,
     categories,
@@ -725,6 +727,8 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchTransactions,
     fetchRecentTransactions,
     fetchPeriodSummarySync,
+    fetchMonthlyTrends,
+    fetchPacingTrends,
     addTransaction,
     editTransaction,
     removeTransaction,

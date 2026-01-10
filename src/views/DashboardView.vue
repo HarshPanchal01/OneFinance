@@ -5,7 +5,6 @@ import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import { useTransactionActions } from "@/composables/useTransactionActions";
-import CashFlowChart from "@/components/charts/CashFlowChart.vue";
 
 const store = useFinanceStore();
 
@@ -108,17 +107,6 @@ void confirmModal;
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Trends Chart -->
-    <div class="card p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-          Financial Trends ({{ store.currentPeriod ? store.currentPeriod.year : new Date().getFullYear() }})
-        </h2>
-        <!-- Optional: Year selector or indication if looking at a specific year -->
-      </div>
-      <CashFlowChart />
     </div>
 
     <!-- Expense Breakdown -->

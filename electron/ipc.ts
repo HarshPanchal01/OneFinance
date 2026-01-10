@@ -19,6 +19,8 @@ import {
   updateTransaction,
   deleteTransaction,
   searchTransactions,
+  getMonthlyTrends,
+  getDailyTransactionSum,
 
   // Types
 
@@ -153,6 +155,14 @@ export function registerIpcHandlers(): void {
       return searchTransactions(options, limit);
     }
   );
+
+  ipcMain.handle("db:getMonthlyTrends", async (_event, year: number) => {
+    return getMonthlyTrends(year);
+  });
+
+  ipcMain.handle("db:getDailyTransactionSum", async (_event, year: number, month: number, type: 'income' | 'expense') => {
+    return getDailyTransactionSum(year, month, type);
+  });
 
   // ============================================
   // SYSTEM HANDLERS

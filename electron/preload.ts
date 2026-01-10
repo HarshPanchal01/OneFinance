@@ -92,6 +92,12 @@ const electronAPI = {
   ): Promise<TransactionWithCategory[]> =>
     ipcRenderer.invoke("db:searchTransactions", options, limit),
 
+  getMonthlyTrends: (year: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getMonthlyTrends", year),
+
+  getDailyTransactionSum: (year: number, month: number, type: 'income' | 'expense'): Promise<any[]> =>
+    ipcRenderer.invoke("db:getDailyTransactionSum", year, month, type),
+
   // ============================================
   // SYSTEM OPERATIONS
   // ============================================

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from "vue";
-import { useFinanceStore } from "../stores/finance";
-import { formatCurrency } from "../types";
-import CashFlowChart from "../components/charts/CashFlowChart.vue";
-import PacingChart from "../components/charts/PacingChart.vue";
-import ExpenseBreakdownChart from "../components/charts/ExpenseBreakdownChart.vue";
+import { useFinanceStore } from "@/stores/finance";
+import { formatCurrency } from "@/utils";
+import CashFlowChart from "@/components/charts/CashFlowChart.vue";
+import PacingChart from "@/components/charts/PacingChart.vue";
+import ExpenseBreakdownChart from "@/components/charts/ExpenseBreakdownChart.vue";
 
 const store = useFinanceStore();
 
@@ -15,17 +15,17 @@ const store = useFinanceStore();
 onMounted(async () => {
   // Ensure we have the necessary data
   if (store.monthlyTrends.length === 0) {
-    const year = store.currentPeriod?.year || store.selectedYear || new Date().getFullYear();
+    const year = store.currentLedgerMonth?.year || store.selectedYear || new Date().getFullYear();
     await store.fetchMonthlyTrends(year);
   }
   if (store.expenseBreakdown.length === 0) {
-    await store.fetchPeriodSummary();
+    store.fetchPeriodSummarySync();
   }
   await store.fetchPacingTrends();
 });
 
 // Watch for period changes to refresh data
-watch(() => store.currentPeriod, async () => {
+watch(() => store.currentLedgerMonth, async () => {
     await store.fetchPacingTrends();
 });
 
@@ -47,9 +47,9 @@ const avgDailySpend = computed(() => {
   const now = new Date();
   let daysElapsed = 1;
   
-  if (store.currentPeriod) {
-    const year = store.currentPeriod.year;
-    const month = store.currentPeriod.month;
+  if (store.currentLedgerMonth) {
+    const year = store.currentLedgerMonth.year;
+    const month = store.currentLedgerMonth.month;
     
     // If it's the current real-world month
     if (year === now.getFullYear() && month === now.getMonth() + 1) {

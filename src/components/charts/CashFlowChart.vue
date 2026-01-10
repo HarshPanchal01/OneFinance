@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useFinanceStore } from "../../stores/finance";
-import { getMonthName } from "../../types";
-import AppChart from "../AppChart.vue";
+import { useFinanceStore } from "@/stores/finance";
+import { getMonthName } from "@/utils";
+import AppChart from "@/components/AppChart.vue";
 
 const store = useFinanceStore();
 
