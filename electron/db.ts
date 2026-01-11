@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -287,7 +287,7 @@ export function insertAccount(account: Account): number | null{
     const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
 
     return Number(result.lastInsertRowid);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -299,7 +299,7 @@ export function insertAccountType(accountType: AccountType): number | null {
       .run(accountType.type);
 
     return Number(result.lastInsertRowid);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -595,7 +595,7 @@ export function getTransactions(
   return db.prepare(query).all(...params) as TransactionWithCategory[];
 }
 
-export function getMonthlyTrends(year: number): any[] {
+export function getMonthlyTrends(year: number): MonthlyTrend[] {
   const query = `
     SELECT 
       strftime('%m', date) as monthStr,
@@ -610,7 +610,7 @@ export function getMonthlyTrends(year: number): any[] {
   const rows = db.prepare(query).all(year.toString()) as { monthStr: string, totalIncome: number, totalExpenses: number }[];
 
   // Fill in missing months and format
-  const trends = [];
+  const trends: MonthlyTrend[] = [];
   for (let m = 1; m <= 12; m++) {
     const monthStr = m.toString().padStart(2, '0');
     const row = rows.find(r => r.monthStr === monthStr);
@@ -629,7 +629,7 @@ export function getMonthlyTrends(year: number): any[] {
   return trends;
 }
 
-export function getDailyTransactionSum(year: number, month: number, type: 'income' | 'expense'): any[] {
+export function getDailyTransactionSum(year: number, month: number, type: 'income' | 'expense'): DailyTransactionSum[] {
   const query = `
     SELECT 
       strftime('%d', date) as dayStr,

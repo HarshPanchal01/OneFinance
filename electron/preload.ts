@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
@@ -92,10 +92,10 @@ const electronAPI = {
   ): Promise<TransactionWithCategory[]> =>
     ipcRenderer.invoke("db:searchTransactions", options, limit),
 
-  getMonthlyTrends: (year: number): Promise<any[]> =>
+  getMonthlyTrends: (year: number): Promise<MonthlyTrend[]> =>
     ipcRenderer.invoke("db:getMonthlyTrends", year),
 
-  getDailyTransactionSum: (year: number, month: number, type: 'income' | 'expense'): Promise<any[]> =>
+  getDailyTransactionSum: (year: number, month: number, type: 'income' | 'expense'): Promise<DailyTransactionSum[]> =>
     ipcRenderer.invoke("db:getDailyTransactionSum", year, month, type),
 
   // ============================================

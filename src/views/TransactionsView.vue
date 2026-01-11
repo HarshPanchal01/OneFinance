@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, watch, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { formatCurrency } from "@/utils";
-import type { TransactionWithCategory } from "@/types";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
