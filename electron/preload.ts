@@ -95,6 +95,9 @@ const electronAPI = {
   getMonthlyTrends: (year: number): Promise<MonthlyTrend[]> =>
     ipcRenderer.invoke("db:getMonthlyTrends", year),
 
+  getRollingMonthlyTrends: (): Promise<MonthlyTrend[]> =>
+    ipcRenderer.invoke("db:getRollingMonthlyTrends"),
+
   getDailyTransactionSum: (year: number, month: number, type: 'income' | 'expense'): Promise<DailyTransactionSum[]> =>
     ipcRenderer.invoke("db:getDailyTransactionSum", year, month, type),
 

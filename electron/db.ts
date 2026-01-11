@@ -746,5 +746,59 @@ export function deleteTransaction(id: number): boolean {
   return result.changes > 0;
 }
 
+export function getRollingMonthlyTrends(): MonthlyTrend[] {
+  const now = new Date();
+  
+  // 13 months inclusive: Current Month back to Same Month Last Year
+  // Start Date: 1st of (Current Month - 12)
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+  // End Date: Last day of Current Month
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  
+  const toSqlDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  
+  const startStr = toSqlDate(startDate);
+  const endStr = toSqlDate(endDate);
+
+  const query = `
+    SELECT 
+      strftime('%Y', date) as yearStr,
+      strftime('%m', date) as monthStr,
+      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as totalIncome,
+      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as totalExpenses
+    FROM transactions 
+    WHERE date >= ? AND date <= ?
+    GROUP BY yearStr, monthStr
+    ORDER BY yearStr, monthStr
+  `;
+  
+  const rows = db.prepare(query).all(startStr, endStr) as { yearStr: string, monthStr: string, totalIncome: number, totalExpenses: number }[];
+  
+  const trends: MonthlyTrend[] = [];
+  let ptr = new Date(startDate);
+  
+  // Loop 13 times
+  for (let i = 0; i < 13; i++) {
+     const y = ptr.getFullYear();
+     const m = ptr.getMonth() + 1;
+     const yearStr = y.toString();
+     const monthStr = m.toString().padStart(2, '0');
+     
+     const row = rows.find(r => r.yearStr === yearStr && r.monthStr === monthStr);
+     
+     trends.push({
+         year: y,
+         month: m,
+         totalIncome: row ? row.totalIncome : 0,
+         totalExpenses: row ? row.totalExpenses : 0,
+         balance: row ? row.totalIncome - row.totalExpenses : 0
+     });
+     
+     ptr.setMonth(ptr.getMonth() + 1);
+  }
+  
+  return trends;
+}
+
 // Export the database instance for advanced operations if needed
 export default db;

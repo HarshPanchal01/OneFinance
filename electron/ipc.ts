@@ -34,6 +34,7 @@ import {
   editAccount,
   insertAccountType,
   deleteAllDataFromTables,
+  getRollingMonthlyTrends,
 } from "./db";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
@@ -53,6 +54,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("db:createLedgerYear", async (_event, year: number) => {
     return createLedgerYear(year);
   });
+
 
   ipcMain.handle("db:deleteLedgerYear", async (_event, year: number, deleteTransactions: boolean) => {
     return deleteLedgerYear(year, deleteTransactions);
@@ -164,6 +166,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:getMonthlyTrends", async (_event, year: number) => {
     return getMonthlyTrends(year);
+  });
+
+  ipcMain.handle("db:getRollingMonthlyTrends", async () => {
+    return getRollingMonthlyTrends();
   });
 
   ipcMain.handle("db:getDailyTransactionSum", async (_event, year: number, month: number, type: 'income' | 'expense') => {

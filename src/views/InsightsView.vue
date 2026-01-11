@@ -13,11 +13,9 @@ const store = useFinanceStore();
 // ===============================================
 
 onMounted(async () => {
-  // Ensure we have the necessary data
-  if (store.monthlyTrends.length === 0) {
-    const year = store.currentLedgerMonth?.year || store.selectedYear || new Date().getFullYear();
-    await store.fetchMonthlyTrends(year);
-  }
+  // Ensure trends are loaded matching the default 'YTD'
+  await store.fetchRollingMonthlyTrends();
+
   if (store.expenseBreakdown.length === 0) {
     store.fetchPeriodSummarySync();
   }
@@ -36,6 +34,16 @@ watch(() => store.currentLedgerMonth, async () => {
 const savingsTimeRange = ref<string>('thisMonth');
 const avgSpendTimeRange = ref<string>('thisMonth');
 const netCashFlowTimeRange = ref<string>('thisMonth');
+const cashFlowOption = ref<string>('YTD');
+
+// Watcher for cashFlowOption
+watch(cashFlowOption, async (newVal) => {
+    if (newVal === 'YTD') {
+        await store.fetchRollingMonthlyTrends();
+    } else {
+        await store.fetchMonthlyTrends(parseInt(newVal));
+    }
+});
 
 const savingsData = computed(() => getMetricsForRange(savingsTimeRange.value, store.transactions));
 const avgSpendData = computed(() => getMetricsForRange(avgSpendTimeRange.value, store.transactions));
@@ -161,9 +169,20 @@ const netCashFlow = computed(() => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Cash Flow -->
       <div class="card p-4">
-        <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">
-          Cash Flow
-        </h3>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+              Cash Flow
+            </h3>
+            <select 
+                v-model="cashFlowOption"
+                class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+                <option value="YTD">YTD</option>
+                <option v-for="year in store.ledgerYears" :key="year" :value="year.toString()">
+                    {{ year }}
+                </option>
+            </select>
+        </div>
         <div class="h-64">
           <CashFlowChart />
         </div>

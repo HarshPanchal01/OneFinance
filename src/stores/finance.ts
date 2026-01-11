@@ -578,6 +578,15 @@ export const useFinanceStore = defineStore("finance", () => {
     }
   }
 
+  async function fetchRollingMonthlyTrends() {
+    try {
+      monthlyTrends.value = await window.electronAPI.getRollingMonthlyTrends();
+    } catch (e) {
+      console.error("[Store] Failed to fetch rolling monthly trends:", e);
+      monthlyTrends.value = [];
+    }
+  }
+
   async function fetchPacingTrends() {
     try {
       // Determine the reference month/year
@@ -893,6 +902,7 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchRecentTransactions,
     fetchPeriodSummarySync,
     fetchMonthlyTrends,
+    fetchRollingMonthlyTrends,
     fetchPacingTrends,
     addTransaction,
     editTransaction,
