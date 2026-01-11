@@ -353,8 +353,12 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes.value = await window.electronAPI.getAccountTypes();
   }
 
-  async function addAccount(account: Account){
-    await window.electronAPI.insertAccount(account);
+  async function addAccount(account: Account): Promise<number|null>{
+    return await window.electronAPI.insertAccount(account);
+  }
+
+  async function addAccountType(accountType: AccountType): Promise<number|null>{
+    return await window.electronAPI.insertAccountType(accountType);
   }
 
   async function editAccount(account: Account){
@@ -680,6 +684,18 @@ export const useFinanceStore = defineStore("finance", () => {
       console.error("[Store] Failed to fetch pacing trends:", e);
       pacingTrends.value = { currentMonth: [], previousAverage: [] };
     }
+  // ==================================
+  // SETTINGS ACTIONS
+  // ==================================
+
+  async function deleteAllDataFromTables(){
+    await window.electronAPI.deleteAllDataFromTables();
+    accounts.value = [];
+    categories.value = [];
+    transactions.value = [];
+    accountTypes.value = [];
+    ledgerMonths.value = [];
+    ledgerYears.value = [];
   }
 
   // ============================================
@@ -738,6 +754,8 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchAccountTypes,
     removeAccount,
     addAccount,
+    addAccountType,
     editAccount,
+    deleteAllDataFromTables,
   };
 });

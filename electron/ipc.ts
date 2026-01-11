@@ -32,8 +32,10 @@ import {
   deleteAccountById,
   insertAccount,
   editAccount,
+  insertAccountType,
+  deleteAllDataFromTables,
 } from "./db";
-import { Account, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -74,6 +76,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:insertAccount", async (_event, account: Account) => {
     return insertAccount(account);
+  });
+
+  ipcMain.handle("db:insertAccountType", async (_event, accountType: AccountType) => {
+    return insertAccountType(accountType);
   });
 
   ipcMain.handle("db:editAccount", async (_event, account: Account) => {
@@ -167,6 +173,10 @@ export function registerIpcHandlers(): void {
   // ============================================
   // SYSTEM HANDLERS
   // ============================================
+
+  ipcMain.handle("db:deleteAllDataFromTables", async () => {
+    return deleteAllDataFromTables();
+  });
 
   ipcMain.handle("system:getDbPath", async () => {
     return dbPath;
