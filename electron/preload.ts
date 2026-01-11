@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, LedgerYear, SearchOptions, TransactionWithCategory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process

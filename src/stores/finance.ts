@@ -684,6 +684,7 @@ export const useFinanceStore = defineStore("finance", () => {
       console.error("[Store] Failed to fetch pacing trends:", e);
       pacingTrends.value = { currentMonth: [], previousAverage: [] };
     }
+  }
   // ==================================
   // SETTINGS ACTIONS
   // ==================================
