@@ -358,7 +358,11 @@ export const useFinanceStore = defineStore("finance", () => {
   }
 
   async function addAccountType(accountType: AccountType): Promise<number|null>{
-    return await window.electronAPI.insertAccountType(accountType);
+    const newId = await window.electronAPI.insertAccountType(accountType);
+    if (newId != null) {
+      accountTypes.value.push({ ...accountType, id: newId });
+    }
+    return newId;
   }
 
   async function editAccount(account: Account){
