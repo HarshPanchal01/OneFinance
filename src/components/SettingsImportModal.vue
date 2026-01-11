@@ -68,18 +68,18 @@ defineExpose({ openConfirmation });
       <div class="mb-4">
         <label class="flex items-center mb-2">
           <input
+            v-model="selectedAction"
             type="radio"
             value="replace"
-            v-model="selectedAction"
             class="mr-2"
           />
           Replace all existing data
         </label>
         <label class="flex items-center">
           <input
+            v-model="selectedAction"
             type="radio"
             value="append"
-            v-model="selectedAction"
             class="mr-2"
           />
           Append imported data
@@ -93,8 +93,8 @@ defineExpose({ openConfirmation });
           :class="{'text-gray-900': selectedAction === 'append'}"
         >
           <input
-            type="checkbox"
             v-model="skipDuplicates"
+            type="checkbox"
             :disabled="selectedAction !== 'append'"
             class="mr-2"
           />

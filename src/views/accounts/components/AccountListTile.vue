@@ -1,3 +1,52 @@
+<script setup lang="ts">
+import { useFinanceStore } from '@/stores/finance'
+import { computed, ref, watch } from 'vue';
+
+
+    interface Props {
+        accountName: string
+        institutionName: string
+        startingBalance: number
+        balance?: number
+        accountTypeId: number
+        isDefault: boolean
+        isHighlighted?: boolean
+    }
+
+    const store = useFinanceStore();
+    const tileRef = ref<HTMLElement | null>(null);
+
+    const emits = defineEmits<{
+        (e: 'edit'): void,
+        (e: 'delete'): void,
+        (e: 'view-transactions'): void
+    }>();
+
+    function handleEditClick() {
+        emits('edit');
+    }
+
+
+    function handleDeleteClick() {
+        emits('delete');
+    }
+
+    const props = defineProps<Props>();
+
+    const accountType = computed(() =>
+      props.accountTypeId != null
+        ? store.accountTypes.find((t) => t.id === props.accountTypeId)?.type ?? 'N/A'
+        : 'N/A'
+    );
+
+    watch(() => props.isHighlighted, (newVal) => {
+      if (newVal && tileRef.value) {
+        tileRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, { immediate: true });
+
+</script>
+
 <template>
   <div
     ref="tileRef"
@@ -47,52 +96,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useFinanceStore } from '@/stores/finance'
-import { computed, ref, watch } from 'vue';
-
-
-    interface Props {
-        accountName: string
-        institutionName: string
-        startingBalance: number
-        balance?: number
-        accountTypeId: number
-        isDefault: boolean
-        isHighlighted?: boolean
-    }
-
-    const store = useFinanceStore();
-    const tileRef = ref<HTMLElement | null>(null);
-
-    const emits = defineEmits<{
-        (e: 'edit'): void,
-        (e: 'delete'): void,
-        (e: 'view-transactions'): void
-    }>();
-
-    function handleEditClick() {
-        emits('edit');
-    }
-
-
-    function handleDeleteClick() {
-        emits('delete');
-    }
-
-    const props = defineProps<Props>();
-
-    const accountType = computed(() =>
-      props.accountTypeId != null
-        ? store.accountTypes.find((t) => t.id === props.accountTypeId)?.type ?? 'N/A'
-        : 'N/A'
-    );
-
-    watch(() => props.isHighlighted, (newVal) => {
-      if (newVal && tileRef.value) {
-        tileRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, { immediate: true });
-
-</script>
