@@ -303,14 +303,12 @@ async function insertImportData(data: {
   
     for (const category of categories){
 
-      if (skipDuplicates){
-        // Check for existing category
-        const existing = store.categories.find((c) => c.name === category.name);
-        if (existing){
-          categoryTypeIdMap.set(category.id, existing.id);
-          console.log(`Skipping inserting existing category ${category.name}`);
-          continue;
-        }
+      // Check for existing category
+      const existing = store.categories.find((c) => c.name === category.name);
+      if (existing){
+        categoryTypeIdMap.set(category.id, existing.id);
+        console.log(`Skipping inserting existing category ${category.name}`);
+        continue;
       }
   
       const result = await store.addCategory(category.name, category.colorCode, category.icon);
