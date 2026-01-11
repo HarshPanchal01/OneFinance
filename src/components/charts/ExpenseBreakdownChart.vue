@@ -1,50 +1,108 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
+import type { CategoryBreakdown } from "@/types";
+import { formatCurrency } from "@/utils";
 
-const store = useFinanceStore();
+const props = defineProps<{
+  breakdown: CategoryBreakdown[];
+}>();
 
-const categoryData = computed(() => {
-  // Top 5 categories + Others
-  const all = [...store.expenseBreakdown];
-  const top = all.slice(0, 5);
-  const others = all.slice(5);
-  
-  const labels = top.map(c => c.categoryName);
-  const data = top.map(c => c.total);
-  const bgColors = top.map(c => c.categoryColor);
+const totalExpenses = computed(() => {
+  return props.breakdown.reduce((sum, item) => sum + item.total, 0);
+});
+
+const topCategories = computed(() => {
+  // Top 10 categories + Others
+  const all = [...props.breakdown].sort((a, b) => b.total - a.total);
+  const top = all.slice(0, 10);
+  const others = all.slice(10);
+
+  const result = top.map((c) => ({
+    ...c,
+    percentage: totalExpenses.value > 0 ? (c.total / totalExpenses.value) * 100 : 0,
+  }));
 
   if (others.length > 0) {
-    labels.push("Others");
-    data.push(others.reduce((sum, c) => sum + c.total, 0));
-    bgColors.push("#9ca3af");
+    const othersTotal = others.reduce((sum, c) => sum + c.total, 0);
+    result.push({
+      categoryId: null,
+      categoryName: "Others",
+      categoryColor: "#9ca3af",
+      categoryIcon: "pi-ellipsis-h",
+      total: othersTotal,
+      count: others.reduce((sum, c) => sum + c.count, 0),
+      percentage: totalExpenses.value > 0 ? (othersTotal / totalExpenses.value) * 100 : 0,
+    });
   }
 
+  return result;
+});
+
+const categoryData = computed(() => {
   return {
-    labels,
+    labels: topCategories.value.map((c) => c.categoryName),
     datasets: [
       {
-        data,
-        backgroundColor: bgColors,
-        borderWidth: 0
-      }
-    ]
+        data: topCategories.value.map((c) => c.total),
+        backgroundColor: topCategories.value.map((c) => c.categoryColor),
+        borderWidth: 0,
+        hoverOffset: 4,
+        cutout: "80%",
+      },
+    ],
   };
 });
 
 const categoryOptions = {
-    plugins: {
-        legend: { position: 'right' }
-    }
+  plugins: {
+    legend: { display: false },
+  },
 };
 </script>
 
 <template>
-  <AppChart 
-    type="doughnut" 
-    :data="categoryData" 
-    :options="categoryOptions" 
-    height="100%" 
-  />
+  <div class="flex flex-row h-full w-full items-center gap-6">
+    <!-- Chart with Total in Center -->
+    <div class="relative w-60 h-60 shrink-0">
+      <AppChart
+        type="doughnut"
+        :data="categoryData"
+        :options="categoryOptions"
+        height="100%"
+      />
+      <!-- Center Text -->
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-1">
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">Total</span>
+        <span class="text-lg font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalExpenses) }}</span>
+      </div>
+    </div>
+
+    <!-- Custom Legend (Right Side) -->
+    <div class="flex-1 overflow-y-auto h-full pr-2 space-y-3 py-2">
+      <div
+        v-for="cat in topCategories"
+        :key="cat.categoryId ?? 'others'"
+        class="flex items-center gap-3"
+      >
+        <div
+          class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          :style="{ backgroundColor: cat.categoryColor + '20' }"
+        >
+          <i
+            :class="['pi', cat.categoryIcon]"
+            :style="{ color: cat.categoryColor, fontSize: '12px' }"
+          ></i>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">
+            {{ cat.categoryName }}
+          </span>
+          <span class="text-[11px] text-gray-400 font-medium">
+            {{ cat.percentage.toFixed(1) }}%
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>

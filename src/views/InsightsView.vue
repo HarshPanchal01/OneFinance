@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import { formatCurrency, getMetricsForRange, getTimeRangeLabel } from "@/utils";
+import { formatCurrency, getMetricsForRange, getTimeRangeLabel, getExpenseBreakdownForRange } from "@/utils";
 import type { DailyTransactionSum } from "@/types";
 import CashFlowChart from "@/components/charts/CashFlowChart.vue";
 import PacingChart from "@/components/charts/PacingChart.vue";
@@ -30,6 +30,7 @@ onMounted(async () => {
 const savingsTimeRange = ref<string>('thisMonth');
 const avgSpendTimeRange = ref<string>('thisMonth');
 const netCashFlowTimeRange = ref<string>('thisMonth');
+const expenseBreakdownTimeRange = ref<string>('thisMonth');
 const cashFlowOption = ref<string>('YTD');
 
 // Watcher for cashFlowOption
@@ -44,6 +45,7 @@ watch(cashFlowOption, async (newVal) => {
 const savingsData = computed(() => getMetricsForRange(savingsTimeRange.value, store.transactions));
 const avgSpendData = computed(() => getMetricsForRange(avgSpendTimeRange.value, store.transactions));
 const netCashFlowData = computed(() => getMetricsForRange(netCashFlowTimeRange.value, store.transactions));
+const expenseBreakdownData = computed(() => getExpenseBreakdownForRange(expenseBreakdownTimeRange.value, store.transactions));
 
 const savingsRate = computed(() => {
   const { income, expense } = savingsData.value;
@@ -152,6 +154,8 @@ const pacingLabelB = computed(() => {
                 <option value="last3Months">Last 3 Months</option>
                 <option value="last6Months">Last 6 Months</option>
                 <option value="lastYear">Last Year</option>
+                <option value="thisYear">This Year</option>
+                <option value="ytd">YTD</option>
                 <option value="allTime">All Time</option>
             </select>
         </div>
@@ -178,6 +182,8 @@ const pacingLabelB = computed(() => {
                 <option value="last3Months">Last 3 Months</option>
                 <option value="last6Months">Last 6 Months</option>
                 <option value="lastYear">Last Year</option>
+                <option value="thisYear">This Year</option>
+                <option value="ytd">YTD</option>
                 <option value="allTime">All Time</option>
             </select>
         </div>
@@ -207,6 +213,8 @@ const pacingLabelB = computed(() => {
                 <option value="last3Months">Last 3 Months</option>
                 <option value="last6Months">Last 6 Months</option>
                 <option value="lastYear">Last Year</option>
+                <option value="thisYear">This Year</option>
+                <option value="ytd">YTD</option>
                 <option value="allTime">All Time</option>
             </select>
         </div>
@@ -292,14 +300,28 @@ const pacingLabelB = computed(() => {
     </div>
 
     <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Expense Breakdown -->
-      <div class="card p-4">
-        <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">
-          Expense Breakdown
-        </h3>
-        <div class="h-64 flex justify-center">
-          <ExpenseBreakdownChart />
+      <div class="card p-4 lg:col-span-1 max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+              Expense Breakdown
+            </h3>
+            <select 
+                v-model="expenseBreakdownTimeRange"
+                class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+                <option value="thisMonth">This Month</option>
+                <option value="last3Months">Last 3 Months</option>
+                <option value="last6Months">Last 6 Months</option>
+                <option value="lastYear">Last Year</option>
+                <option value="thisYear">This Year</option>
+                <option value="ytd">YTD</option>
+                <option value="allTime">All Time</option>
+            </select>
+        </div>
+        <div class="h-80">
+          <ExpenseBreakdownChart :breakdown="expenseBreakdownData" />
         </div>
       </div>
     </div>

@@ -62,6 +62,14 @@ const defaultOptions = computed(() => {
             // For Doughnut/Pie where data is just a number in raw
             const val = context.raw as number;
             label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+            
+            // Calculate percentage
+            const meta = context.chart.getDatasetMeta(context.datasetIndex);
+            const total = (meta as any).total;
+            if (total > 0) {
+                const percentage = ((val / total) * 100).toFixed(1);
+                label += ` (${percentage}%)`;
+            }
         }
         return label;
     };
