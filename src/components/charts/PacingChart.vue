@@ -1,34 +1,40 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
+import type { DailyTransactionSum } from "@/types";
 
-const store = useFinanceStore();
+const props = defineProps<{
+  seriesA: DailyTransactionSum[];
+  seriesB: DailyTransactionSum[];
+  labelA: string;
+  labelB: string;
+}>();
 
 const pacingData = computed(() => {
-  const current = store.pacingTrends.currentMonth;
-  const previous = store.pacingTrends.previousAverage;
+  const current = props.seriesA;
+  const previous = props.seriesB;
 
-  // X Axis labels 1-31
-  const labels = Array.from({length: 31}, (_, i) => i + 1);
+  // X Axis labels - Strictly match the length of the data provided
+  const maxLength = Math.max(current.length, previous.length);
+  const labels = Array.from({length: maxLength}, (_, i) => i + 1);
   
   // Map data to array indices (day-1)
-  const currentData = new Array(31).fill(null);
-  const prevData = new Array(31).fill(null);
+  const currentData = new Array(maxLength).fill(null);
+  const prevData = new Array(maxLength).fill(null);
 
   current.forEach(d => {
-      if (d.day >= 1 && d.day <= 31) currentData[d.day - 1] = d.total;
+      if (d.day >= 1 && d.day <= maxLength) currentData[d.day - 1] = d.total;
   });
 
   previous.forEach(d => {
-      if (d.day >= 1 && d.day <= 31) prevData[d.day - 1] = d.total;
+      if (d.day >= 1 && d.day <= maxLength) prevData[d.day - 1] = d.total;
   });
 
   return {
     labels,
     datasets: [
       {
-        label: "This Month",
+        label: props.labelA,
         data: currentData,
         borderColor: "#3b82f6", // Blue
         backgroundColor: "rgba(59, 130, 246, 0.1)",
@@ -36,24 +42,29 @@ const pacingData = computed(() => {
         tension: 0.4
       },
       {
-        label: "3-Month Avg",
+        label: props.labelB,
         data: prevData,
         borderColor: "#9ca3af", // Gray
         borderDash: [5, 5],
-        tension: 0.4,
+        tension: 0, // Straight line
         pointRadius: 0
       }
     ]
   };
 });
 
-const pacingOptions = {
-    scales: {
-        x: {
-            title: { display: true, text: 'Day of Month' }
+const pacingOptions = computed(() => {
+    return {
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                title: { display: true, text: 'Day of Month' }
+            }
         }
-    }
-};
+    };
+});
 </script>
 
 <template>

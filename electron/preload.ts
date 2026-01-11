@@ -101,6 +101,10 @@ const electronAPI = {
   getDailyTransactionSum: (year: number, month: number, type: 'income' | 'expense'): Promise<DailyTransactionSum[]> =>
     ipcRenderer.invoke("db:getDailyTransactionSum", year, month, type),
 
+  getTotalMonthSpend: (year: number, month: number): Promise<number> =>
+    ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
+
+
   // ============================================
   // SYSTEM OPERATIONS
   // ============================================

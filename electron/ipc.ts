@@ -35,6 +35,7 @@ import {
   insertAccountType,
   deleteAllDataFromTables,
   getRollingMonthlyTrends,
+  getTotalMonthSpend,
 } from "./db";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
@@ -175,6 +176,13 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("db:getDailyTransactionSum", async (_event, year: number, month: number, type: 'income' | 'expense') => {
     return getDailyTransactionSum(year, month, type);
   });
+
+  ipcMain.handle("db:getTotalMonthSpend", async (_event, year: number, month: number) => {
+    return getTotalMonthSpend(year, month);
+  });
+
+
+
 
   // ============================================
   // SYSTEM HANDLERS

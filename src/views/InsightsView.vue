@@ -2,6 +2,7 @@
 import { computed, onMounted, watch, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { formatCurrency, getMetricsForRange, getTimeRangeLabel } from "@/utils";
+import type { DailyTransactionSum } from "@/types";
 import CashFlowChart from "@/components/charts/CashFlowChart.vue";
 import PacingChart from "@/components/charts/PacingChart.vue";
 import ExpenseBreakdownChart from "@/components/charts/ExpenseBreakdownChart.vue";
@@ -19,12 +20,7 @@ onMounted(async () => {
   if (store.expenseBreakdown.length === 0) {
     store.fetchPeriodSummarySync();
   }
-  await store.fetchPacingTrends();
-});
-
-// Watch for period changes to refresh data
-watch(() => store.currentLedgerMonth, async () => {
-    await store.fetchPacingTrends();
+  await refreshPacing();
 });
 
 // ===============================================
@@ -64,6 +60,67 @@ const avgDailySpend = computed(() => {
 const netCashFlow = computed(() => {
     const { income, expense } = netCashFlowData.value;
     return income - expense;
+});
+
+// ===============================================
+// PACING CHART
+// ===============================================
+
+// Generate last 12 months for Dropdown A
+const availableMonths = computed(() => {
+    const months = [];
+    const date = new Date();
+    // Start from current month
+    date.setDate(1); 
+    
+    for (let i = 0; i <= 12; i++) {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // 1-12
+        const value = `${year}-${String(month).padStart(2, '0')}`;
+        const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+        months.push({ label, value });
+        
+        // Go back one month
+        date.setMonth(date.getMonth() - 1);
+    }
+    return months;
+});
+
+const pacingRangeA = ref<string>(availableMonths.value[0]?.value || ''); // Default to current month
+const pacingRangeB = ref<'lastMonth' | 'avg3Months' | 'avg6Months'>('lastMonth');
+const pacingSeriesA = ref<DailyTransactionSum[]>([]);
+const pacingSeriesB = ref<DailyTransactionSum[]>([]);
+
+// Initialize default if availableMonths changes (e.g. on mount if empty initially, though computed runs immediately)
+watch(availableMonths, (newVal) => {
+    if (newVal.length > 0 && !pacingRangeA.value) {
+        pacingRangeA.value = newVal[0].value;
+    }
+}, { immediate: true });
+
+async function refreshPacing() {
+    if (!pacingRangeA.value) return;
+    
+    const { seriesA, seriesB } = await store.fetchPacingData(pacingRangeA.value, pacingRangeB.value);
+    pacingSeriesA.value = seriesA;
+    pacingSeriesB.value = seriesB;
+}
+
+watch([pacingRangeA, pacingRangeB], refreshPacing);
+
+// Helper for label display
+const pacingLabelA = computed(() => {
+    const m = availableMonths.value.find(m => m.value === pacingRangeA.value);
+    return m ? m.label : 'Selected Month';
+});
+
+const pacingLabelB = computed(() => {
+    switch(pacingRangeB.value) {
+        case 'lastMonth': return 'Last Month Total';
+        case 'avg3Months': return '3-Month Avg Total';
+        case 'avg6Months': return '6-Month Avg Total';
+        default: return 'Comparison';
+    }
 });
 </script>
 
@@ -190,11 +247,46 @@ const netCashFlow = computed(() => {
 
       <!-- Spending Pacing -->
       <div class="card p-4">
-        <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">
-          Spending Pacing
-        </h3>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+            <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+              Spending Pacing
+            </h3>
+            
+            <!-- Custom Legend / Dropdowns -->
+            <div class="flex flex-wrap items-center gap-4">
+                <!-- Dropdown A (Blue) -->
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-blue-500 mr-2 rounded-sm"></div>
+                    <select 
+                        v-model="pacingRangeA"
+                        class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+                    >
+                        <option v-for="m in availableMonths" :key="m.value" :value="m.value">
+                            {{ m.label }}
+                        </option>
+                    </select>
+                </div>
+                <!-- Dropdown B (Gray Dotted) -->
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-gray-400 mr-2 rounded-sm border border-gray-600 border-dashed"></div>
+                    <select 
+                        v-model="pacingRangeB"
+                        class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+                    >
+                        <option value="lastMonth">Last Month</option>
+                        <option value="avg3Months">3 Month Avg</option>
+                        <option value="avg6Months">6 Month Avg</option>
+                    </select>
+                </div>
+            </div>
+        </div>
         <div class="h-64">
-          <PacingChart />
+          <PacingChart 
+            :series-a="pacingSeriesA" 
+            :series-b="pacingSeriesB" 
+            :label-a="pacingLabelA" 
+            :label-b="pacingLabelB"
+          />
         </div>
       </div>
     </div>

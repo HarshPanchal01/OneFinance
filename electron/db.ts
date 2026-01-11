@@ -800,5 +800,16 @@ export function getRollingMonthlyTrends(): MonthlyTrend[] {
   return trends;
 }
 
+export function getTotalMonthSpend(year: number, month: number): number {
+    const query = `
+        SELECT SUM(amount) as total
+        FROM transactions
+        WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ? AND type = 'expense'
+    `;
+    const monthStr = month.toString().padStart(2, '0');
+    const result = db.prepare(query).get(year.toString(), monthStr) as { total: number };
+    return result.total || 0;
+}
+
 // Export the database instance for advanced operations if needed
 export default db;
