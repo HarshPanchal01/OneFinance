@@ -442,7 +442,7 @@ const pacingLabelB = computed(() => {
           </div>
         </div>
         <div class="h-80">
-          <ExpenseBreakdownChart :breakdown="expenseBreakdownData" />
+          <ExpenseBreakdownChart :breakdown="expenseBreakdownData" :time-range="expenseBreakdownTimeRange" />
         </div>
       </div>
 

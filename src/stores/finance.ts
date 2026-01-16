@@ -41,6 +41,7 @@ export const useFinanceStore = defineStore("finance", () => {
   // Search results
   const searchResults = ref<TransactionWithCategory[]>([]);
   const isSearching = ref(false);
+  const transactionFilter = ref<SearchOptions | null>(null);
 
   // Summary data - always have default values
   const periodSummary = ref<PeriodSummary>({
@@ -537,6 +538,11 @@ export const useFinanceStore = defineStore("finance", () => {
   function clearSearch() {
     isSearching.value = false;
     searchResults.value = [];
+    transactionFilter.value = null;
+  }
+
+  function setTransactionFilter(filter: SearchOptions | null) {
+    transactionFilter.value = filter;
   }
 
   // ============================================
@@ -848,6 +854,7 @@ export const useFinanceStore = defineStore("finance", () => {
     recentTransactions,
     searchResults,
     isSearching,
+    transactionFilter,
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
@@ -885,6 +892,7 @@ export const useFinanceStore = defineStore("finance", () => {
     removeTransaction,
     searchTransactions,
     clearSearch,
+    setTransactionFilter,
     fetchAccounts,
     fetchAccountTypes,
     removeAccount,

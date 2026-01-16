@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import DatePicker from "primevue/datepicker";
+import { toIsoDateString } from "@/utils";
 
 const props = defineProps<{
   initialAccountId?: number | null;
@@ -18,6 +19,7 @@ const selectedAccountIds = ref<number[]>([]);
 const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);
+const typeFilter = ref<'all' | 'income' | 'expense'>('all');
 
 // Label Picker State
 const showLabelPicker = ref(false);
@@ -32,6 +34,10 @@ const accountSearch = ref("");
 // Amount Picker State
 const showAmountPicker = ref(false);
 const amountPickerRef = ref<HTMLDivElement | null>(null);
+
+// Type Picker State
+const showTypePicker = ref(false);
+const typePickerRef = ref<HTMLDivElement | null>(null);
 
 // Date Picker State
 interface DatePickerRef {
@@ -77,6 +83,12 @@ function applyAmountFilter() {
   showAmountPicker.value = false;
 }
 
+function selectType(type: 'all' | 'income' | 'expense') {
+  typeFilter.value = type;
+  handleSearch();
+  showTypePicker.value = false;
+}
+
 // Filter categories for the picker list
 const pickerCategories = computed(() => {
   const term = labelSearch.value.toLowerCase();
@@ -112,19 +124,27 @@ function toggleDatePicker() {
 }
 
 // Toggle pickers exclusively
-function togglePicker(picker: 'label' | 'account' | 'amount') {
+function togglePicker(picker: 'label' | 'account' | 'amount' | 'type') {
   if (picker === 'label') {
     showLabelPicker.value = !showLabelPicker.value;
     showAccountPicker.value = false;
     showAmountPicker.value = false;
+    showTypePicker.value = false;
   } else if (picker === 'account') {
     showAccountPicker.value = !showAccountPicker.value;
     showLabelPicker.value = false;
     showAmountPicker.value = false;
+    showTypePicker.value = false;
   } else if (picker === 'amount') {
     showAmountPicker.value = !showAmountPicker.value;
     showLabelPicker.value = false;
     showAccountPicker.value = false;
+    showTypePicker.value = false;
+  } else if (picker === 'type') {
+    showTypePicker.value = !showTypePicker.value;
+    showLabelPicker.value = false;
+    showAccountPicker.value = false;
+    showAmountPicker.value = false;
   }
 }
 
@@ -134,9 +154,9 @@ async function handleSearch() {
   let toDate: string | null = null;
 
   if (dateRange.value && dateRange.value[0]) {
-    fromDate = dateRange.value[0].toISOString().split('T')[0];
+    fromDate = toIsoDateString(dateRange.value[0]);
     if (dateRange.value[1]) {
-      toDate = dateRange.value[1].toISOString().split('T')[0];
+      toDate = toIsoDateString(dateRange.value[1]);
     }
   }
 
@@ -163,7 +183,7 @@ async function handleSearch() {
     toDate,
     minAmount: minAmount.value,
     maxAmount: maxAmount.value,
-    type: null 
+    type: typeFilter.value === 'all' ? null : typeFilter.value
   });
 }
 
@@ -174,6 +194,7 @@ function clear() {
   dateRange.value = null;
   minAmount.value = null;
   maxAmount.value = null;
+  typeFilter.value = 'all';
   store.clearSearch();
   searchInput.value?.focus();
 }
@@ -181,14 +202,14 @@ function clear() {
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   // Press '/' to focus search
-  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value) {
+  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value) {
     e.preventDefault();
     searchInput.value?.focus();
     return;
   }
 
   // Search on Enter
-  if (e.key === "Enter" && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value) {
+  if (e.key === "Enter" && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value) {
     handleSearch();
   }
 }
@@ -204,6 +225,9 @@ function handleClickOutside(e: MouseEvent) {
   }
   if (amountPickerRef.value && !amountPickerRef.value.contains(target)) {
     showAmountPicker.value = false;
+  }
+  if (typePickerRef.value && !typePickerRef.value.contains(target)) {
+    showTypePicker.value = false;
   }
 }
 
@@ -224,6 +248,22 @@ onMounted(async () => {
   }
   if (store.accounts.length === 0) {
     await store.fetchAccounts();
+  }
+
+  // Sync state from store transactionFilter (if initiated from another view)
+  if (store.transactionFilter) {
+    const f = store.transactionFilter;
+    if (f.text) searchText.value = f.text;
+    if (f.categoryIds) selectedCategoryIds.value = [...f.categoryIds];
+    if (f.accountIds) selectedAccountIds.value = [...f.accountIds];
+    if (f.fromDate) {
+      const start = new Date(f.fromDate + 'T00:00:00'); 
+      const end = f.toDate ? new Date(f.toDate + 'T00:00:00') : new Date(start);
+      dateRange.value = [start, end];
+    }
+    if (f.minAmount !== undefined) minAmount.value = f.minAmount;
+    if (f.maxAmount !== undefined) maxAmount.value = f.maxAmount;
+    if (f.type) typeFilter.value = f.type;
   }
 
   checkInitialAccountId(props.initialAccountId);
@@ -465,6 +505,56 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+
+        <!-- Type Picker -->
+        <div
+          ref="typePickerRef"
+          class="relative ml-1"
+        >
+          <button
+            class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+            title="Filter by Type"
+            @click.stop="togglePicker('type')"
+          >
+            <i
+              class="pi pi-arrow-right-arrow-left"
+              :class="typeFilter !== 'all' ? 'text-primary-500' : ''"
+            />
+            <span
+              v-if="typeFilter !== 'all'"
+              class="w-2 h-2 rounded-full bg-primary-500 absolute top-1 right-1"
+            />
+          </button>
+
+          <!-- Type Picker Dropdown -->
+          <div
+            v-if="showTypePicker"
+            class="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
+            @click.stop
+          >
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="typeFilter === 'all' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectType('all')"
+            >
+              All
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="typeFilter === 'income' ? 'bg-income/10 text-income font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectType('income')"
+            >
+              Income
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="typeFilter === 'expense' ? 'bg-expense/10 text-expense font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectType('expense')"
+            >
+              Expense
+            </button>
+          </div>
+        </div>
         
         <!-- Separator -->
         <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
@@ -482,7 +572,7 @@ onUnmounted(() => {
         <!-- Actions (Right) -->
         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
           <button
-            v-if="searchText || selectedCategoryIds.length > 0 || selectedAccountIds.length > 0 || dateRange || minAmount !== null || maxAmount !== null"
+            v-if="searchText || selectedCategoryIds.length > 0 || selectedAccountIds.length > 0 || dateRange || minAmount !== null || maxAmount !== null || typeFilter !== 'all'"
             class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Clear Filters"
             @click="clear"

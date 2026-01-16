@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
 import type { CategoryBreakdown } from "@/types";
-import { formatCurrency } from "@/utils";
+import { formatCurrency, getDateRange, toIsoDateString } from "@/utils";
 
 const props = defineProps<{
   breakdown: CategoryBreakdown[];
+  timeRange: string;
 }>();
+
+const store = useFinanceStore();
 
 const totalExpenses = computed(() => {
   return props.breakdown.reduce((sum, item) => sum + item.total, 0);
@@ -56,14 +60,38 @@ const categoryData = computed(() => {
   };
 });
 
-const categoryOptions = {
+const categoryOptions = computed(() => ({
   layout: {
     padding: 10
   },
   plugins: {
     legend: { display: false },
   },
-};
+  onHover: (_event: any, chartElement: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+  },
+  onClick: (_event: any, elements: any[]) => {
+    if (elements && elements.length > 0) {
+      const index = elements[0].index;
+      const category = topCategories.value[index];
+      
+      if (category.categoryId) {
+        const { startDate, endDate } = getDateRange(props.timeRange, store.transactions);
+        
+        const filter = {
+          categoryIds: [category.categoryId],
+          fromDate: toIsoDateString(startDate),
+          toDate: toIsoDateString(endDate),
+          type: 'expense' as const
+        };
+
+        store.setTransactionFilter(filter);
+        store.searchTransactions(filter);
+      }
+    }
+  }
+}));
 </script>
 
 <template>

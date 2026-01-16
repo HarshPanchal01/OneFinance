@@ -7,6 +7,13 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function toIsoDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function formatDate(dateString: string): string {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -131,6 +138,62 @@ export function verifyImportData(data: {
     console.log(`Error verifying import data ${e}`);
     return false;
   }
+}
+
+export function getDateRange(range: string, transactions?: TransactionWithCategory[]): { startDate: Date, endDate: Date } {
+  const now = new Date();
+  let startDate = new Date();
+  let endDate = new Date();
+  
+  // Default end date is end of today unless specified otherwise
+  endDate.setHours(23, 59, 59, 999);
+
+  if (range === 'thisMonth') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'last3Months') {
+    startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'last6Months') {
+    startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'lastYear') {
+    startDate = new Date(now.getFullYear() - 1, 0, 1);
+    endDate = new Date(now.getFullYear() - 1, 11, 31);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'thisYear') {
+    startDate = new Date(now.getFullYear(), 0, 1);
+    endDate = new Date(now.getFullYear(), 11, 31);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'ytd') {
+    startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  } else if (range === 'allTime') {
+    startDate = new Date(0); 
+    
+    if (transactions && transactions.length > 0) {
+      // Assuming transactions are sorted descending (newest first) but just in case we sort or find min/max
+      // Since sorting might be expensive, and they come from store usually sorted... 
+      // Let's assume store.transactions is sorted descending by date.
+      const newestTx = transactions[0];
+      const oldestTx = transactions[transactions.length - 1];
+      
+      startDate = new Date(oldestTx.date);
+      const potentialEndDate = new Date(newestTx.date);
+      
+      if (potentialEndDate > now) {
+        endDate = potentialEndDate;
+      }
+      // Ensure endDate covers the full day of the last transaction
+      endDate.setHours(23, 59, 59, 999);
+    }
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  
+  return { startDate, endDate };
 }
 
 export function getMetricsForRange(range: string, transactions: TransactionWithCategory[]) {
