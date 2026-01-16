@@ -20,12 +20,20 @@ const chartData = computed(() => {
       {
         label: "Income",
         backgroundColor: "#22c55e", // Green
+        hoverBackgroundColor: "#22c55e99",
+        borderColor: "#22c55e",
+        hoverBorderColor: "#22c55e",
+        borderWidth: 2,
         data: incomeData,
         borderRadius: 4,
       },
       {
         label: "Expenses",
         backgroundColor: "#ef4444", // Red
+        hoverBackgroundColor: "#ef444499",
+        borderColor: "#ef4444",
+        hoverBorderColor: "#ef4444",
+        borderWidth: 2,
         data: expenseData,
         borderRadius: 4,
       },

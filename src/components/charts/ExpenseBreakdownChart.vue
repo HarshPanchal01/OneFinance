@@ -45,10 +45,10 @@ const categoryData = computed(() => {
     datasets: [
       {
         data: topCategories.value.map((c) => c.total),
-        backgroundColor: topCategories.value.map((c) => c.categoryColor + '99'), // ~60% opacity
-        hoverBackgroundColor: topCategories.value.map((c) => c.categoryColor), // 100% opacity on hover
-        borderColor: "#0ea5e999",
-        hoverBorderColor: "#0ea5e9",
+        backgroundColor: topCategories.value.map((c) => c.categoryColor), // Solid default
+        hoverBackgroundColor: topCategories.value.map((c) => c.categoryColor + '99'), // Transparent hover
+        borderColor: topCategories.value.map((c) => c.categoryColor),
+        hoverBorderColor: topCategories.value.map((c) => c.categoryColor),
         borderWidth: 2,
         hoverOffset: 4,
       },
