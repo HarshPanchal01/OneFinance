@@ -6,11 +6,13 @@ import AppChart from "@/components/AppChart.vue";
 
 const store = useFinanceStore();
 
+const trends = computed(() => store.monthlyTrends);
+
 const chartData = computed(() => {
-  const trends = store.monthlyTrends;
-  const labels = trends.map((t) => getMonthName(t.month).substring(0, 3));
-  const incomeData = trends.map((t) => t.totalIncome);
-  const expenseData = trends.map((t) => t.totalExpenses);
+  const currentTrends = trends.value;
+  const labels = currentTrends.map((t) => getMonthName(t.month).substring(0, 3));
+  const incomeData = currentTrends.map((t) => t.totalIncome);
+  const expenseData = currentTrends.map((t) => t.totalExpenses);
 
   return {
     labels,
@@ -31,7 +33,7 @@ const chartData = computed(() => {
   };
 });
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   animation: {
     duration: 1000,
     easing: "easeOutQuart" as const,
@@ -50,6 +52,16 @@ const chartOptions = {
   plugins: {
     legend: {
       display: false, // Using custom legend in parent
+    },
+    tooltip: {
+      callbacks: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        title: (context: any[]) => {
+          const index = context[0].dataIndex;
+          const t = trends.value[index];
+          return t ? `${getMonthName(t.month)} ${t.year}` : '';
+        }
+      }
     }
   },
   scales: {
@@ -60,7 +72,7 @@ const chartOptions = {
       title: { display: true, text: 'Amount ($)' }
     }
   }
-};
+}));
 </script>
 
 <template>

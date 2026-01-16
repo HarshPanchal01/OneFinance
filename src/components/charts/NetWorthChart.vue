@@ -10,19 +10,25 @@ const props = defineProps<{
 
 const store = useFinanceStore();
 
-const chartData = computed(() => {
+const filteredTrends = computed(() => {
   const trends = store.netWorthTrends;
-  let displayTrends = [...trends];
-
   if (props.option === "YTD") {
-    // Show last 13 points (approx 1 year rolling)
-    displayTrends = trends.length > 13 ? trends.slice(-13) : trends;
-  } else {
-    // Show specific year
-    const year = parseInt(props.option);
-    displayTrends = trends.filter((t) => t.year === year);
-  }
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
+    return trends.filter(t => {
+        const tDate = new Date(t.year, t.month - 1, 1);
+        return tDate >= startDate && tDate <= endDate;
+    });
+  } else {
+    const year = parseInt(props.option);
+    return trends.filter((t) => t.year === year);
+  }
+});
+
+const chartData = computed(() => {
+  const displayTrends = filteredTrends.value;
   const labels = displayTrends.map((t) => getMonthName(t.month).slice(0, 3));
   const data = displayTrends.map((t) => t.balance);
 
@@ -82,6 +88,16 @@ const chartOptions = computed(() => {
     },
     plugins: {
       legend: { display: false },
+      tooltip: {
+        callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          title: (context: any[]) => {
+            const index = context[0].dataIndex;
+            const t = filteredTrends.value[index];
+            return t ? `${getMonthName(t.month)} ${t.year}` : '';
+          }
+        }
+      }
     },
     scales: {
       x: {
