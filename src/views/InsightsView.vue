@@ -7,6 +7,7 @@ import CashFlowChart from "@/components/charts/CashFlowChart.vue";
 import PacingChart from "@/components/charts/PacingChart.vue";
 import ExpenseBreakdownChart from "@/components/charts/ExpenseBreakdownChart.vue";
 import NetWorthChart from "@/components/charts/NetWorthChart.vue";
+import DatePicker from "primevue/datepicker";
 
 const store = useFinanceStore();
 
@@ -85,61 +86,60 @@ const availableYears = computed(() => {
 // PACING CHART
 // ===============================================
 
-// Generate last 12 months for Dropdown A
-const pacingAvailableMonths = computed(() => {
-    const months = [];
-    const date = new Date();
-    // Start from current month
-    date.setDate(1); 
-    
-    for (let i = 0; i <= 12; i++) {
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1; // 1-12
-        const value = `${year}-${String(month).padStart(2, '0')}`;
-        const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-        months.push({ label, value });
-        
-        // Go back one month
-        date.setMonth(date.getMonth() - 1);
-    }
-    return months;
-});
+// Date Pickers State
+// Default to current month
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pacingDateA = ref<any>(new Date());
+// Default to previous month
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pacingDateB = ref<any>(new Date(new Date().setMonth(new Date().getMonth() - 1)));
 
-const pacingRangeA = ref<string>(pacingAvailableMonths.value[0]?.value || ''); // Default to current month
-const pacingRangeB = ref<'lastMonth' | 'avg3Months' | 'avg6Months'>('lastMonth');
+// Refs to trigger date picker
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// const pacingDateARef = ref<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// const pacingDateBRef = ref<any>(null);
+
 const pacingSeriesA = ref<DailyTransactionSum[]>([]);
 const pacingSeriesB = ref<DailyTransactionSum[]>([]);
 
-// Initialize default if pacingAvailableMonths changes (e.g. on mount if empty initially, though computed runs immediately)
-watch(pacingAvailableMonths, (newVal) => {
-    if (newVal.length > 0 && !pacingRangeA.value) {
-        pacingRangeA.value = newVal[0].value;
-    }
-}, { immediate: true });
-
-async function refreshPacing() {
-    if (!pacingRangeA.value) return;
-    
-    const { seriesA, seriesB } = await store.fetchPacingData(pacingRangeA.value, pacingRangeB.value);
-    pacingSeriesA.value = seriesA;
-    pacingSeriesB.value = seriesB;
+// Convert Date to YYYY-MM
+function getMonthStr(date: Date): string {
+    const y = date.getFullYear();
+    const m = date.getMonth() + 1;
+    return `${y}-${String(m).padStart(2, '0')}`;
 }
 
-watch([pacingRangeA, pacingRangeB], refreshPacing);
+async function refreshPacing() {
+    if (!pacingDateA.value) return;
+
+    const target = getMonthStr(pacingDateA.value);
+    let comparison: string = '';
+
+    if (pacingDateB.value) {
+        comparison = getMonthStr(pacingDateB.value);
+    } 
+
+    if (comparison) {
+         // Cast to any because our store definition is now loose string for 2nd arg
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         const { seriesA, seriesB } = await store.fetchPacingData(target, comparison as any);
+         pacingSeriesA.value = seriesA;
+         pacingSeriesB.value = seriesB;
+    }
+}
+
+watch([pacingDateA, pacingDateB], refreshPacing);
 
 // Helper for label display
 const pacingLabelA = computed(() => {
-    const m = pacingAvailableMonths.value.find(m => m.value === pacingRangeA.value);
-    return m ? m.label : 'Selected Month';
+    if (!pacingDateA.value) return 'Selected Month';
+    return pacingDateA.value.toLocaleString('default', { month: 'long', year: 'numeric' });
 });
 
 const pacingLabelB = computed(() => {
-    switch(pacingRangeB.value) {
-        case 'lastMonth': return 'Last Month Total';
-        case 'avg3Months': return '3-Month Avg Total';
-        case 'avg6Months': return '6-Month Avg Total';
-        default: return 'Comparison';
-    }
+    if (!pacingDateB.value) return 'Select Month';
+    return pacingDateB.value.toLocaleString('default', { month: 'long', year: 'numeric' });
 });
 </script>
 
@@ -355,39 +355,52 @@ const pacingLabelB = computed(() => {
             Spending Pacing
           </h3>
             
-          <!-- Custom Legend / Dropdowns -->
-          <div class="sm:absolute sm:right-0 flex flex-wrap items-center gap-4">
-            <!-- Dropdown A -->
-            <div class="flex items-center">
-              <select 
-                v-model="pacingRangeA"
-                class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-primary-500 font-semibold px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+          <!-- Date Pickers for Pacing -->
+          <div class="sm:absolute sm:right-0 flex flex-wrap items-center gap-2">
+            
+            <!-- Target Month Picker -->
+            <div class="relative">
+              <DatePicker 
+                ref="pacingDateARef"
+                v-model="pacingDateA" 
+                view="month" 
+                date-format="yy-mm"
+                class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                input-class="cursor-pointer h-full w-full caret-transparent"
+                :pt="{ input: { inputmode: 'none' } }"
+                :panel-style="{ minWidth: '18rem' }"
+              />
+              <button
+                class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
               >
-                <option
-                  v-for="m in pacingAvailableMonths"
-                  :key="m.value"
-                  :value="m.value"
-                >
-                  {{ m.label }}
-                </option>
-              </select>
+                <i class="pi pi-calendar text-primary-500 text-xs" />
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}
+                </span>
+              </button>
             </div>
-            <!-- Dropdown B -->
-            <div class="flex items-center">
-              <select 
-                v-model="pacingRangeB"
-                class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
-              >
-                <option value="lastMonth">
-                  Last Month
-                </option>
-                <option value="avg3Months">
-                  3 Month Avg
-                </option>
-                <option value="avg6Months">
-                  6 Month Avg
-                </option>
-              </select>
+
+            <span class="text-gray-400 text-xs">vs</span>
+
+            <!-- Comparison Picker -->
+            <div class="relative">
+                <DatePicker 
+                    ref="pacingDateBRef"
+                    v-model="pacingDateB" 
+                    view="month" 
+                    date-format="yy-mm"
+                    class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                    input-class="cursor-pointer h-full w-full caret-transparent"
+                    :pt="{ input: { inputmode: 'none' } }"
+                    :panel-style="{ minWidth: '18rem' }"
+                />
+                <button
+                    class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
+                >
+                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                    {{ pacingDateB ? pacingDateB.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}
+                    </span>
+                </button>
             </div>
           </div>
         </div>

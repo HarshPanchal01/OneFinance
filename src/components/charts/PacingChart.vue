@@ -30,6 +30,11 @@ const pacingData = computed(() => {
       if (d.day >= 1 && d.day <= maxLength) prevData[d.day - 1] = d.total;
   });
 
+  // Detect if Series B is a flat line (Average) or a Curve (Actual Month)
+  // Simple heuristic: check if all non-null values are identical
+  const validPrevValues = prevData.filter(v => v !== null);
+  const isFlatLine = validPrevValues.length > 0 && validPrevValues.every(v => v === validPrevValues[0]);
+
   return {
     labels,
     datasets: [
@@ -49,9 +54,10 @@ const pacingData = computed(() => {
         label: props.labelB,
         data: prevData,
         borderColor: "#9ca3af", // Gray
-        borderDash: [5, 5],
-        tension: 0, // Straight line
-        pointRadius: 0
+        borderDash: isFlatLine ? [5, 5] : [], // Dashed for average, solid for actual history
+        borderWidth: isFlatLine ? 2 : 2,
+        pointRadius: isFlatLine ? 0 : 3, // Hide points for average
+        tension: isFlatLine ? 0 : 0.4 // Smooth curve for history, straight for average
       }
     ]
   };
