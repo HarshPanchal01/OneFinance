@@ -484,7 +484,7 @@ export function searchTransactions(
   options: SearchOptions,
   limit?: number
 ): TransactionWithCategory[] {
-  const { text = "", categoryIds = [], accountIds = [], fromDate, toDate, minAmount, maxAmount, type } = options;
+  const { text = "", categoryIds = [], accountIds = [], fromDate, toDate, minAmount, maxAmount, type, sortOrder = 'desc' } = options;
   const searchTerm = `%${text.trim()}%`;
 
   let sql = `
@@ -553,7 +553,8 @@ export function searchTransactions(
     params.push(searchTerm, searchTerm, searchTerm);
   }
 
-  sql += " ORDER BY t.date DESC, t.id DESC";
+  const validSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+  sql += ` ORDER BY t.date ${validSortOrder}, t.id DESC`;
 
   if (limit) {
     sql += " LIMIT ?";

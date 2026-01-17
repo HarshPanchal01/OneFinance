@@ -20,6 +20,7 @@ const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);
 const typeFilter = ref<'all' | 'income' | 'expense'>('all');
+const sortOrder = ref<'desc' | 'asc'>('desc');
 
 // Label Picker State
 const showLabelPicker = ref(false);
@@ -38,6 +39,10 @@ const amountPickerRef = ref<HTMLDivElement | null>(null);
 // Type Picker State
 const showTypePicker = ref(false);
 const typePickerRef = ref<HTMLDivElement | null>(null);
+
+// Sort Picker State
+const showSortPicker = ref(false);
+const sortPickerRef = ref<HTMLDivElement | null>(null);
 
 // Date Picker State
 interface DatePickerRef {
@@ -89,6 +94,12 @@ function selectType(type: 'all' | 'income' | 'expense') {
   showTypePicker.value = false;
 }
 
+function selectSort(order: 'desc' | 'asc') {
+  sortOrder.value = order;
+  handleSearch();
+  showSortPicker.value = false;
+}
+
 // Filter categories for the picker list
 const pickerCategories = computed(() => {
   const term = labelSearch.value.toLowerCase();
@@ -124,27 +135,37 @@ function toggleDatePicker() {
 }
 
 // Toggle pickers exclusively
-function togglePicker(picker: 'label' | 'account' | 'amount' | 'type') {
+function togglePicker(picker: 'label' | 'account' | 'amount' | 'type' | 'sort') {
   if (picker === 'label') {
     showLabelPicker.value = !showLabelPicker.value;
     showAccountPicker.value = false;
     showAmountPicker.value = false;
     showTypePicker.value = false;
+    showSortPicker.value = false;
   } else if (picker === 'account') {
     showAccountPicker.value = !showAccountPicker.value;
     showLabelPicker.value = false;
     showAmountPicker.value = false;
     showTypePicker.value = false;
+    showSortPicker.value = false;
   } else if (picker === 'amount') {
     showAmountPicker.value = !showAmountPicker.value;
     showLabelPicker.value = false;
     showAccountPicker.value = false;
     showTypePicker.value = false;
+    showSortPicker.value = false;
   } else if (picker === 'type') {
     showTypePicker.value = !showTypePicker.value;
     showLabelPicker.value = false;
     showAccountPicker.value = false;
     showAmountPicker.value = false;
+    showSortPicker.value = false;
+  } else if (picker === 'sort') {
+    showSortPicker.value = !showSortPicker.value;
+    showLabelPicker.value = false;
+    showAccountPicker.value = false;
+    showAmountPicker.value = false;
+    showTypePicker.value = false;
   }
 }
 
@@ -159,21 +180,6 @@ async function handleSearch() {
       toDate = toIsoDateString(dateRange.value[1]);
     }
   }
-
-  // If all accounts are selected, we can optionally send empty array to imply "all" 
-  // OR send them all. The backend logic `AND t.accountId IN (...)` requires explicit IDs 
-  // if the array is not empty. If it IS empty, the backend logic I wrote earlier:
-  // `if (accountIds.length > 0) ...`
-  // So if I send [] it means "no filter" -> "all transactions".
-  // BUT, "no filter" also includes transactions with NULL accountId (if any).
-  // The user wants to filter BY account.
-  // If I uncheck one, I want to see transactions from the others.
-  // If I uncheck ALL, I probably see none? Or all?
-  // Usually in these filters:
-  // - All Checked = All shown.
-  // - None Checked = None shown (or All shown, depending on UX).
-  // Let's stick to: Send the list of selected IDs.
-  // If the list is equal to ALL accounts, it's effectively "All Accounts".
   
   await store.searchTransactions({
     text: searchText.value,
@@ -183,7 +189,8 @@ async function handleSearch() {
     toDate,
     minAmount: minAmount.value,
     maxAmount: maxAmount.value,
-    type: typeFilter.value === 'all' ? null : typeFilter.value
+    type: typeFilter.value === 'all' ? null : typeFilter.value,
+    sortOrder: sortOrder.value
   });
 }
 
@@ -195,6 +202,7 @@ function clear() {
   minAmount.value = null;
   maxAmount.value = null;
   typeFilter.value = 'all';
+  sortOrder.value = 'desc';
   store.clearSearch();
   searchInput.value?.focus();
 }
@@ -202,14 +210,14 @@ function clear() {
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   // Press '/' to focus search
-  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value) {
+  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
     e.preventDefault();
     searchInput.value?.focus();
     return;
   }
 
   // Search on Enter
-  if (e.key === "Enter" && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value) {
+  if (e.key === "Enter" && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
     handleSearch();
   }
 }
@@ -228,6 +236,9 @@ function handleClickOutside(e: MouseEvent) {
   }
   if (typePickerRef.value && !typePickerRef.value.contains(target)) {
     showTypePicker.value = false;
+  }
+  if (sortPickerRef.value && !sortPickerRef.value.contains(target)) {
+    showSortPicker.value = false;
   }
 }
 
@@ -264,6 +275,7 @@ onMounted(async () => {
     if (f.minAmount !== undefined) minAmount.value = f.minAmount;
     if (f.maxAmount !== undefined) maxAmount.value = f.maxAmount;
     if (f.type) typeFilter.value = f.type;
+    if (f.sortOrder) sortOrder.value = f.sortOrder;
   }
 
   checkInitialAccountId(props.initialAccountId);
@@ -555,6 +567,52 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+
+        <!-- Sort Picker -->
+        <div
+          ref="sortPickerRef"
+          class="relative ml-1"
+        >
+          <button
+            class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+            title="Sort Transactions"
+            @click.stop="togglePicker('sort')"
+          >
+            <i
+              class="pi"
+              :class="[
+                sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt',
+                sortOrder !== 'desc' ? 'text-primary-500' : ''
+              ]"
+            />
+            <span
+              v-if="sortOrder !== 'desc'"
+              class="w-2 h-2 rounded-full bg-primary-500 absolute top-1 right-1"
+            />
+          </button>
+
+          <!-- Sort Picker Dropdown -->
+          <div
+            v-if="showSortPicker"
+            class="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
+            @click.stop
+          >
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'desc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('desc')"
+            >
+              Newest First
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'asc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('asc')"
+            >
+              Oldest First
+            </button>
+          </div>
+        </div>
         
         <!-- Separator -->
         <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
@@ -572,7 +630,7 @@ onUnmounted(() => {
         <!-- Actions (Right) -->
         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
           <button
-            v-if="searchText || selectedCategoryIds.length > 0 || selectedAccountIds.length > 0 || dateRange || minAmount !== null || maxAmount !== null || typeFilter !== 'all'"
+            v-if="searchText || selectedCategoryIds.length > 0 || selectedAccountIds.length > 0 || dateRange || minAmount !== null || maxAmount !== null || typeFilter !== 'all' || sortOrder !== 'desc'"
             class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Clear Filters"
             @click="clear"

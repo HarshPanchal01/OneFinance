@@ -96,4 +96,5 @@ export interface SearchOptions {
   minAmount?: number | null;
   maxAmount?: number | null;
   type?: "income" | "expense" | null;
+  sortOrder?: 'desc' | 'asc';
 }

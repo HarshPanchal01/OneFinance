@@ -518,7 +518,8 @@ export const useFinanceStore = defineStore("finance", () => {
       options.toDate ||
       options.minAmount ||
       options.maxAmount ||
-      options.type;
+      options.type ||
+      options.sortOrder;
 
     if (!hasCriteria) {
       isSearching.value = false;
