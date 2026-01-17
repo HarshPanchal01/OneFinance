@@ -373,7 +373,6 @@ const pacingLabelB = computed(() => {
               <button
                 class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
               >
-                <i class="pi pi-calendar text-primary-500 text-xs" />
                 <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">
                   {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}
                 </span>

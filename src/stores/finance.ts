@@ -602,7 +602,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function fetchPacingData(
     targetMonthStr: string, // "YYYY-MM"
-    comparisonTypeOrMonth: 'lastMonth' | 'avg3Months' | 'avg6Months' | string
+    comparisonMonthStr: string // "YYYY-MM"
   ) {
       // Parse target Month
       const [yearStr, monthStr] = targetMonthStr.split('-');
@@ -610,10 +610,8 @@ export const useFinanceStore = defineStore("finance", () => {
       const month = parseInt(monthStr);
 
       // --- 1. Blue Line (Series A): Cumulative Spend for Target Month ---
-      // Uses getDailyTransactionSum which returns daily totals. We need to accumulate them.
       const dailyData = await window.electronAPI.getDailyTransactionSum(year, month, 'expense');
       
-      // Fill days 1-31 (or days in month)
       const daysInMonth = new Date(year, month, 0).getDate();
       const seriesA: DailyTransactionSum[] = [];
       let runningTotal = 0;
@@ -627,75 +625,27 @@ export const useFinanceStore = defineStore("finance", () => {
           seriesA.push({ day: d, total: runningTotal });
       }
 
-      // --- 2. Gray Line (Series B): Comparison ---
+      // --- 2. Gray Line (Series B): Comparison Month ---
       const seriesB: DailyTransactionSum[] = [];
-      let comparisonValue = 0;
 
-      // Check if comparisonTypeOrMonth is a "YYYY-MM" string
-      const isDateString = /^\d{4}-\d{2}$/.test(comparisonTypeOrMonth);
-
-      if (isDateString) {
-          // Compare against another specific month (Curve)
-          const [cYearStr, cMonthStr] = comparisonTypeOrMonth.split('-');
-          const cYear = parseInt(cYearStr);
-          const cMonth = parseInt(cMonthStr);
-          
-          const cDailyData = await window.electronAPI.getDailyTransactionSum(cYear, cMonth, 'expense');
-          
-          // Use same length as Series A (or max length of both, but here we can just map what we have)
-          // Actually, visually it's better if we map 1-31 for the comparison month too.
-          const cDaysInMonth = new Date(cYear, cMonth, 0).getDate();
-          
-          let cRunningTotal = 0;
-          const maxDays = Math.max(daysInMonth, cDaysInMonth);
-          
-          for (let d = 1; d <= maxDays; d++) {
-              const entry = cDailyData.find(item => item.day === d);
-              if (entry) {
-                  cRunningTotal += entry.total;
-              }
-              // If we are past the end of the comparison month, we just keep the last total (flat line at end)
-              // OR we stop pushing. But charts usually expect aligned data or explicit x/y.
-              // Our Chart component expects aligned indices 0..N roughly.
-              
-              seriesB.push({ day: d, total: cRunningTotal });
+      const [cYearStr, cMonthStr] = comparisonMonthStr.split('-');
+      const cYear = parseInt(cYearStr);
+      const cMonth = parseInt(cMonthStr);
+      
+      const cDailyData = await window.electronAPI.getDailyTransactionSum(cYear, cMonth, 'expense');
+      
+      const cDaysInMonth = new Date(cYear, cMonth, 0).getDate();
+      
+      let cRunningTotal = 0;
+      // We map up to the max days of either month to ensure the chart covers the longer month
+      const maxDays = Math.max(daysInMonth, cDaysInMonth);
+      
+      for (let d = 1; d <= maxDays; d++) {
+          const entry = cDailyData.find(item => item.day === d);
+          if (entry) {
+              cRunningTotal += entry.total;
           }
-
-      } else {
-          // Compare against Average/Total (Flat Line)
-          if (comparisonTypeOrMonth === 'lastMonth') {
-              // Calculate Date for Last Month relative to Target Month
-              let pYear = year;
-              let pMonth = month - 1;
-              if (pMonth === 0) { pMonth = 12; pYear--; }
-              
-              comparisonValue = await window.electronAPI.getTotalMonthSpend(pYear, pMonth);
-
-          } else if (comparisonTypeOrMonth === 'avg3Months') {
-              let sum = 0;
-              for(let i=1; i<=3; i++) {
-                  let pYear = year;
-                  let pMonth = month - i;
-                  while(pMonth <= 0) { pMonth += 12; pYear--; }
-                  sum += await window.electronAPI.getTotalMonthSpend(pYear, pMonth);
-              }
-              comparisonValue = sum / 3;
-
-          } else if (comparisonTypeOrMonth === 'avg6Months') {
-              let sum = 0;
-              for(let i=1; i<=6; i++) {
-                  let pYear = year;
-                  let pMonth = month - i;
-                  while(pMonth <= 0) { pMonth += 12; pYear--; }
-                  sum += await window.electronAPI.getTotalMonthSpend(pYear, pMonth);
-              }
-              comparisonValue = sum / 6;
-          }
-
-          // Create a flat line array matching the length of Series A (or 31)
-          for(let d=1; d<=daysInMonth; d++) {
-              seriesB.push({ day: d, total: comparisonValue });
-          }
+          seriesB.push({ day: d, total: cRunningTotal });
       }
 
       return { seriesA, seriesB };
