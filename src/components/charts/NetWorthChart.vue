@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
-import { getMonthName } from "@/utils";
+import { getMonthName, toIsoDateString } from "@/utils";
 
 const props = defineProps<{
   option: string;
@@ -105,6 +105,32 @@ const chartOptions = computed(() => {
       },
       y: {
         title: { display: true, text: 'Total Balance ($)' }
+      }
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onHover: (_event: any, chartElement: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onClick: (_event: any, elements: any[]) => {
+      if (elements && elements.length > 0) {
+        const index = elements[0].index;
+        const t = filteredTrends.value[index];
+        
+        if (t) {
+          // Construct date range for the specific month
+          const startDate = new Date(t.year, t.month - 1, 1);
+          const endDate = new Date(t.year, t.month, 0); // Last day of month
+          
+          const filter = {
+            fromDate: toIsoDateString(startDate),
+            toDate: toIsoDateString(endDate)
+          };
+
+          store.setTransactionFilter(filter);
+          store.searchTransactions(filter);
+        }
       }
     }
   };
