@@ -30,7 +30,15 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "electron"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "electron/**/*.ts",
+    "electron/**/*.d.ts",
+    "tests/**/*.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }],
   "vueCompilerOptions": {
     "strictTemplates": true

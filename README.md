@@ -52,6 +52,16 @@ npm run dev
 
 This will start the Vite development server and launch the Electron app.
 
+### Testing
+
+To run the unit and integration tests:
+
+```bash
+npm run test
+```
+
+This uses **Vitest** to run tests located in `tests/`.
+
 ### Build
 
 To build the application for production:
