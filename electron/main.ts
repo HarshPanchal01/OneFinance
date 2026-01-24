@@ -44,15 +44,12 @@ function createWindow() {
   });
 
   if (app.isPackaged) {
-    win.loadFile(path.join("dist/index.html"));
-    
-  } 
-  // else if (VITE_DEV_SERVER_URL) {
-  //   // win.loadFile('dist/index.html')
-  //   win.loadURL(VITE_DEV_SERVER_URL);
-  // }
-  else{
-    win.loadFile(path.join("dist/index.html"));
+    win.setMenu(null);
+    win.loadFile(path.join(RENDERER_DIST, "index.html"));
+  } else if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 }
 
@@ -121,10 +118,25 @@ app.on('activate', () => {
   }
 });
 
-app.whenReady().then(() => {
-  // Initialize database and IPC handlers before creating window
-  initializeDatabase();
-  registerIpcHandlers();
-  
-  createWindow();
-});
+
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    }
+  })
+
+  app.whenReady().then(() => {
+    // Initialize database and IPC handlers before creating window
+    initializeDatabase();
+    registerIpcHandlers();
+    
+    createWindow();
+  });
+}

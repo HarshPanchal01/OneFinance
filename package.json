@@ -1,19 +1,21 @@
 {
   "name": "one-finance",
   "productName": "OneFinance",
+  "version": "1.0.0",
   "description": "A local-first personal finance management cross-platform desktop application.",
-  "author": "One Finance Team <harshpanchalv@gmail.com>",
-  "contributors": [
-    "Harsh Panchal <harshpanchalv@gmail.com>",
-    "James Mata <jamesmata556@gmail.com>"
-  ],
+  "author": {
+    "name": "OneFinance Team",
+    "email": "harshpanchal30x@gmail.com"
+  },
   "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/HarshPanchal01/One-Finance.git"
   },
-  "version": "1.0.0",
-  "type": "module",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/HarshPanchal01/One-Finance/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build && electron-builder",
