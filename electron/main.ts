@@ -32,7 +32,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(__dirname, "assets", 'icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.js'),
     },
     width: 1400,
     height: 900,
