@@ -20,7 +20,7 @@
     "icon": "assets/icon.icns",
     "target": [
       {
-        "target": "zip",
+        "target": "dmg",
         "arch": ["x64", "arm64"]
       }
     ],
@@ -52,8 +52,7 @@
     "icon": "assets/icon.png",
     "category": "Office",
     "target": [
-      "AppImage",
-      "deb"
+      "AppImage"
     ],
     "artifactName": "${productName}-Linux-${version}.${ext}",
     "synopsis": "Local-first personal finance manager",

@@ -85,8 +85,6 @@ jobs:
         include:
           - os: ubuntu-latest
             build_cmd: npm run dist:linux
-          - os: macos-latest
-            build_cmd: npm run dist:mac
           - os: windows-latest
             build_cmd: npm run dist:win
     
@@ -116,11 +114,8 @@ jobs:
         with:
           tag_name: ${{ needs.prepare_release.outputs.release_tag }}
           files: |
-            release/*.dmg
             release/*.exe
             release/*.AppImage
-            release/*.deb
-            release/*.zip
           draft: ${{ inputs.draft }}
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}

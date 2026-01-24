@@ -70,14 +70,22 @@ A local-first personal finance manager built with modern web technologies and El
 
 > **Note on Privacy:** This application operates on a **Local-First** architecture. All financial data is persisted strictly within a local SQLite database, ensuring your sensitive information never leaves your device.
 
-## How to Run
+## Installation
+
+You can download the latest version from the [Releases](https://github.com/HarshPanchal01/One-Finance/releases) page.
+
+*   **Linux:** Download the `.AppImage` file.
+*   **Windows:** Download the `.exe` installer.
+*   **macOS:** We currently do not support macOS binaries. Please clone the repository and build it yourself.
+
+## Development
 
 ### Prerequisites
 
 *   Node.js (v16 or higher recommended)
 *   npm or yarn
 
-### Installation
+### Setup
 
 1.  Clone the repository:
     ```bash
@@ -90,7 +98,7 @@ A local-first personal finance manager built with modern web technologies and El
     npm install
     ```
 
-### Development
+### Running the App
 
 To run the application in development mode (with hot-reload):
 
@@ -108,7 +116,7 @@ To build the application for production:
 npm run build
 ```
 
-The build artifacts will be generated in the `dist` and `dist-electron` directories.
+You can find the built application in the `release/` directory.
 
 ## License
 
