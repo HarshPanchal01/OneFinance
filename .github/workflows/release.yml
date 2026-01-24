@@ -55,13 +55,12 @@ jobs:
           
           # Check if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Error: Tag $TAG already exists. Please use a new version number."
-            exit 1
+            echo "Tag $TAG already exists. Skipping creation and proceeding to build."
+          else
+            # Tag
+            git tag -a $TAG -m "Release $TAG"
+            git push origin $TAG
           fi
-
-          # Tag
-          git tag -a $TAG -m "Release $TAG"
-          git push origin $TAG
           
           # Output tag for next job
           echo "tag=$TAG" >> $GITHUB_OUTPUT
