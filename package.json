@@ -1,26 +1,32 @@
 {
   "name": "one-finance",
   "productName": "OneFinance",
+  "version": "1.0.0",
   "description": "A local-first personal finance management cross-platform desktop application.",
-  "author": "One Finance Team <harshpanchalv@gmail.com>",
-  "contributors": [
-    "Harsh Panchal <harshpanchalv@gmail.com>",
-    "James Mata <jamesmata556@gmail.com>"
-  ],
+  "author": {
+    "name": "OneFinance Team",
+    "email": "harshpanchal30x@gmail.com"
+  },
   "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/HarshPanchal01/One-Finance.git"
   },
-  "version": "1.0.0",
-  "type": "module",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/HarshPanchal01/One-Finance/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.ts,.tsx --fix",
     "lint:check": "eslint . --ext .vue,.js,.ts,.tsx",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "dist:mac": "npm run build -- --mac -p never",
+    "dist:win": "npm run build -- --win -p never",
+    "dist:linux": "npm run build -- --linux -p never",
+    "dist:all": "npm run build -- -mwl -p never"
   },
   "dependencies": {
     "@primevue/themes": "^4.5.4",

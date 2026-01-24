@@ -5,19 +5,20 @@ import ErrorModal from "@/components/ErrorModal.vue";
 import NotificationModal from "@/components/NotificationModal.vue";
 import SettingsImportModal from "./components/SettingsImportModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
+import logoUrl from "@/assets/logo.png";
 
-const appVersion = "0.0.1";
+const appVersion = "1.0.0";
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 
-const { 
-  openDbLocation: _openDbLocation, 
-  deleteDatabase: _deleteDatabase, 
-  exportData: _exportData, 
-  importData: _importData 
+const {
+  openDbLocation: _openDbLocation,
+  deleteDatabase: _deleteDatabase,
+  exportData: _exportData,
+  importData: _importData,
 } = useDataManagement();
 
 // Keyboard shortcuts
@@ -29,7 +30,7 @@ const shortcuts = [
   { keys: ["Ctrl", "Shift", "C"], description: "Go to Categories" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
-  { keys: ["/"], description: "Go to Search Bar"}
+  { keys: ["/"], description: "Go to Search Bar" },
 ];
 
 // Load DB path on mount
@@ -43,7 +44,11 @@ async function openDbLocation() {
 }
 
 async function deleteDatabase() {
-  await _deleteDatabase(confirmModal.value, notificationModal.value, errorModal.value);
+  await _deleteDatabase(
+    confirmModal.value,
+    notificationModal.value,
+    errorModal.value,
+  );
 }
 
 async function exportData() {
@@ -51,7 +56,11 @@ async function exportData() {
 }
 
 async function importData() {
-  await _importData(errorModal.value, actionModal.value, notificationModal.value);
+  await _importData(
+    errorModal.value,
+    actionModal.value,
+    notificationModal.value,
+  );
 }
 </script>
 
@@ -60,11 +69,7 @@ async function importData() {
     <!-- App Info -->
     <div class="card p-6">
       <div class="flex items-center space-x-4 mb-4">
-        <div
-          class="w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center"
-        >
-          <i class="pi pi-dollar text-3xl text-white" />
-        </div>
+        <img :src="logoUrl" alt="One Finance" class="w-16 h-16 rounded-2xl" />
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">
             One Finance
@@ -94,7 +99,7 @@ async function importData() {
           :key="shortcut.description"
           class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
         >
-          <span class="text-gray-600 dark:text-gray-300">{{ 
+          <span class="text-gray-600 dark:text-gray-300">{{
             shortcut.description
           }}</span>
           <div class="flex items-center space-x-1">
@@ -143,7 +148,7 @@ async function importData() {
             @click="exportData"
           >
             <i class="pi pi-download mr-2" />
-            
+
             Export Data
           </button>
           <button
@@ -166,7 +171,8 @@ async function importData() {
         Developer Options
         <span
           class="ml-2 px-2 py-0.5 text-xs bg-expense/10 text-expense rounded"
-        >DEV</span>
+          >DEV</span
+        >
       </h3>
 
       <div class="space-y-4">
