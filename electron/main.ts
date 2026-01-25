@@ -118,22 +118,40 @@ app.on('activate', () => {
   }
 });
 
+const isDev = !app.isPackaged;
 
-const gotTheLock = app.requestSingleInstanceLock()
+if (isDev) {
+  // Use a different userData path for development to prevent database conflicts
+  const devUserDataPath = path.join(app.getPath('appData'), 'one-finance-dev');
+  app.setPath('userData', devUserDataPath);
+  console.log(`[Main] Running in dev mode. UserData: ${devUserDataPath}`);
+}
 
-if (!gotTheLock) {
-  app.quit()
+if (app.isPackaged) {
+  const gotTheLock = app.requestSingleInstanceLock()
+
+  if (!gotTheLock) {
+    app.quit()
+  } else {
+    app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
+      // Someone tried to run a second instance, we should focus our window.
+      if (win) {
+        if (win.isMinimized()) win.restore()
+        win.focus()
+      }
+    })
+
+    app.whenReady().then(() => {
+      // Initialize database and IPC handlers before creating window
+      initializeDatabase();
+      registerIpcHandlers();
+      
+      createWindow();
+    });
+  }
 } else {
-  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (win) {
-      if (win.isMinimized()) win.restore()
-      win.focus()
-    }
-  })
-
+  // Development mode: No single instance lock, just start
   app.whenReady().then(() => {
-    // Initialize database and IPC handlers before creating window
     initializeDatabase();
     registerIpcHandlers();
     

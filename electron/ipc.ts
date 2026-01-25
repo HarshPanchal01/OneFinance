@@ -25,7 +25,7 @@ import {
   // Types
 
   // DB paths and instance
-  dbPath,
+  getDbPath,
   closeDb,
   getAccounts,
   getAccountTypes,
@@ -199,11 +199,11 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("system:getDbPath", async () => {
-    return dbPath;
+    return getDbPath();
   });
 
   ipcMain.handle("system:openDbLocation", async () => {
-    shell.showItemInFolder(dbPath);
+    shell.showItemInFolder(getDbPath());
   });
 
   ipcMain.handle("system:deleteDatabase", async () => {
@@ -212,6 +212,7 @@ export function registerIpcHandlers(): void {
       closeDb();
 
       // Delete the database file and related files
+      const dbPath = getDbPath();
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
       }
