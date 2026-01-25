@@ -9,8 +9,8 @@ const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 
 // Database file path - stored in user data directory
-export const dbPath = path.join(app.getPath("userData"), "one-finance.db");
-export const dbDir = app.getPath("userData");
+export const getDbPath = () => path.join(app.getPath("userData"), "one-finance.db");
+export const getDbDir = () => app.getPath("userData");
 
 // Database instance - will be initialized lazily
 let _db: ReturnType<typeof Database> | null = null;
@@ -21,11 +21,11 @@ let _db: ReturnType<typeof Database> | null = null;
 export function getDb(): ReturnType<typeof Database> {
   if (!_db) {
     // Ensure the directory exists
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+    if (!fs.existsSync(getDbDir())) {
+      fs.mkdirSync(getDbDir(), { recursive: true });
     }
 
-    _db = new Database(dbPath);
+    _db = new Database(getDbPath());
     _db.pragma("journal_mode = WAL");
     _db.pragma("foreign_keys = ON");
   }
@@ -135,7 +135,7 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
   `);
 
-  console.log(`[DB] Database initialized at: ${dbPath}`);
+  console.log(`[DB] Database initialized at: ${getDbPath()}`);
 }
 
 /**
