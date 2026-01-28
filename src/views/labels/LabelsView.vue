@@ -16,14 +16,13 @@ const showCategoryModal = ref(false);
 const editingCategory = ref<Category | null>(null);
 const editingAccountType = ref<AccountType | null>(null);
 
-const categoryForm = ref<{
-  name: string;
-  colorCode: string;
-  icon: string;
-}>({
+const categoryForm = ref<
+  Category
+>({
+  id: 0,
   name: "",
-  colorCode: "#6366f1",
-  icon: "pi-tag",
+  colorCode: "",
+  icon: "",
 });
 
 const accountTypeForm = ref<{
@@ -65,6 +64,7 @@ async function deleteAccountType(id: number) {
 function openCategoryCreateModal() {
   editingCategory.value = null;
   categoryForm.value = {
+    id: 0,
     name: "",
     colorCode: "#6366f1",
     icon: "pi-tag",
@@ -75,11 +75,7 @@ function openCategoryCreateModal() {
 // Open edit modal
 function openCategoryEditModal(category: Category) {
   editingCategory.value = category;
-  categoryForm.value = {
-    name: category.name,
-    colorCode: category.colorCode,
-    icon: category.icon,
-  };
+  categoryForm.value = category;
   showCategoryModal.value = true;
 }
 
@@ -222,7 +218,7 @@ function closeCategoryModal() {
 
   <CategoryModal
     v-if="showCategoryModal"
-    :editingCategory="editingCategory"
+    :editingCategory="categoryForm"
     @closeCategoryModal="closeCategoryModal"
     @saveCategory="saveCategory"
   />

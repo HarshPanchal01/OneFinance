@@ -4,7 +4,7 @@ import { Category } from '@/types';
 import { ref } from 'vue';
 
 const props = defineProps<{
-  editingCategory: Category | null;
+  editingCategory: Category;
 }>();
 
 const emit = defineEmits<{
@@ -13,11 +13,7 @@ const emit = defineEmits<{
 }>();
 
 
-const categoryForm = ref({
-  name: "",
-  colorCode: "#6366f1",
-  icon: "pi-tag",
-});
+const categoryForm = {...props.editingCategory};
 
 // Available icons
 const icons = [
