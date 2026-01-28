@@ -15,6 +15,9 @@ const emit = defineEmits<{
 
 const categoryForm = {...props.editingCategory};
 
+
+//test commit
+
 // Available icons
 const icons = [
   "pi-tag",
