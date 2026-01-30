@@ -356,7 +356,14 @@ export const useFinanceStore = defineStore("finance", () => {
   }
 
   async function editAccountType(account: AccountType){
-    await window.electronAPI.editAccountType(account);
+    const result = await window.electronAPI.editAccountType(account);
+
+    if (result) {
+      const index = accountTypes.value.findIndex((at) => at.id === account.id);
+      if (index !== -1) {
+        accountTypes.value[index] = result;
+      }
+    }
   }
 
   async function removeAccountType(id: number){

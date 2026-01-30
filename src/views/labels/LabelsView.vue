@@ -131,6 +131,7 @@ async function saveAccountType(accountTypeForm: AccountType) {
       await store.editAccountType(
         accountType
       );
+
     } else {
       await store.addAccountType(
         accountType,

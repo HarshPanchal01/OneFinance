@@ -38,6 +38,7 @@ import {
   getTotalMonthSpend,
   getNetWorthTrend,
   deleteAccountTypeById,
+  editAccountType,
 } from "./db";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
@@ -93,6 +94,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:editAccount", async (_event, account: Account) => {
     return editAccount(account);
+  });
+
+  ipcMain.handle("db:editAccountType", async (_event, accountType: AccountType) => {
+    return editAccountType(accountType);
   });
 
   // ============================================

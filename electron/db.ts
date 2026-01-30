@@ -344,16 +344,12 @@ export function editAccount(account: Account): void {
   }
 }
 
-export function editAccountType(accountType: AccountType): void{
-  db.prepare(`
-    UPDATE accountType
-    SET
-      type = ?,
-    WHERE id = ?
-  `).run(
-    accountType.type,
-    accountType.id
+export function editAccountType(accountType: AccountType): AccountType | undefined {
+  const stmt = db.prepare(
+    "UPDATE accountType SET type = ? WHERE id = ?"
   );
+  stmt.run(accountType.type, accountType.id);
+  return getAccountTypeById(accountType.id);
 }
 
 export function deleteAccountById(
