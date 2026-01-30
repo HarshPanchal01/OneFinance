@@ -14,7 +14,7 @@ We take the security of OneFinance seriously. If you have found a security vulne
 
 Please do **not** report security vulnerabilities through public GitHub issues.
 
-Instead, please report them by reaching out to the repository owners directly via their GitHub profiles: @HarshPanchal01, @JamesMeta.
+Instead, please report them by reaching out to our email: onefinanceteam@outlook.com.
 
 ### What to Include
 
