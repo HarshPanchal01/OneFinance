@@ -413,6 +413,12 @@ export function deleteAccount(account: Account): void {
 
 }
 
+export function deleteAccountTypeById(id: number): boolean {
+  const stmt = db.prepare("DELETE FROM accountType WHERE id = ?");
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
 
 
 

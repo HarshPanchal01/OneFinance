@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import { Category } from '@/types';
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 
 const props = defineProps<{
   editingCategory: Category;
@@ -9,12 +9,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'closeCategoryModal'): void;
-  (e: 'saveCategory', categoryForm: { name: string; colorCode: string; icon: string }): void;
+  (e: 'saveCategory', categoryForm: Category): void;
 }>();
 
-
-const categoryForm = {...props.editingCategory};
-
+const categoryForm = ref({...props.editingCategory});
 
 //test commit
 
@@ -89,7 +87,7 @@ const colors = [
             class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
             >
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ editingCategory ? "Edit Category" : "New Category" }}
+                {{ editingCategory.id != 0 ? "Edit Category" : "New Category" }}
             </h3>
             <button
                 class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
@@ -189,7 +187,7 @@ const colors = [
                 class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                 @click="$emit('saveCategory', categoryForm)"
             >
-                {{ editingCategory ? "Update" : "Create" }}
+                {{ editingCategory.id != 0 ? "Update" : "Create" }}
             </button>
             </div>
         </div>

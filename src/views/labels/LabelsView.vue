@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import type { AccountType, Category } from "@/types";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import CategoryModal from "./components/CategoryModal.vue";
 import AccountTypeModal from "./components/AccountTypeModal.vue";
+import { ColorPicker } from "primevue";
 
 const store = useFinanceStore();
 
@@ -13,8 +14,8 @@ const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 
 const showAccountTypeModal = ref(false);
 const showCategoryModal = ref(false);
-const editingCategory = ref<Category | null>(null);
-const editingAccountType = ref<AccountType | null>(null);
+const editingCategory = ref(false);
+const editingAccountType = ref(false);
 
 const categoryForm = ref<
   Category
@@ -25,9 +26,10 @@ const categoryForm = ref<
   icon: "",
 });
 
-const accountTypeForm = ref<{
-  type: string;
-}>({
+const accountTypeForm = ref<
+  AccountType
+>({
+  id: 0,
   type: "",
 });
 
@@ -56,13 +58,13 @@ async function deleteAccountType(id: number) {
     }
   )
   ) {
-    // Implement account type deletion logic here
+    await store.removeAccountType(id);
   }
 }
 
 // Open create modal
 function openCategoryCreateModal() {
-  editingCategory.value = null;
+  editingCategory.value = false;
   categoryForm.value = {
     id: 0,
     name: "",
@@ -72,20 +74,35 @@ function openCategoryCreateModal() {
   showCategoryModal.value = true;
 }
 
+function openAccountTypeCreateModal() {
+  editingAccountType.value = false;
+  accountTypeForm.value = {
+    id: 0,
+    type: "",
+  };
+  showAccountTypeModal.value = true;
+}
+
 // Open edit modal
 function openCategoryEditModal(category: Category) {
-  editingCategory.value = category;
+  editingCategory.value = true;
   categoryForm.value = category;
   showCategoryModal.value = true;
 }
 
-async function saveCategory(categoryForm: { name: string; colorCode: string; icon: string }) {
+function openAccountTypeEditModal(accountType: AccountType) {
+  editingAccountType.value = true;
+  accountTypeForm.value = accountType;
+  showAccountTypeModal.value = true;
+}
+
+async function saveCategory(categoryForm: Category) {
   if (!categoryForm.name.trim()) return;
 
   try {
     if (editingCategory.value) {
       await store.editCategory(
-        editingCategory.value.id,
+        categoryForm.id,
         categoryForm.name,
         categoryForm.colorCode,
         categoryForm.icon
@@ -103,10 +120,38 @@ async function saveCategory(categoryForm: { name: string; colorCode: string; ico
   }
 }
 
+async function saveAccountType(accountTypeForm: AccountType) {
+
+  const accountType = toRaw(accountTypeForm);
+
+  if (!accountType.type.trim()) return;
+
+  try {
+    if (editingAccountType.value) {
+      await store.editAccountType(
+        accountType
+      );
+    } else {
+      await store.addAccountType(
+        accountType,
+      );
+    }
+    showAccountTypeModal.value = false;
+  } catch (error) {
+    console.error("Failed to save category:", error);
+  }
+}
+
 // Close modal
 function closeCategoryModal() {
   showCategoryModal.value = false;
-  editingCategory.value = null;
+  editingCategory.value = false;
+}
+
+// Close modal
+function closeAccountTypeModal() {
+  showAccountTypeModal.value = false;
+  editingAccountType.value = false;
 }
 
 </script>
@@ -181,25 +226,68 @@ function closeCategoryModal() {
       </div>
     </div>
 
+    
     <div class="flex items-center justify-between">
       <div>
         <h2 class="text-xl font-bold text-gray-900 dark:text-white">
           Account Types
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          {{ store.categories.length }} account types
+          {{ store.accountTypes.length }} account types
         </p>
       </div>
 
       <button
         class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-colors"
-        @click="openCategoryCreateModal"
+        @click="openAccountTypeCreateModal"
       >
         <i class="pi pi-plus mr-2" />
         Add Account Type
       </button>
     </div>
 
+    <div
+      class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4"
+    >
+    <div
+        v-for="accountType in store.accountTypes"
+        :key="accountType.id"
+        class="group card p-1 hover:shadow-md transition-shadow"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center space-x-3">
+            <div
+              class="h-10 rounded-xl flex items-center justify-center text-white"
+            >
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white">
+                {{ accountType.type }}
+              </p>
+              
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="hidden group-hover:flex items-center space-x-1">
+            <button
+              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 transition-colors"
+              title="Edit"
+              @click="openAccountTypeEditModal(accountType)"
+            >
+              <i class="pi pi-pencil text-sm" />
+            </button>
+            <button
+              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
+              title="Delete"
+              @click="deleteAccountType(accountType.id)"
+            >
+              <i class="pi pi-trash text-sm" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Empty State -->
     <div
@@ -224,9 +312,9 @@ function closeCategoryModal() {
   />
   <AccountTypeModal
     v-if="showAccountTypeModal"
-    :editingAccountType="editingAccountType"
-    @closeAccountTypeModal="showAccountTypeModal = false"
-    @saveAccountType="console.log('Save account type')"
+    :editingAccountType="accountTypeForm"
+    @closeAccountTypeModal="closeAccountTypeModal"
+    @saveAccountType="saveAccountType"
   />
 
   <ConfirmationModal ref="confirmModal" />
