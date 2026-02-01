@@ -355,6 +355,22 @@ export const useFinanceStore = defineStore("finance", () => {
     await window.electronAPI.editAccount(account);
   }
 
+  async function editAccountType(account: AccountType){
+    const result = await window.electronAPI.editAccountType(account);
+
+    if (result) {
+      const index = accountTypes.value.findIndex((at) => at.id === account.id);
+      if (index !== -1) {
+        accountTypes.value[index] = result;
+      }
+    }
+  }
+
+  async function removeAccountType(id: number){
+    await window.electronAPI.deleteAccountTypeById(id);
+    accountTypes.value = accountTypes.value.filter((at) => at.id !== id);
+  }
+
   async function removeAccount(id: number, strategy: 'transfer' | 'delete', transferToAccountId?: number){
     await window.electronAPI.deleteAccountById(id, strategy, transferToAccountId);
   }
@@ -883,6 +899,8 @@ export const useFinanceStore = defineStore("finance", () => {
     addAccount,
     addAccountType,
     editAccount,
+    editAccountType,
+    removeAccountType,
     deleteAllDataFromTables,
     importDatabaseData,
   };

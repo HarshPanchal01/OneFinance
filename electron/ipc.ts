@@ -37,6 +37,8 @@ import {
   getRollingMonthlyTrends,
   getTotalMonthSpend,
   getNetWorthTrend,
+  deleteAccountTypeById,
+  editAccountType,
 } from "./db";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
@@ -78,6 +80,10 @@ export function registerIpcHandlers(): void {
     return deleteAccountById(id, strategy, transferToAccountId);
   });
 
+  ipcMain.handle("db:deleteAccountTypeById", async (_event, id: number) =>{
+    return deleteAccountTypeById(id);
+  });
+
   ipcMain.handle("db:insertAccount", async (_event, account: Account) => {
     return insertAccount(account);
   });
@@ -88,6 +94,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:editAccount", async (_event, account: Account) => {
     return editAccount(account);
+  });
+
+  ipcMain.handle("db:editAccountType", async (_event, accountType: AccountType) => {
+    return editAccountType(accountType);
   });
 
   // ============================================
