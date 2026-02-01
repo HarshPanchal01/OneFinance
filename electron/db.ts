@@ -112,6 +112,14 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Schema Version, Used to check the status of the database schema versus the current app code
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS version (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version INTEGER NOT NULL
+    )
+  `);
+
   // Seed default categories if none exist
   const categoryCount = db
     .prepare("SELECT COUNT(*) as count FROM categories")
