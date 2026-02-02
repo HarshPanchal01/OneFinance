@@ -1,10 +1,10 @@
 
 export function migrateDatabaseExample(appVersion: number, db: any): void {
 
-    const currentVersion = 2.0 // This is what you are currently migrating to
+    const targetVersion = 2.0 // This is what you are currently migrating to
     
     // If the app version is already at or above the current version, no migration is needed
-    if (appVersion >= currentVersion) {
+    if (appVersion >= targetVersion) {
         return;
     }
 
@@ -27,7 +27,7 @@ export function migrateDatabaseExample(appVersion: number, db: any): void {
             "INSERT INTO version (version) VALUES (?)"
           );
         
-        insert.run(currentVersion);
+        insert.run(targetVersion);
     }
 
     //
@@ -35,7 +35,7 @@ export function migrateDatabaseExample(appVersion: number, db: any): void {
     //
 
     const stmt = db.prepare("UPDATE version SET version = ?");
-    stmt.run(currentVersion);
+    stmt.run(targetVersion);
 
 }
 
