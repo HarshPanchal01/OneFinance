@@ -107,6 +107,8 @@ const electronAPI = {
   getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
     ipcRenderer.invoke("db:getNetWorthTrend"),
 
+  getDatabaseVersion: (): Promise<number> =>
+    ipcRenderer.invoke("db:getDatabaseVersion"),
 
   // ============================================
   // SYSTEM OPERATIONS
@@ -126,6 +128,7 @@ const electronAPI = {
     ipcRenderer.invoke("save-file", payload),
 
   importDatabase: () : Promise<{success: boolean, filepath? : string, data? : {
+    databaseVersion: number,
     accounts?: Account[],
     transactions?: TransactionWithCategory[],
     categories?: Category[],

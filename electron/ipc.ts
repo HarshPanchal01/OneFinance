@@ -39,6 +39,7 @@ import {
   getNetWorthTrend,
   deleteAccountTypeById,
   editAccountType,
+  getDatabaseVersion,
 } from "./db";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
 
@@ -196,8 +197,9 @@ export function registerIpcHandlers(): void {
     return getNetWorthTrend();
   });
 
-
-
+  ipcMain.handle("db:getDatabaseVersion", async () => {
+    return getDatabaseVersion();
+  });
 
 
   // ============================================

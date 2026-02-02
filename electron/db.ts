@@ -906,5 +906,12 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
     return trends;
 }
 
+export function getDatabaseVersion(): number {
+  const stmt = db.prepare("SELECT * FROM version LIMIT 1");
+  const row = stmt.get() as { id: number ,version: number } | undefined;
+  return row ? row.version : 0;
+}
+
+
 // Export the database instance for advanced operations if needed
 export default db;
