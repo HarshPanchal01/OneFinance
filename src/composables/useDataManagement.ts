@@ -81,8 +81,10 @@ export function useDataManagement() {
     const categoriesValue = toRaw(store.categories);
     const accountTypesValue = toRaw(store.accountTypes);
     const ledgerYearsValue = toRaw(store.ledgerYears);
+    const databaseVersion = toRaw(store.databaseVersion);
 
     const data = {
+      databaseVersion: databaseVersion,
       accounts: accountsValue,
       transactions: transactionsValue,
       categories: categoriesValue,
@@ -116,12 +118,13 @@ export function useDataManagement() {
     notificationModal: NotificationModalInstance | undefined
   ) {
     const result = await window.electronAPI.importDatabase();
+    const dataBaseVersion = store.databaseVersion;
 
     if (!result.success || result.data == undefined) {
       return;
     }
 
-    const verified = verifyImportData(result.data);
+    const verified = verifyImportData(result.data, dataBaseVersion);
 
     if (!verified) {
       return await errorModal?.openConfirmation({

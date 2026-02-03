@@ -43,19 +43,35 @@ export function isValidHexColor(color: string): boolean {
 }
 
 export function verifyImportData(data: {
+  databaseVersion: number,
   accounts?: Account[],
   transactions?: TransactionWithCategory[],
   categories?: Category[],
   accountTypes?: AccountType[],
   ledgerYears?: number[]
-}): boolean {
+}, currentDatabaseVersion: number): boolean {
+
+
+
+
   try {
+    const dbVersion = data.databaseVersion;
     const accounts = data.accounts;
     const transactions = data.transactions;
     const categories = data.categories;
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
 
+    if (dbVersion > currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is newer than current version ${currentDatabaseVersion}`);
+      return false;
+    }
+
+    if (dbVersion < currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is older than current version ${currentDatabaseVersion}`);
+      return false;
+    }
+    
     if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined) {
       return false;
     }

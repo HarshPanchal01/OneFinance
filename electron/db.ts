@@ -3,6 +3,10 @@ import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
 import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { migrateDatabaseExample, migrateDatabaseVersion2to3 } from "./migration";
+
+//Increment when you want the database to be modified based on your given function
+export const databaseVersion = 2.0;
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -53,11 +57,53 @@ export const db = new Proxy({} as ReturnType<typeof Database>, {
   },
 });
 
+
+//
+// This function serves as the abstract to handle database migrations
+// The concept is you make a function that first checks the current database version against what you need to migrate to
+// Then your function does the migration steps needed
+// Finally it updates the database version in the version table
+//
+function migrateDatabase(): void {
+  migrateDatabaseExample(databaseVersion, db);
+  migrateDatabaseVersion2to3(databaseVersion, db);
+}
+
+
 /**
  * Initialize the database schema
  * Creates all tables if they don't exist
  */
 export function initializeDatabase(): void {
+
+  // Schema Version, Used to check the status of the database schema versus the current app code
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS version (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version INTEGER NOT NULL
+    )
+  `);
+
+  // Seed Database Version
+  const versionCount = db
+    .prepare("SELECT COUNT(*) as count FROM version")
+    .get() as { count: number };
+  if (versionCount.count === 0) {
+    seedDatabaseVersion();
+  }
+  else {
+
+    const version = db.prepare("SELECT * FROM version LIMIT 1").get() as {id: number, version: number};
+    
+    if (version.version !== databaseVersion){
+      console.log(`[DB] Database version mismatch. Current: ${version.version}, Expected: ${databaseVersion}`);
+      migrateDatabase();
+    }
+
+  }
+
+
+
   // Ledger Years - Primary key is the year itself
   db.exec(`
     CREATE TABLE IF NOT EXISTS ledger_years (
@@ -111,6 +157,7 @@ export function initializeDatabase(): void {
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
+  
 
   // Seed default categories if none exist
   const categoryCount = db
@@ -138,10 +185,21 @@ export function initializeDatabase(): void {
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
 }
 
+function seedDatabaseVersion(): void {
+  const insert =  db.prepare(
+    "INSERT INTO version (version) VALUES (?)"
+  );
+
+  insert.run(databaseVersion);
+  console.log("[DB] Database Version Seeded")
+}
+
+
 /**
  * Seed default categories
  */
 function seedDefaultCategories(): void {
+  
   const defaultCategories = [
     { name: "Salary", colorCode: "#22c55e", icon: "pi-wallet" },
     { name: "Food & Dining", colorCode: "#f97316", icon: "pi-shopping-cart" },
@@ -847,6 +905,13 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
     
     return trends;
 }
+
+export function getDatabaseVersion(): number {
+  const stmt = db.prepare("SELECT * FROM version LIMIT 1");
+  const row = stmt.get() as { id: number ,version: number } | undefined;
+  return row ? row.version : 0;
+}
+
 
 // Export the database instance for advanced operations if needed
 export default db;

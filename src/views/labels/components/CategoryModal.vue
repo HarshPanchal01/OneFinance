@@ -70,127 +70,127 @@ const colors = [
 
 
 <template> 
-    <Teleport to="body">
+  <Teleport to="body">
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      <div
+        class="absolute inset-0 bg-black/50"
+        @click="$emit('closeCategoryModal')"
+      />
+
+      <div
+        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4"
+      >
+        <!-- Header -->
         <div
-        class="fixed inset-0 z-50 flex items-center justify-center"
+          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
         >
-        <div
-            class="absolute inset-0 bg-black/50"
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+            {{ editingCategory.id != 0 ? "Edit Category" : "New Category" }}
+          </h3>
+          <button
+            class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
             @click="$emit('closeCategoryModal')"
-        />
+          >
+            <i class="pi pi-times" />
+          </button>
+        </div>
 
+        <!-- Form -->
+        <div class="p-6 space-y-4">
+          <!-- Preview -->
+          <div class="flex justify-center">
+            <div
+              class="w-16 h-16 rounded-xl flex items-center justify-center text-white"
+              :style="{ backgroundColor: categoryForm.colorCode }"
+            >
+              <i :class="['pi text-2xl', categoryForm.icon]" />
+            </div>
+          </div>
+
+          <!-- Name -->
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Name
+            </label>
+            <input
+              v-model="categoryForm.name"
+              type="text"
+              placeholder="e.g., Food & Dining"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          <!-- Color -->
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Color
+            </label>
+            <div class="grid grid-cols-10 gap-2">
+              <button
+                v-for="color in colors"
+                :key="color"
+                :class="[
+                  'w-6 h-6 rounded-full transition-transform',
+                  categoryForm.colorCode === color
+                    ? 'ring-2 ring-offset-2 ring-gray-900 dark:ring-white scale-110'
+                    : 'hover:scale-110',
+                ]"
+                :style="{ backgroundColor: color }"
+                @click="categoryForm.colorCode = color"
+              />
+            </div>
+          </div>
+
+          <!-- Icon -->
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Icon
+            </label>
+            <div class="grid grid-cols-10 gap-2">
+              <button
+                v-for="icon in icons"
+                :key="icon"
+                :class="[
+                  'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
+                  categoryForm.icon === icon
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                ]"
+                @click="categoryForm.icon = icon"
+              >
+                <i :class="['pi text-sm', icon]" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
         <div
-            class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4"
+          class="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700"
         >
-            <!-- Header -->
-            <div
-            class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
-            >
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ editingCategory.id != 0 ? "Edit Category" : "New Category" }}
-            </h3>
-            <button
-                class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
-                @click="$emit('closeCategoryModal')"
-            >
-                <i class="pi pi-times" />
-            </button>
-            </div>
-
-            <!-- Form -->
-            <div class="p-6 space-y-4">
-            <!-- Preview -->
-            <div class="flex justify-center">
-                <div
-                class="w-16 h-16 rounded-xl flex items-center justify-center text-white"
-                :style="{ backgroundColor: categoryForm.colorCode }"
-                >
-                <i :class="['pi text-2xl', categoryForm.icon]" />
-                </div>
-            </div>
-
-            <!-- Name -->
-            <div>
-                <label
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                Name
-                </label>
-                <input
-                v-model="categoryForm.name"
-                type="text"
-                placeholder="e.g., Food & Dining"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-            </div>
-
-            <!-- Color -->
-            <div>
-                <label
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                >
-                Color
-                </label>
-                <div class="grid grid-cols-10 gap-2">
-                <button
-                    v-for="color in colors"
-                    :key="color"
-                    :class="[
-                    'w-6 h-6 rounded-full transition-transform',
-                    categoryForm.colorCode === color
-                        ? 'ring-2 ring-offset-2 ring-gray-900 dark:ring-white scale-110'
-                        : 'hover:scale-110',
-                    ]"
-                    :style="{ backgroundColor: color }"
-                    @click="categoryForm.colorCode = color"
-                />
-                </div>
-            </div>
-
-            <!-- Icon -->
-            <div>
-                <label
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                >
-                Icon
-                </label>
-                <div class="grid grid-cols-10 gap-2">
-                <button
-                    v-for="icon in icons"
-                    :key="icon"
-                    :class="[
-                    'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
-                    categoryForm.icon === icon
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-                    ]"
-                    @click="categoryForm.icon = icon"
-                >
-                    <i :class="['pi text-sm', icon]" />
-                </button>
-                </div>
-            </div>
-            </div>
-
-            <!-- Footer -->
-            <div
-            class="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700"
-            >
-            <button
-                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                @click="$emit('closeCategoryModal')"
-            >
-                Cancel
-            </button>
-            <button
-                :disabled="!categoryForm.name.trim()"
-                class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                @click="$emit('saveCategory', categoryForm)"
-            >
-                {{ editingCategory.id != 0 ? "Update" : "Create" }}
-            </button>
-            </div>
+          <button
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            @click="$emit('closeCategoryModal')"
+          >
+            Cancel
+          </button>
+          <button
+            :disabled="!categoryForm.name.trim()"
+            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            @click="$emit('saveCategory', categoryForm)"
+          >
+            {{ editingCategory.id != 0 ? "Update" : "Create" }}
+          </button>
         </div>
-        </div>
-    </Teleport>
+      </div>
+    </div>
+  </Teleport>
 </template>
