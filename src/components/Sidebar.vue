@@ -169,7 +169,11 @@ async function requestDeleteYear() {
     <!-- App Header -->
     <div class="p-4 border-b border-gray-200 dark:border-gray-700">
       <div class="flex items-center space-x-3">
-        <img :src="logoUrl" alt="OneFinance" class="w-10 h-10 rounded-xl" />
+        <img
+          :src="logoUrl"
+          alt="OneFinance"
+          class="w-10 h-10 rounded-xl"
+        />
         <div>
           <h1 class="text-lg font-bold text-gray-900 dark:text-white">
             OneFinance
@@ -187,7 +191,10 @@ async function requestDeleteYear() {
           >
             {{ store.selectedYear }} (All Months)
           </p>
-          <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+          <p
+            v-else
+            class="text-xs text-gray-500 dark:text-gray-400"
+          >
             Global View
           </p>
         </div>
@@ -203,7 +210,7 @@ async function requestDeleteYear() {
           :class="[
             'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
             currentView === item.id &&
-            (!store.currentLedgerMonth || item.id !== 'transactions')
+              (!store.currentLedgerMonth || item.id !== 'transactions')
               ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
           ]"
@@ -236,11 +243,16 @@ async function requestDeleteYear() {
     <!-- Tree View -->
     <div class="flex-1 overflow-y-auto p-2">
       <!-- Empty State -->
-      <div v-if="ledgerTree.length === 0" class="text-center py-8 px-4">
+      <div
+        v-if="ledgerTree.length === 0"
+        class="text-center py-8 px-4"
+      >
         <i
           class="pi pi-folder-open text-4xl text-gray-300 dark:text-gray-600 mb-3"
         />
-        <p class="text-sm text-gray-500 dark:text-gray-400">No years yet</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          No years yet
+        </p>
         <button
           class="mt-3 text-sm text-primary-500 hover:text-primary-600 font-medium"
           @click="showAddYearModal = true"
@@ -250,8 +262,14 @@ async function requestDeleteYear() {
       </div>
 
       <!-- Year Nodes -->
-      <div v-else class="space-y-1">
-        <div v-for="yearNode in ledgerTree" :key="yearNode.year">
+      <div
+        v-else
+        class="space-y-1"
+      >
+        <div
+          v-for="yearNode in ledgerTree"
+          :key="yearNode.year"
+        >
           <!-- Year Row -->
           <div class="group flex items-center">
             <button

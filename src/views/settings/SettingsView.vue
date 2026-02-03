@@ -69,7 +69,11 @@ async function importData() {
     <!-- App Info -->
     <div class="card p-6">
       <div class="flex items-center space-x-4 mb-4">
-        <img :src="logoUrl" alt="OneFinance" class="w-16 h-16 rounded-2xl" />
+        <img
+          :src="logoUrl"
+          alt="OneFinance"
+          class="w-16 h-16 rounded-2xl"
+        />
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">
             OneFinance
@@ -171,8 +175,7 @@ async function importData() {
         Developer Options
         <span
           class="ml-2 px-2 py-0.5 text-xs bg-expense/10 text-expense rounded"
-          >DEV</span
-        >
+        >DEV</span>
       </h3>
 
       <div class="space-y-4">

@@ -250,7 +250,7 @@ function closeAccountTypeModal() {
     <div
       class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4"
     >
-    <div
+      <div
         v-for="accountType in store.accountTypes"
         :key="accountType.id"
         class="group card p-1 hover:shadow-md transition-shadow"
@@ -259,13 +259,11 @@ function closeAccountTypeModal() {
           <div class="flex items-center space-x-3">
             <div
               class="h-10 rounded-xl flex items-center justify-center text-white"
-            >
-            </div>
+            />
             <div>
               <p class="font-semibold text-gray-900 dark:text-white">
                 {{ accountType.type }}
               </p>
-              
             </div>
           </div>
 
@@ -307,15 +305,15 @@ function closeAccountTypeModal() {
 
   <CategoryModal
     v-if="showCategoryModal"
-    :editingCategory="categoryForm"
-    @closeCategoryModal="closeCategoryModal"
-    @saveCategory="saveCategory"
+    :editing-category="categoryForm"
+    @close-category-modal="closeCategoryModal"
+    @save-category="saveCategory"
   />
   <AccountTypeModal
     v-if="showAccountTypeModal"
-    :editingAccountType="accountTypeForm"
-    @closeAccountTypeModal="closeAccountTypeModal"
-    @saveAccountType="saveAccountType"
+    :editing-account-type="accountTypeForm"
+    @close-account-type-modal="closeAccountTypeModal"
+    @save-account-type="saveAccountType"
   />
 
   <ConfirmationModal ref="confirmModal" />
