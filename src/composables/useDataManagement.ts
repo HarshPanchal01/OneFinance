@@ -1,6 +1,5 @@
 import { toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import { verifyImportData } from "@/utils";
 
 // Interfaces for the modals based on their usage in SettingsView
 interface ConfirmationModalInstance {
@@ -118,22 +117,22 @@ export function useDataManagement() {
     notificationModal: NotificationModalInstance | undefined
   ) {
     const result = await window.electronAPI.importDatabase();
-    const dataBaseVersion = store.databaseVersion;
-
-    if (!result.success || result.data == undefined) {
+    
+    // Check if the backend reported an error (e.g. migration failed)
+    // The type definition in preload suggests success/filepath/data, 
+    // but main.ts might return {success:false, error:string}
+    if (!result.success || result.data === undefined) {
+      if ((result as any).error) {
+        return await errorModal?.openConfirmation({
+          title: "Import Error",
+          message: `Import failed: ${(result as any).error}`,
+          confirmText: "Okay",
+        });
+      }
       return;
     }
 
-    const verified = verifyImportData(result.data, dataBaseVersion);
-
-    if (!verified) {
-      return await errorModal?.openConfirmation({
-        title: "Import Error",
-        message: "The selected file is not a valid OneFinance export file.",
-        confirmText: "Okay",
-      });
-    }
-
+    // Backend has already migrated and verified the data structure
     const response = await actionModal?.openConfirmation({
       title: "Import Data",
       message: "Choose how you want to import the data:",

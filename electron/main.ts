@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initializeDatabase } from './db'
+import { MigrationRunner } from './migrations'
 import { registerIpcHandlers } from './ipc'
 import fs from 'fs'
 
@@ -90,7 +91,14 @@ ipcMain.handle('import-file', async() => {
   const filePath = filePaths[0]
   const contents = fs.readFileSync(filePath, 'utf-8')
 
-  const data = JSON.parse(contents)
+  let data = JSON.parse(contents)
+  
+  try {
+    data = MigrationRunner.migrateData(data);
+  } catch (e) {
+    console.error("Failed to migrate imported data:", e);
+    return { success: false, error: "Data migration failed" };
+  }
 
   return{
     success: true,

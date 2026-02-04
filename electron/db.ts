@@ -3,10 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
 import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
-import { migrateDatabaseExample, migrateDatabaseVersion2to3 } from "./migration";
-
-//Increment when you want the database to be modified based on your given function
-export const databaseVersion = 2.0;
+import { MigrationRunner } from "./migrations";
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -57,200 +54,15 @@ export const db = new Proxy({} as ReturnType<typeof Database>, {
   },
 });
 
-
-//
-// This function serves as the abstract to handle database migrations
-// The concept is you make a function that first checks the current database version against what you need to migrate to
-// Then your function does the migration steps needed
-// Finally it updates the database version in the version table
-//
-function migrateDatabase(): void {
-  migrateDatabaseExample(databaseVersion, db);
-  migrateDatabaseVersion2to3(databaseVersion, db);
-}
-
-
 /**
  * Initialize the database schema
- * Creates all tables if they don't exist
+ * Uses MigrationRunner to ensure schema is up to date.
  */
 export function initializeDatabase(): void {
-
-  // Schema Version, Used to check the status of the database schema versus the current app code
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS version (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      version INTEGER NOT NULL
-    )
-  `);
-
-  // Seed Database Version
-  const versionCount = db
-    .prepare("SELECT COUNT(*) as count FROM version")
-    .get() as { count: number };
-  if (versionCount.count === 0) {
-    seedDatabaseVersion();
-  }
-  else {
-
-    const version = db.prepare("SELECT * FROM version LIMIT 1").get() as {id: number, version: number};
-    
-    if (version.version !== databaseVersion){
-      console.log(`[DB] Database version mismatch. Current: ${version.version}, Expected: ${databaseVersion}`);
-      migrateDatabase();
-    }
-
-  }
-
-
-
-  // Ledger Years - Primary key is the year itself
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ledger_years (
-      year INTEGER PRIMARY KEY
-    )
-  `);
-
-  // Categories - For organizing transactions
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      colorCode TEXT NOT NULL DEFAULT '#6366f1',
-      icon TEXT NOT NULL DEFAULT 'pi-tag'
-    )
-  `);
-
-  // Account Type
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS accountType (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL
-    )
-  `);
-
-  // Accounts
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      accountName TEXT NOT NULL,
-      institutionName TEXT,
-      startingBalance REAL NOT NULL,
-      accountTypeId INTEGER,
-      isDefault BOOLEAN NOT NULL,
-      FOREIGN KEY (accountTypeId) REFERENCES accountType(id) ON DELETE SET NULL
-    )
-  `);
-
-  // Transactions - The main data
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-      notes TEXT,
-      categoryId INTEGER,
-      accountId INTEGER NOT NULL,
-      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
-      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
-    )
-  `);
+  const database = getDb();
+  MigrationRunner.runDbMigrations(database);
   
-
-  // Seed default categories if none exist
-  const categoryCount = db
-    .prepare("SELECT COUNT(*) as count FROM categories")
-    .get() as { count: number };
-  if (categoryCount.count === 0) {
-    seedDefaultCategories();
-  }
-
-  // Seed default account types if none exist
-  const accountTypesCount = db
-    .prepare("SELECT COUNT(*) as count FROM accountType")
-    .get() as { count: number };
-  if (accountTypesCount.count === 0) {
-    seedDefaultAccountData();
-  }
-
-  // Create indexes for better query performance
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(categoryId);
-    CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(accountId);
-    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
-  `);
-
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
-}
-
-function seedDatabaseVersion(): void {
-  const insert =  db.prepare(
-    "INSERT INTO version (version) VALUES (?)"
-  );
-
-  insert.run(databaseVersion);
-  console.log("[DB] Database Version Seeded")
-}
-
-
-/**
- * Seed default categories
- */
-function seedDefaultCategories(): void {
-  
-  const defaultCategories = [
-    { name: "Salary", colorCode: "#22c55e", icon: "pi-wallet" },
-    { name: "Food & Dining", colorCode: "#f97316", icon: "pi-shopping-cart" },
-    { name: "Transportation", colorCode: "#3b82f6", icon: "pi-car" },
-    { name: "Entertainment", colorCode: "#a855f7", icon: "pi-ticket" },
-    { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag" },
-    { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt" },
-    { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart" },
-    { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h" },
-  ];
-
-  const insert = db.prepare(
-    "INSERT INTO categories (name, colorCode, icon) VALUES (?, ?, ?)"
-  );
-  for (const cat of defaultCategories) {
-    insert.run(cat.name, cat.colorCode, cat.icon);
-  }
-  console.log("[DB] Default categories seeded");
-}
-
-function seedDefaultAccountData(): void{
-  
-  const defaultAccountTypes = [
-    {type: "Cash"},
-    {type: "Chequing"},
-    {type: "Savings"},
-  ];
-
-  const defaultAccounts = [
-    {accountName: "OneFinance", institutionName: null, startingBalance: 0, accountTypeId: 0, isDefault: true},
-  ];
-
-  const insertAccountType = db.prepare(
-    "INSERT INTO accountType (type) VALUES (?)"
-  );
-
-  let result = null;
-  for (const accType of defaultAccountTypes){
-    result = insertAccountType.run(accType.type);
-  }
-
-  const id = result?.lastInsertRowid ?? 0; 
-
-  const insertAccount = db.prepare(
-    "INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)"
-  );
-
-  for (const acc of defaultAccounts){
-    insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, id, Number(acc.isDefault));
-  }
-  console.log("Account Data Seeded")
 }
 
 export function deleteAllDataFromTables(): void{
@@ -907,9 +719,7 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
 }
 
 export function getDatabaseVersion(): number {
-  const stmt = db.prepare("SELECT * FROM version LIMIT 1");
-  const row = stmt.get() as { id: number ,version: number } | undefined;
-  return row ? row.version : 0;
+  return MigrationRunner.getLatestVersion();
 }
 
 
