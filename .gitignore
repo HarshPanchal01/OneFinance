@@ -38,6 +38,9 @@ dist*
 *.njsproj
 *.sln
 *.sw?
+GEMINI.md
+PrimeVue.md
+gemini_context/
 
 # TypeScript incremental build info
 *.tsbuildinfo

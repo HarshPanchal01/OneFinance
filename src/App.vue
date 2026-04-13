@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 
 // Components
 import Sidebar from "@/components/Sidebar.vue";
@@ -68,6 +69,15 @@ function handleRequestViewTransactions(id: number) {
 
 // Initialize on mount
 onMounted(async () => {
+  const settingsStore = useSettingsStore();
+  settingsStore.loadSettings();
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (settingsStore.appearance === 'system') {
+      settingsStore.applyAppearance();
+    }
+  });
+
   await store.initialize();
 
   // Add keyboard shortcuts

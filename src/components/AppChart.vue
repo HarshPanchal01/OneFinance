@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import Chart from "primevue/chart";
 import type { TooltipItem, ChartOptions, ChartData } from "chart.js";
+import { useSettingsStore } from "@/stores/settings";
 
 interface Props {
   type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar";
@@ -19,9 +20,11 @@ const props = withDefaults(defineProps<Props>(), {
   plugins: () => [],
 });
 
+const settingsStore = useSettingsStore();
+
 const defaultOptions = computed(() => {
-  const textColor = "#111827"; // gray-900 (Blackish)
-  const gridColor = "#e5e7eb"; // gray-200
+  const textColor = settingsStore.isDark ? "#f3f4f6" : "#111827"; // gray-100 or gray-900
+  const gridColor = settingsStore.isDark ? "#374151" : "#e5e7eb"; // gray-700 or gray-200
 
   const base: ChartOptions = {
     maintainAspectRatio: false,
@@ -131,11 +134,53 @@ const chartOptions = computed(() => {
   // Merge plugins deep-ish
   if (props.options.plugins) {
       merged.plugins = { ...defaultOptions.value.plugins, ...props.options.plugins };
+      // Deep merge tooltip
+      if (props.options.plugins.tooltip && defaultOptions.value.plugins?.tooltip) {
+         merged.plugins.tooltip = { ...defaultOptions.value.plugins.tooltip, ...props.options.plugins.tooltip };
+      }
+      // Deep merge legend
+      if (props.options.plugins.legend && defaultOptions.value.plugins?.legend) {
+         merged.plugins.legend = { ...defaultOptions.value.plugins.legend, ...props.options.plugins.legend };
+      }
   }
   
   // Merge scales deep-ish
   if (props.options.scales && defaultOptions.value.scales) {
-      merged.scales = { ...defaultOptions.value.scales, ...props.options.scales };
+      merged.scales = { ...defaultOptions.value.scales };
+      for (const key of Object.keys(props.options.scales)) {
+          const defaultScale = (defaultOptions.value.scales as any)[key] || {};
+          const propScale = (props.options.scales as any)[key] || {};
+          
+          (merged.scales as any)[key] = {
+              ...defaultScale,
+              ...propScale
+          };
+          
+          // Deep merge title explicitly
+          if (propScale.title || defaultScale.title) {
+              (merged.scales as any)[key].title = {
+                  ...(defaultScale.title || {}),
+                  ...(propScale.title || {}),
+                  color: (defaultOptions.value.scales as any)[key]?.title?.color || textColor
+              };
+          }
+          
+          // Deep merge ticks explicitly
+          if (propScale.ticks && defaultScale.ticks) {
+              (merged.scales as any)[key].ticks = {
+                  ...defaultScale.ticks,
+                  ...propScale.ticks
+              };
+          }
+          
+          // Deep merge grid explicitly
+          if (propScale.grid && defaultScale.grid) {
+              (merged.scales as any)[key].grid = {
+                  ...defaultScale.grid,
+                  ...propScale.grid
+              };
+          }
+      }
   }
 
   return merged;
