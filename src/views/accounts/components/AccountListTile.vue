@@ -50,23 +50,23 @@ import { computed, ref, watch } from 'vue';
 <template>
   <div
     ref="tileRef"
-    class="group flex items-center justify-between p-4 border-b border-gray-200 transition-colors duration-500"
+    class="group flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-500"
     :class="[
       isHighlighted ? 'bg-primary-100 dark:bg-primary-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
     ]"
   >
     <div class="flex flex-col">
-      <p class="font-medium text-gray-900">
+      <p class="font-medium text-gray-900 dark:text-white">
         {{ props.accountName }}
       </p>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ props.institutionName }} • Type: {{ accountType }} 
         <span
           v-if="props.isDefault"
           class="ml-2 px-1.5 py-0.5 text-xs font-semibold text-white bg-primary-500 rounded"
         >Default</span>
       </p>
-      <p class="text-sm text-gray-700 mt-1">
+      <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
         Balance: ${{ props.balance?.toFixed(2) ?? props.startingBalance.toFixed(2) }}
       </p>
     </div>

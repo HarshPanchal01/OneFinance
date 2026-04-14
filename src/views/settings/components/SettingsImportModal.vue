@@ -56,17 +56,17 @@ defineExpose({ openConfirmation });
     v-if="isOpen"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
   >
-    <div class="bg-white p-6 rounded-lg w-96 shadow-lg">
-      <h2 class="text-lg font-bold mb-4">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg">
+      <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">
         {{ title }}
       </h2>
-      <p class="text-gray-600 mb-4">
+      <p class="text-gray-600 dark:text-gray-300 mb-4">
         {{ message }}
       </p>
 
       <!-- Action selection -->
       <div class="mb-4">
-        <label class="flex items-center mb-2">
+        <label class="flex items-center mb-2 text-gray-900 dark:text-gray-200">
           <input
             v-model="selectedAction"
             type="radio"
@@ -75,7 +75,7 @@ defineExpose({ openConfirmation });
           />
           Replace all existing data
         </label>
-        <label class="flex items-center">
+        <label class="flex items-center text-gray-900 dark:text-gray-200">
           <input
             v-model="selectedAction"
             type="radio"
@@ -89,8 +89,8 @@ defineExpose({ openConfirmation });
       <!-- Skip duplicates always visible but disabled unless append is selected -->
       <div class="mb-4">
         <label
-          class="flex items-center text-gray-400" 
-          :class="{'text-gray-900': selectedAction === 'append'}"
+          class="flex items-center text-gray-400 dark:text-gray-500" 
+          :class="{'text-gray-900 dark:text-gray-200': selectedAction === 'append'}"
         >
           <input
             v-model="skipDuplicates"
@@ -104,7 +104,7 @@ defineExpose({ openConfirmation });
 
       <div class="flex justify-end space-x-2">
         <button
-          class="px-4 py-2 border rounded hover:bg-gray-100 transition"
+          class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           @click="handleCancel"
         >
           {{ cancelText }}
