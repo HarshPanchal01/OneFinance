@@ -109,6 +109,48 @@ const colors = [
             </div>
           </div>
 
+          <!-- Type Toggle -->
+          <div
+            class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+          >
+            <button
+              :class="[
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                categoryForm.type === 'expense'
+                  ? 'bg-expense text-white'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+              ]"
+              @click="categoryForm.type = 'expense'"
+            >
+              <i class="pi pi-arrow-down mr-2" />
+              Expense
+            </button>
+            <button
+              :class="[
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                categoryForm.type === 'both'
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+              ]"
+              @click="categoryForm.type = 'both'"
+            >
+              <i class="pi pi-sort-alt mr-2" />
+              Both
+            </button>
+            <button
+              :class="[
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                categoryForm.type === 'income'
+                  ? 'bg-income text-white'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+              ]"
+              @click="categoryForm.type = 'income'"
+            >
+              <i class="pi pi-arrow-up mr-2" />
+              Income
+            </button>
+          </div>
+
           <!-- Name -->
           <div>
             <label

@@ -383,11 +383,12 @@ export const useFinanceStore = defineStore("finance", () => {
     categories.value = await window.electronAPI.getCategories();
   }
 
-  async function addCategory(name: string, colorCode: string, icon: string) {
+  async function addCategory(name: string, colorCode: string, icon: string, type: "income" | "expense" | "both") {
     const newCategory = await window.electronAPI.createCategory(
       name,
       colorCode,
-      icon
+      icon,
+      type
     );
     categories.value.push(newCategory);
     return newCategory;
@@ -397,13 +398,15 @@ export const useFinanceStore = defineStore("finance", () => {
     id: number,
     name: string,
     colorCode: string,
-    icon: string
+    icon: string,
+    type: "income" | "expense" | "both"
   ) {
     const updated = await window.electronAPI.updateCategory(
       id,
       name,
       colorCode,
-      icon
+      icon,
+      type
     );
     if (updated) {
       const index = categories.value.findIndex((c) => c.id === id);
@@ -751,7 +754,12 @@ export const useFinanceStore = defineStore("finance", () => {
           continue;
         }
     
-        const result = await addCategory(category.name, category.colorCode, category.icon);
+        const result = await addCategory(
+          category.name, 
+          category.colorCode, 
+          category.icon, 
+          category.type || "expense"
+        );
 
         console.log(`Inserting category ${category.name} resulted in id ${result.id}`);
     

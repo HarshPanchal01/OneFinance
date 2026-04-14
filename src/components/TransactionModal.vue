@@ -104,7 +104,9 @@ const modalTitle = computed(() =>
 );
 
 // Filter categories by type (optional)
-const filteredCategories = computed(() => store.categories);
+const filteredCategories = computed(() => 
+  store.categories.filter(c => c.type === form.value.type || c.type === "both")
+);
 
 // Create another
 const createAnother = ref(false);
