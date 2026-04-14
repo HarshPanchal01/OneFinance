@@ -106,6 +106,9 @@ const modalTitle = computed(() =>
 // Filter categories by type (optional)
 const filteredCategories = computed(() => store.categories);
 
+// Create another
+const createAnother = ref(false);
+
 // Validation
 const isValid = computed(
   () =>
@@ -130,6 +133,8 @@ async function save() {
         accountId: form.value.accountId!,
         notes: form.value.notes || undefined,
       });
+      emit("saved");
+      emit("close");
     } else {
       await store.addTransaction({
         title: form.value.title,
@@ -140,9 +145,18 @@ async function save() {
         accountId: form.value.accountId!,
         notes: form.value.notes || undefined,
       });
+
+      if (createAnother.value) {
+        // Reset specific fields for the next transaction
+        form.value.title = "";
+        form.value.amount = 0;
+        form.value.notes = "";
+        // Keep date, type, account, and category as they are often repetitive
+      } else {
+        emit("saved");
+        emit("close");
+      }
     }
-    emit("saved");
-    emit("close");
   } catch (error) {
     console.error("Failed to save transaction:", error);
   }
@@ -332,21 +346,36 @@ function close() {
 
         <!-- Footer -->
         <div
-          class="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700"
+          class="flex justify-between items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700"
         >
-          <button
-            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            @click="close"
-          >
-            Cancel
-          </button>
-          <button
-            :disabled="!isValid"
-            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-            @click="save"
-          >
-            {{ isEditing ? "Update" : "Create" }}
-          </button>
+          <div :class="{'w-full flex justify-end': isEditing}">
+            <label
+              v-if="!isEditing"
+              class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              <input
+                v-model="createAnother"
+                type="checkbox"
+                class="w-4 h-4 mr-2 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5"
+              />
+              Create another
+            </label>
+          </div>
+          <div class="flex space-x-3">
+            <button
+              class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              @click="close"
+            >
+              Cancel
+            </button>
+            <button
+              :disabled="!isValid"
+              class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              @click="save"
+            >
+              {{ isEditing ? "Update" : "Create" }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
