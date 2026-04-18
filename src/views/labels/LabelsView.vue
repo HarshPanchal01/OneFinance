@@ -23,6 +23,7 @@ const categoryForm = ref<
   name: "",
   colorCode: "",
   icon: "",
+  type: "expense",
 });
 
 const accountTypeForm = ref<
@@ -69,6 +70,7 @@ function openCategoryCreateModal() {
     name: "",
     colorCode: "#6366f1",
     icon: "pi-tag",
+    type: "expense",
   };
   showCategoryModal.value = true;
 }
@@ -104,13 +106,15 @@ async function saveCategory(categoryForm: Category) {
         categoryForm.id,
         categoryForm.name,
         categoryForm.colorCode,
-        categoryForm.icon
+        categoryForm.icon,
+        categoryForm.type
       );
     } else {
       await store.addCategory(
         categoryForm.name,
         categoryForm.colorCode,
-        categoryForm.icon
+        categoryForm.icon,
+        categoryForm.type
       );
     }
     showCategoryModal.value = false;

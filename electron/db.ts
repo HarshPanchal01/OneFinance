@@ -71,9 +71,22 @@ export function initializeDatabase(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       colorCode TEXT NOT NULL DEFAULT '#6366f1',
-      icon TEXT NOT NULL DEFAULT 'pi-tag'
+      icon TEXT NOT NULL DEFAULT 'pi-tag',
+      type TEXT NOT NULL DEFAULT 'expense'
     )
   `);
+  
+  // comment out later when we have the migration strategy in place
+  try {
+    db.exec("ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
+    // Update known default income categories during migration for existing users
+    db.exec("UPDATE categories SET type = 'income' WHERE name = 'Salary'");
+    db.exec("UPDATE categories SET type = 'both' WHERE name = 'Other'");
+  } catch (e: any) {
+    if (!e.message.includes('duplicate column name')) {
+      console.error('Migration error:', e);
+    }
+  }
 
   // Account Type
   db.exec(`
@@ -143,21 +156,21 @@ export function initializeDatabase(): void {
  */
 function seedDefaultCategories(): void {
   const defaultCategories = [
-    { name: "Salary", colorCode: "#22c55e", icon: "pi-wallet" },
-    { name: "Food & Dining", colorCode: "#f97316", icon: "pi-shopping-cart" },
-    { name: "Transportation", colorCode: "#3b82f6", icon: "pi-car" },
-    { name: "Entertainment", colorCode: "#a855f7", icon: "pi-ticket" },
-    { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag" },
-    { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt" },
-    { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart" },
-    { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h" },
+    { name: "Salary", colorCode: "#22c55e", icon: "pi-wallet", type: "income" },
+    { name: "Food & Dining", colorCode: "#f97316", icon: "pi-shopping-cart", type: "expense" },
+    { name: "Transportation", colorCode: "#3b82f6", icon: "pi-car", type: "expense" },
+    { name: "Entertainment", colorCode: "#a855f7", icon: "pi-ticket", type: "expense" },
+    { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag", type: "expense" },
+    { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt", type: "expense" },
+    { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart", type: "expense" },
+    { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h", type: "both" },
   ];
 
   const insert = db.prepare(
-    "INSERT INTO categories (name, colorCode, icon) VALUES (?, ?, ?)"
+    "INSERT INTO categories (name, colorCode, icon, type) VALUES (?, ?, ?, ?)"
   );
   for (const cat of defaultCategories) {
-    insert.run(cat.name, cat.colorCode, cat.icon);
+    insert.run(cat.name, cat.colorCode, cat.icon, cat.type);
   }
   console.log("[DB] Default categories seeded");
 }
@@ -439,36 +452,39 @@ export function getCategoryById(id: number): Category | undefined {
 export function createCategory(
   name: string,
   colorCode: string,
-  icon: string
+  icon: string,
+  type: "income" | "expense"
 ): Category {
   const stmt = db.prepare(
-    "INSERT INTO categories (name, colorCode, icon) VALUES (?, ?, ?)"
+    "INSERT INTO categories (name, colorCode, icon, type) VALUES (?, ?, ?, ?)"
   );
-  const result = stmt.run(name, colorCode, icon);
+  const result = stmt.run(name, colorCode, icon, type);
 
   return {
     id: result.lastInsertRowid as number,
     name,
     colorCode,
     icon,
+    type,
   };
 }
 
 export function insertCategoryWithId(category: Category): void{
-  const insert = db.prepare("INSERT INTO categories (id, name, colorCode, icon) VALUES (?,?,?,?)");
-  insert.run(category.id, category.name, category.colorCode, category.icon);
+  const insert = db.prepare("INSERT INTO categories (id, name, colorCode, icon, type) VALUES (?,?,?,?,?)");
+  insert.run(category.id, category.name, category.colorCode, category.icon, category.type);
 }
 
 export function updateCategory(
   id: number,
   name: string,
   colorCode: string,
-  icon: string
+  icon: string,
+  type: "income" | "expense" | "both"
 ): Category | undefined {
   const stmt = db.prepare(
-    "UPDATE categories SET name = ?, colorCode = ?, icon = ? WHERE id = ?"
+    "UPDATE categories SET name = ?, colorCode = ?, icon = ?, type = ? WHERE id = ?"
   );
-  stmt.run(name, colorCode, icon, id);
+  stmt.run(name, colorCode, icon, type, id);
   return getCategoryById(id);
 }
 

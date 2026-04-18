@@ -114,8 +114,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "db:createCategory",
-    async (_event, name: string, colorCode: string, icon: string) => {
-      return createCategory(name, colorCode, icon);
+    async (_event, name: string, colorCode: string, icon: string, type: "income" | "expense") => {
+      return createCategory(name, colorCode, icon, type);
     }
   );
 
@@ -126,9 +126,10 @@ export function registerIpcHandlers(): void {
       id: number,
       name: string,
       colorCode: string,
-      icon: string
+      icon: string,
+      type: "income" | "expense" | "both"
     ) => {
-      return updateCategory(id, name, colorCode, icon);
+      return updateCategory(id, name, colorCode, icon, type);
     }
   );
 

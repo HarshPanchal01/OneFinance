@@ -13,6 +13,7 @@ export interface Category {
   name: string;
   colorCode: string;
   icon: string;
+  type: "income" | "expense" | "both";
 }
 
 export interface AccountType{
