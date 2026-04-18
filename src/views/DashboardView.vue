@@ -83,7 +83,7 @@ void confirmModal;
       </div>
 
       <!-- Balance Card -->
-      <div class="card p-6">
+      <div class="card p-6 md:col-span-2 lg:col-span-1">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">

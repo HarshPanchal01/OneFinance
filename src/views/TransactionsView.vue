@@ -122,7 +122,7 @@ function goToAccount(accountId: number) {
           {{ formatCurrency(filteredSummary.expenses) }}
         </p>
       </div>
-      <div class="card p-4 text-center">
+      <div class="card p-4 text-center md:col-span-2 lg:col-span-1">
         <p
           class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider"
         >

@@ -34,7 +34,7 @@ const toggle = (event: Event) => {
     class="card p-4 flex flex-col justify-between border-l-4 transition-all"
     :class="borderClass"
   >
-    <div class="flex justify-between items-start">
+    <div class="flex flex-wrap justify-between items-start gap-2">
       <div class="text-gray-900 dark:text-gray-100 text-sm font-medium flex items-center gap-2">
         {{ title }}
         <i 

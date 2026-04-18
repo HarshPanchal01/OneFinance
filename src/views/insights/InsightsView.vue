@@ -201,6 +201,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
       <InsightMetricCard
         v-model:model-value="netCashFlowTimeRange"
         v-model:custom-range="netCashFlowCustomDate"
+        class="md:col-span-2 lg:col-span-1"
         title="Net Cash Flow"
         :value="formatCurrency(netCashFlow)"
         :value-class="netCashFlow >= 0 ? 'text-income' : 'text-expense'"
@@ -221,9 +222,12 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Cash Flow -->
       <div class="card p-4">
-        <div class="relative flex items-center justify-center mb-4 min-h-[32px]">
-          <!-- Custom Legend (Left Aligned, offset from edge) -->
-          <div class="absolute left-12 flex flex-row gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+            Cash Flow
+          </h3>
+          <!-- Custom Legend -->
+          <div class="flex flex-row gap-4">
             <div class="flex items-center gap-2">
               <div class="w-3 h-1.5 rounded-sm bg-income shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Income</span>
@@ -234,12 +238,8 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </div>
           </div>
 
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Cash Flow
-          </h3>
-            
-          <div class="absolute right-0">
-            <select 
+          <div>
+            <select
               v-model="cashFlowOption"
               class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
             >
@@ -263,9 +263,12 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
       <!-- Spending Pacing -->
       <div class="card p-4">
-        <div class="relative flex flex-col sm:flex-row items-center justify-center mb-4 min-h-[32px] gap-2">
-          <!-- Custom Legend (Left Aligned, offset from edge) -->
-          <div class="absolute left-12 flex flex-row gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+            Spending Pacing
+          </h3>
+          <!-- Custom Legend -->
+          <div class="flex flex-row gap-4">
             <div class="flex items-center gap-2">
               <div class="w-3 h-1.5 rounded-sm bg-primary-500 shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Current</span>
@@ -276,31 +279,28 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </div>
           </div>
 
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Spending Pacing
-          </h3>
-            
           <!-- Date Pickers for Pacing -->
-          <div class="sm:absolute sm:right-0 flex flex-wrap items-center gap-2">
-            <!-- Target Month Picker -->
-            <div class="relative">
-              <DatePicker 
-                ref="pacingDateARef"
-                v-model="pacingDateA" 
-                view="month" 
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Target Month Picker -->            
+            <div class="relative">                                       
+              <DatePicker                       
+                ref="pacingDateARef"                    
+                v-model="pacingDateA"                              
+                view="month"                        
                 date-format="yy-mm"
                 class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
-                input-class="cursor-pointer h-full w-full caret-transparent"
-                :pt="{ input: { inputmode: 'none' } }"
-                :panel-style="{ minWidth: '18rem' }"
+                input-class="cursor-pointer h-full w-full caret-transparent"    
+                :pt="{ input: { inputmode: 'none' } }"      
+                :panel-style="{ minWidth: '18rem' }"                                        
               />
-              <button
+                                                      
+              <button 
                 class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
-              >
+              >                                        
                 <span class="text-xs font-semibold text-primary-500 whitespace-nowrap">
-                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}
-                </span>
-              </button>
+                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}                                 
+                </span>                               
+              </button>                                        
             </div>
 
             <span class="text-gray-400 text-xs">vs</span>
@@ -341,25 +341,21 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     </div>
 
     <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Expense Breakdown -->
       <div class="card p-4 lg:col-span-1 flex flex-col">
-        <div class="relative flex items-center mb-4 h-8">
-          <div class="w-60 shrink-0 flex justify-center">
-            <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-              Expense Breakdown
-            </h3>
-          </div>
-          <div class="flex-1 flex justify-end">
-            <InsightTimeRangeSelector
-              v-model:model-value="expenseBreakdownTimeRange"
-              v-model:custom-range="expenseBreakdownCustomDate"
-            />
-          </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+            Expense Breakdown
+          </h3>
+          <InsightTimeRangeSelector
+            v-model:model-value="expenseBreakdownTimeRange"
+            v-model:custom-range="expenseBreakdownCustomDate"
+          />
         </div>
-        <div class="flex-1 min-h-0">
-          <ExpenseBreakdownChart 
-            :breakdown="expenseBreakdownData" 
+        <div class="h-72">
+          <ExpenseBreakdownChart
+            :breakdown="expenseBreakdownData"
             :time-range="expenseBreakdownTimeRange"
             :custom-range="getCustomRangeObj(expenseBreakdownCustomDate)"
           />
@@ -371,12 +367,12 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
       <!-- Net Worth Trend -->
       <div class="card p-4 lg:col-span-2 flex flex-col">
-        <div class="relative flex items-center justify-center mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
           <h3 class="font-semibold text-gray-700 dark:text-gray-200">
             Net Worth Trend
           </h3>
-          <div class="absolute right-0">
-            <select 
+          <div>
+            <select
               v-model="netWorthOption"
               class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
             >
@@ -393,7 +389,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </select>
           </div>
         </div>
-        <div class="flex-1 min-h-0">
+        <div class="h-72">
           <NetWorthChart :option="netWorthOption" />
         </div>
       </div>
