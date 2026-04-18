@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { getMonthName } from "@/utils";
 import YearDeleteModal from "@/components/YearDeleteModal.vue";
-import logoUrl from "@/assets/logo.png";
+import iconSvg from "@/assets/icon.svg";
+import logoPng from "@/assets/logo.png";
 
 const props = defineProps<{
   currentView: string;
@@ -14,6 +15,17 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+
+const logoUrl = ref(iconSvg);
+
+onMounted(async () => {
+  const platform = await window.electronAPI.getPlatform();
+  if (platform === "win32") {
+    logoUrl.value = logoPng;
+  } else {
+    logoUrl.value = iconSvg;
+  }
+});
 
 // Track expanded years in the tree
 const expandedYears = ref<Set<number>>(new Set());

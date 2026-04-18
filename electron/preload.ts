@@ -116,6 +116,8 @@ const electronAPI = {
 
   deleteAllDataFromTables: (): Promise<void> => ipcRenderer.invoke("db:deleteAllDataFromTables"),
 
+  getPlatform: (): Promise<string> => ipcRenderer.invoke("system:getPlatform"),
+
   getDbPath: (): Promise<string> => ipcRenderer.invoke("system:getDbPath"),
 
   openDbLocation: (): Promise<void> =>

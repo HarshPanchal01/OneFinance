@@ -7,9 +7,11 @@ import SettingsImportModal from "./components/SettingsImportModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
 import { useSettingsStore } from "@/stores/settings";
 import Select from "primevue/select";
-import logoUrl from "@/assets/logo.png";
+import iconSvg from "@/assets/icon.svg";
+import logoPng from "@/assets/logo.png";
 
-const appVersion = "1.0.0";
+const appVersion = "1.1.0";
+const logoUrl = ref(iconSvg);
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
@@ -36,9 +38,15 @@ const shortcuts = [
   { keys: ["/"], description: "Go to Search Bar" },
 ];
 
-// Load DB path on mount
+// Load DB path and platform logo on mount
 onMounted(async () => {
   dbPath.value = await window.electronAPI.getDbPath();
+  const platform = await window.electronAPI.getPlatform();
+  if (platform === "win32") {
+    logoUrl.value = logoPng;
+  } else {
+    logoUrl.value = iconSvg;
+  }
 });
 
 // Wrappers for composable functions to pass modal refs
@@ -72,11 +80,7 @@ async function importData() {
     <!-- App Info -->
     <div class="card p-6">
       <div class="flex items-center space-x-4 mb-4">
-        <img
-          :src="logoUrl"
-          alt="OneFinance"
-          class="w-16 h-16 rounded-2xl"
-        />
+        <img :src="logoUrl" alt="OneFinance" class="w-16 h-16 rounded-2xl" />
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">
             OneFinance
@@ -131,13 +135,15 @@ async function importData() {
 
       <div class="space-y-6">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Theme Mode</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Theme
+          </label>
           <Select
             v-model="settingsStore.appearance"
             :options="[
               { label: 'System', value: 'system' },
               { label: 'Light', value: 'light' },
-              { label: 'Dark', value: 'dark' }
+              { label: 'Dark', value: 'dark' },
             ]"
             option-label="label"
             option-value="value"
@@ -201,9 +207,9 @@ async function importData() {
       >
         <i class="pi pi-code mr-2 text-expense" />
         Developer Options
-        <span
-          class="ml-2 px-2 py-0.5 text-xs bg-expense/10 text-expense rounded"
-        >DEV</span>
+        <span class="ml-2 px-2 py-0.5 text-xs bg-expense/10 text-expense rounded">
+          DEV
+        </span>
       </h3>
 
       <div class="space-y-4">
