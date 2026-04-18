@@ -36,6 +36,8 @@ function createWindow() {
     },
     width: 1400,
     height: 900,
+    minWidth: 1024,
+    minHeight: 768,
   });
 
   // Test active push message to Renderer-process.
