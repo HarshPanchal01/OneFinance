@@ -147,7 +147,7 @@ function handleKeydown(e: KeyboardEvent) {
       />
 
       <!-- Content Area -->
-      <main class="flex-1 overflow-y-auto p-4">
+      <main class="flex-1 overflow-hidden p-4 flex flex-col min-h-0">
         <!-- Loading State -->
         <div
           v-if="store.isLoading"

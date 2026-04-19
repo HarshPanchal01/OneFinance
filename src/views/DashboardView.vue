@@ -1,12 +1,33 @@
 <script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { formatCurrency } from "@/utils";
+import Popover from "primevue/popover";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
+
+onMounted(async () => {
+  await store.fetchDashboardBreakdown();
+});
+
+const top5DashboardExpenses = computed(() => {
+  return [...store.dashboardBreakdown]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+});
+
+const totalDashboardExpenses = computed(() => {
+  return store.dashboardBreakdown.reduce((sum, item) => sum + item.total, 0);
+});
+
+const op = ref();
+const toggle = (event: Event) => {
+    op.value.toggle(event);
+}
 
 const emit = defineEmits<{
   (e: "addTransaction"): void;
@@ -27,7 +48,7 @@ void confirmModal;
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="h-full flex flex-col gap-6 overflow-y-auto pr-2 pb-6">
     <!-- Header with Add Button -->
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
@@ -111,12 +132,26 @@ void confirmModal;
 
     <!-- Expense Breakdown -->
     <div class="card p-6">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Expense Breakdown
-      </h2>
+      <div class="flex items-center gap-2 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Recent Expense Breakdown
+        </h2>
+        <i 
+          class="pi pi-info-circle text-primary-500 cursor-pointer transition-colors text-xs" 
+          @click="toggle"
+        />
+      </div>
+
+      <Popover ref="op">
+        <div class="p-2">
+          <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            Last 30 days
+          </p>
+        </div>
+      </Popover>
 
       <div
-        v-if="store.expenseBreakdown.length === 0"
+        v-if="top5DashboardExpenses.length === 0"
         class="text-center py-8 text-gray-500 dark:text-gray-400"
       >
         <i
@@ -130,7 +165,7 @@ void confirmModal;
         class="space-y-3"
       >
         <div
-          v-for="item in store.expenseBreakdown"
+          v-for="item in top5DashboardExpenses"
           :key="item.categoryId ?? 'uncategorized'"
           class="flex items-center"
         >
@@ -159,7 +194,7 @@ void confirmModal;
                 class="h-2 rounded-full transition-all duration-300"
                 :style="{
                   backgroundColor: item.categoryColor,
-                  width: Math.min(100, (item.total / (store.periodSummary.totalExpenses || 1)) * 100) + '%',
+                  width: Math.min(100, (item.total / (totalDashboardExpenses || 1)) * 100) + '%',
                 }"
               />
             </div>

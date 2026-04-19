@@ -150,7 +150,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 </script>
 
 <template>
-  <div class="space-y-6 pb-6 max-w-full overflow-x-hidden">
+  <div class="space-y-6 pb-6 max-w-full overflow-x-hidden overflow-y-auto h-full pr-2">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
         Insights

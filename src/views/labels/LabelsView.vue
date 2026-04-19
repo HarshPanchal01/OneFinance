@@ -161,7 +161,7 @@ function closeAccountTypeModal() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 overflow-y-auto h-full pr-2 pb-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -258,29 +258,24 @@ function closeAccountTypeModal() {
         :key="accountType.id"
         class="group card p-1 hover:shadow-md transition-shadow"
       >
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex items-center space-x-3">
-            <div
-              class="h-10 rounded-xl flex items-center justify-center text-white"
-            />
-            <div>
-              <p class="font-semibold text-gray-900 dark:text-white">
-                {{ accountType.type }}
-              </p>
-            </div>
+        <div class="flex items-center justify-between gap-1 h-full min-w-0">
+          <div class="flex items-center min-w-0 flex-1 pl-3 py-2">
+            <p class="font-semibold text-gray-900 dark:text-white truncate">
+              {{ accountType.type }}
+            </p>
           </div>
 
           <!-- Actions -->
-          <div class="hidden group-hover:flex items-center space-x-1">
+          <div class="hidden group-hover:flex items-center space-x-1 shrink-0 pr-1">
             <button
-              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 transition-colors"
+              class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 transition-colors"
               title="Edit"
               @click="openAccountTypeEditModal(accountType)"
             >
               <i class="pi pi-pencil text-sm" />
             </button>
             <button
-              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
+              class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
               title="Delete"
               @click="deleteAccountType(accountType.id)"
             >

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
+import { toIsoDateString, getExpenseBreakdownForRange } from "@/utils";
 import type {
   Category,
   Account,
@@ -52,6 +53,7 @@ export const useFinanceStore = defineStore("finance", () => {
   });
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
+  const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
 
@@ -305,6 +307,7 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       // Fetch Global Data
       await fetchRecentTransactions(5); // Ensure recent list is up to date
+      await fetchDashboardBreakdown(); // Last 30 days breakdown for dashboard
       await fetchTransactions(); // All transactions
       await fetchPeriodSummarySync(); // Global summary
     } catch (e) {
@@ -452,6 +455,19 @@ export const useFinanceStore = defineStore("finance", () => {
     );
   }
 
+  async function fetchDashboardBreakdown() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+    
+    const results = await window.electronAPI.searchTransactions({
+      fromDate: toIsoDateString(thirtyDaysAgo),
+      toDate: toIsoDateString(now),
+      type: 'expense'
+    });
+    
+    dashboardBreakdown.value = getExpenseBreakdownForRange('last30Days', results);
+  }
+
   async function addTransaction(transaction: CreateTransactionInput
     
   ) {
@@ -466,6 +482,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
     // Refresh Data
     await fetchRecentTransactions(5);
+    await fetchDashboardBreakdown();
 
     // Only update main list if it matches current filter (Global or Specific Period)
     if (!currentLedgerMonth.value || currentLedgerMonth.value.month === targetPeriodMonth) {
@@ -504,6 +521,7 @@ export const useFinanceStore = defineStore("finance", () => {
         }
       }
       await fetchRecentTransactions(5); // Update dashboard list
+      await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
     }
     return updated;
@@ -514,6 +532,7 @@ export const useFinanceStore = defineStore("finance", () => {
     if (success) {
       transactions.value = transactions.value.filter((t) => t.id !== id);
       await fetchRecentTransactions(5); // Update dashboard list
+      await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
       
       // Also remove from search results if present
@@ -866,6 +885,7 @@ export const useFinanceStore = defineStore("finance", () => {
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
+    dashboardBreakdown,
     monthlyTrends,
     netWorthTrends,
     isLoading,
@@ -890,6 +910,7 @@ export const useFinanceStore = defineStore("finance", () => {
     removeCategory,
     fetchTransactions,
     fetchRecentTransactions,
+    fetchDashboardBreakdown,
     fetchPeriodSummarySync,
     fetchMonthlyTrends,
     fetchRollingMonthlyTrends,

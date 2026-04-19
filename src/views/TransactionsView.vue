@@ -67,7 +67,7 @@ function goToAccount(accountId: number) {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="h-full flex flex-col gap-4">
     <!-- Header with actions -->
     <div
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
@@ -138,10 +138,10 @@ function goToAccount(accountId: number) {
     </div>
 
     <!-- Transaction List -->
-    <div class="card p-4">
+    <div class="card p-4 flex flex-col flex-1 min-h-0">
       <div
         v-if="filteredTransactions.length === 0"
-        class="text-center py-12 text-gray-500 dark:text-gray-400"
+        class="text-center py-12 text-gray-500 dark:text-gray-400 shrink-0"
       >
         <i
           class="pi pi-inbox text-5xl text-gray-300 dark:text-gray-600 mb-4"
@@ -160,7 +160,7 @@ function goToAccount(accountId: number) {
 
       <div
         v-else
-        class="space-y-2"
+        class="space-y-2 overflow-y-auto flex-1 min-h-0 pr-2"
       >
         <TransactionItem
           v-for="transaction in filteredTransactions"
@@ -182,8 +182,8 @@ function goToAccount(accountId: number) {
       @close="closeModal"
       @saved="closeModal"
     />
-  </div>
 
-  <ConfirmationModal ref="confirmModal" />
-  <ErrorModal ref="errorModal" />
+    <ConfirmationModal ref="confirmModal" />
+    <ErrorModal ref="errorModal" />
+  </div>
 </template>
