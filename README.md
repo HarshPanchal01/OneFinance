@@ -89,8 +89,8 @@ You can download the latest version from the [Releases](https://github.com/Harsh
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/HarshPanchal01/One-Finance.git
-    cd One-Finance/
+    git clone https://github.com/HarshPanchal01/OneFinance.git
+    cd OneFinance/
     ```
 
 2.  Install dependencies:
