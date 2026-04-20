@@ -27,17 +27,19 @@ const electronAPI = {
   createCategory: (
     name: string,
     colorCode: string,
-    icon: string
+    icon: string,
+    type: "income" | "expense" | "both"
   ): Promise<Category> =>
-    ipcRenderer.invoke("db:createCategory", name, colorCode, icon),
+    ipcRenderer.invoke("db:createCategory", name, colorCode, icon, type),
 
   updateCategory: (
     id: number,
     name: string,
     colorCode: string,
-    icon: string
+    icon: string,
+    type: "income" | "expense" | "both"
   ): Promise<Category | undefined> =>
-    ipcRenderer.invoke("db:updateCategory", id, name, colorCode, icon),
+    ipcRenderer.invoke("db:updateCategory", id, name, colorCode, icon, type),
 
   deleteCategory: (id: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteCategory", id),
@@ -113,6 +115,8 @@ const electronAPI = {
   // ============================================
 
   deleteAllDataFromTables: (): Promise<void> => ipcRenderer.invoke("db:deleteAllDataFromTables"),
+
+  getPlatform: (): Promise<string> => ipcRenderer.invoke("system:getPlatform"),
 
   getDbPath: (): Promise<string> => ipcRenderer.invoke("system:getDbPath"),
 

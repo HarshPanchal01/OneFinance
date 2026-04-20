@@ -161,6 +161,8 @@ export function getDateRange(range: string, transactions?: TransactionWithCatego
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     endDate.setHours(23, 59, 59, 999);
+  } else if (range === 'last30Days') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
   } else if (range === 'last3Months') {
     startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
     endDate = new Date(now.getFullYear(), now.getMonth(), 0);

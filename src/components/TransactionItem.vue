@@ -68,7 +68,7 @@ const accountName = computed(() => {
       </div>
     </div>
 
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3 shrink-0">
       <!-- Amount -->
       <div class="text-right">
         <p

@@ -352,13 +352,12 @@ onUnmounted(() => {
                 @click.stop="toggleAccount(account.id)"
               >
                 <!-- Checkbox visual -->
-                <div 
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors"
-                  :class="isAccountSelected(account.id) 
-                    ? 'bg-primary-500 border-primary-500' 
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'"
+                <div
+                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
+                  :class="isAccountSelected(account.id)
+                    ? 'bg-primary-500 border-primary-500 after:block'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
                 />
-
                 <span class="text-gray-900 dark:text-white truncate flex-1">{{ account.accountName }}</span>
               </button>
             </div>
@@ -418,13 +417,12 @@ onUnmounted(() => {
                 @click.stop="toggleCategory(category.id)"
               >
                 <!-- Checkbox visual -->
-                <div 
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors"
-                  :class="isCategorySelected(category.id) 
-                    ? 'bg-primary-500 border-primary-500' 
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'"
+                <div
+                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
+                  :class="isCategorySelected(category.id)
+                    ? 'bg-primary-500 border-primary-500 after:block'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
                 />
-
                 <!-- Icon & Name -->
                 <i
                   :class="['pi', category.icon]"
@@ -624,7 +622,7 @@ onUnmounted(() => {
           v-model="searchText"
           type="text"
           placeholder="Search transactions..."
-          class="flex-grow py-2 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400"
+          class="flex-grow py-2 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 min-w-0"
           @keydown="handleKeydown"
         />
 

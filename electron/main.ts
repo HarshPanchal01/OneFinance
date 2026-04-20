@@ -35,8 +35,12 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
     width: 1400,
-    height: 900,
+    height: 1000,
+    minWidth: 1024,
+    minHeight: 768,
   });
+
+  win.maximize();
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {

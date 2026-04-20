@@ -161,15 +161,16 @@ const chartOptions = computed(() => {
               (merged.scales as any)[key].title = {
                   ...(defaultScale.title || {}),
                   ...(propScale.title || {}),
-                  color: (defaultOptions.value.scales as any)[key]?.title?.color || textColor
+                  color: (defaultOptions.value.scales as any)[key]?.title?.color || (settingsStore.isDark ? "#f3f4f6" : "#111827")
               };
           }
           
           // Deep merge ticks explicitly
-          if (propScale.ticks && defaultScale.ticks) {
+          if (propScale.ticks || defaultScale.ticks) {
               (merged.scales as any)[key].ticks = {
-                  ...defaultScale.ticks,
-                  ...propScale.ticks
+                  ...(defaultScale.ticks || {}),
+                  ...(propScale.ticks || {}),
+                  color: (defaultOptions.value.scales as any)[key]?.ticks?.color || (settingsStore.isDark ? "#f3f4f6" : "#111827")
               };
           }
           
