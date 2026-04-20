@@ -109,7 +109,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/') || needs.prepare_release.outputs.release_tag != ''
         with:
           tag_name: ${{ needs.prepare_release.outputs.release_tag }}
