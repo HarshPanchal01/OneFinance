@@ -80,11 +80,11 @@ const colors = [
       />
 
       <div
-        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4"
+        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col"
       >
         <!-- Header -->
         <div
-          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
+          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0"
         >
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ editingCategory.id != 0 ? "Edit Category" : "New Category" }}
@@ -216,7 +216,7 @@ const colors = [
 
         <!-- Footer -->
         <div
-          class="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700"
+          class="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0"
         >
           <button
             class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"

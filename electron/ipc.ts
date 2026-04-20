@@ -209,6 +209,10 @@ export function registerIpcHandlers(): void {
     return deleteAllDataFromTables();
   });
 
+  ipcMain.handle("system:getPlatform", async () => {
+    return process.platform;
+  });
+
   ipcMain.handle("system:getDbPath", async () => {
     return getDbPath();
   });

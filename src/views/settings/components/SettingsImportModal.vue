@@ -56,53 +56,55 @@ defineExpose({ openConfirmation });
     v-if="isOpen"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
   >
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg">
-      <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg flex flex-col max-h-[90vh]">
+      <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white shrink-0">
         {{ title }}
       </h2>
-      <p class="text-gray-600 dark:text-gray-300 mb-4">
-        {{ message }}
-      </p>
+      <div class="overflow-y-auto min-h-0 pr-1">
+        <p class="text-gray-600 dark:text-gray-300 mb-4">
+          {{ message }}
+        </p>
 
-      <!-- Action selection -->
-      <div class="mb-4">
-        <label class="flex items-center mb-2 text-gray-900 dark:text-gray-200">
-          <input
-            v-model="selectedAction"
-            type="radio"
-            value="replace"
-            class="mr-2"
-          />
-          Replace all existing data
-        </label>
-        <label class="flex items-center text-gray-900 dark:text-gray-200">
-          <input
-            v-model="selectedAction"
-            type="radio"
-            value="append"
-            class="mr-2"
-          />
-          Append imported data
-        </label>
+        <!-- Action selection -->
+        <div class="mb-4">
+          <label class="flex items-center mb-2 text-gray-900 dark:text-gray-200">
+            <input
+              v-model="selectedAction"
+              type="radio"
+              value="replace"
+              class="mr-2"
+            />
+            Replace all existing data
+          </label>
+          <label class="flex items-center text-gray-900 dark:text-gray-200">
+            <input
+              v-model="selectedAction"
+              type="radio"
+              value="append"
+              class="mr-2"
+            />
+            Append imported data
+          </label>
+        </div>
+
+        <!-- Skip duplicates always visible but disabled unless append is selected -->
+        <div class="mb-4">
+          <label
+            class="flex items-center text-gray-400 dark:text-gray-500" 
+            :class="{'text-gray-900 dark:text-gray-200': selectedAction === 'append'}"
+          >
+            <input
+              v-model="skipDuplicates"
+              type="checkbox"
+              :disabled="selectedAction !== 'append'"
+              class="w-4 h-4 mr-2 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5 disabled:opacity-50"
+            />
+            Skip duplicates when appending
+          </label>
+        </div>
       </div>
 
-      <!-- Skip duplicates always visible but disabled unless append is selected -->
-      <div class="mb-4">
-        <label
-          class="flex items-center text-gray-400 dark:text-gray-500" 
-          :class="{'text-gray-900 dark:text-gray-200': selectedAction === 'append'}"
-        >
-          <input
-            v-model="skipDuplicates"
-            type="checkbox"
-            :disabled="selectedAction !== 'append'"
-            class="w-4 h-4 mr-2 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5 disabled:opacity-50"
-          />
-          Skip duplicates when appending
-        </label>
-      </div>
-
-      <div class="flex justify-end space-x-2">
+      <div class="flex justify-end space-x-2 shrink-0 pt-4">
         <button
           class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           @click="handleCancel"

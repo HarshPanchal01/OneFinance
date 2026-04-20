@@ -96,17 +96,17 @@ const categoryOptions = computed(() => ({
 </script>
 
 <template>
-  <div class="flex flex-row h-full w-full items-center gap-6">
+  <div class="flex flex-col xl:flex-row h-full w-full items-center xl:justify-between gap-6">
     <!-- Left Column: Total Text + Chart -->
     <div class="flex flex-col items-center justify-center gap-0 shrink-0">
       <!-- Total Text (Above Chart) -->
       <div class="flex flex-col items-center justify-center mb-1">
         <span class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">Total</span>
-        <span class="text-2xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalExpenses) }}</span>
+        <span class="text-2xl xl:text-3xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalExpenses) }}</span>
       </div>
 
       <!-- Chart -->
-      <div class="w-60 h-60">
+      <div class="w-40 h-44 xl:w-56 xl:h-60">
         <AppChart
           type="pie"
           :data="categoryData"
@@ -116,8 +116,8 @@ const categoryOptions = computed(() => ({
       </div>
     </div>
 
-    <!-- Custom Legend (Right Side) -->
-    <div class="flex-1 overflow-y-auto h-full pr-2 space-y-3 py-2">
+    <!-- Custom Legend (Right Side - Hidden on small screens) -->
+    <div class="hidden xl:flex overflow-y-auto h-full pr-2 space-y-3 py-2 flex-col">
       <div
         v-for="cat in topCategories"
         :key="cat.categoryId ?? 'others'"

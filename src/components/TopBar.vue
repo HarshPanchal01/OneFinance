@@ -622,7 +622,7 @@ onUnmounted(() => {
           v-model="searchText"
           type="text"
           placeholder="Search transactions..."
-          class="flex-grow py-2 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400"
+          class="flex-grow py-2 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 min-w-0"
           @keydown="handleKeydown"
         />
 

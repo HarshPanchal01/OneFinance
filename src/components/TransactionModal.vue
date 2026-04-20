@@ -183,13 +183,13 @@ function close() {
 
       <!-- Modal -->
       <div
-        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4"
+        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]"
         @click.stop
         @mousedown.stop
       >
         <!-- Header -->
         <div
-          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
+          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0"
         >
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ modalTitle }}
@@ -203,7 +203,7 @@ function close() {
         </div>
 
         <!-- Form -->
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <!-- Type Toggle -->
           <div
             class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
@@ -348,7 +348,7 @@ function close() {
 
         <!-- Footer -->
         <div
-          class="flex justify-between items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700"
+          class="flex justify-between items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0"
         >
           <div :class="{'w-full flex justify-end': isEditing}">
             <label

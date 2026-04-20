@@ -166,10 +166,11 @@ const chartOptions = computed(() => {
           }
           
           // Deep merge ticks explicitly
-          if (propScale.ticks && defaultScale.ticks) {
+          if (propScale.ticks || defaultScale.ticks) {
               (merged.scales as any)[key].ticks = {
-                  ...defaultScale.ticks,
-                  ...propScale.ticks
+                  ...(defaultScale.ticks || {}),
+                  ...(propScale.ticks || {}),
+                  color: (defaultOptions.value.scales as any)[key]?.ticks?.color || (settingsStore.isDark ? "#f3f4f6" : "#111827")
               };
           }
           

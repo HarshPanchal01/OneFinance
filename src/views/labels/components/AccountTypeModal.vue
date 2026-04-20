@@ -27,11 +27,11 @@ defineEmits<{
       />
 
       <div
-        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4"
+        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col"
       >
         <!-- Header -->
         <div
-          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
+          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0"
         >
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ editingAccountType.id != 0 ? "Edit Account Type" : "New Account Type" }}
@@ -45,7 +45,7 @@ defineEmits<{
         </div>
 
         <!-- Form -->
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto min-h-0">
           <!-- Preview -->
           <div class="flex justify-center" />
 
