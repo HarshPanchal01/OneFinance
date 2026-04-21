@@ -81,8 +81,10 @@ export function useDataManagement() {
     const categoriesValue = toRaw(store.categories);
     const accountTypesValue = toRaw(store.accountTypes);
     const ledgerYearsValue = toRaw(store.ledgerYears);
+    const databaseVersion = toRaw(store.databaseVersion);
 
     const data = {
+      databaseVersion: databaseVersion,
       accounts: accountsValue,
       transactions: transactionsValue,
       categories: categoriesValue,
@@ -121,12 +123,12 @@ export function useDataManagement() {
       return;
     }
 
-    const verified = verifyImportData(result.data);
+    const verification = verifyImportData(result.data, store.databaseVersion);
 
-    if (!verified) {
+    if (!verification.success) {
       return await errorModal?.openConfirmation({
         title: "Import Error",
-        message: "The selected file is not a valid OneFinance export file.",
+        message: verification.reason || "The selected file is not a valid OneFinance export file.",
         confirmText: "Okay",
       });
     }

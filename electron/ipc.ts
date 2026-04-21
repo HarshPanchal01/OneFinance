@@ -37,6 +37,7 @@ import {
   getRollingMonthlyTrends,
   getTotalMonthSpend,
   getNetWorthTrend,
+  getDatabaseVersion,
   deleteAccountTypeById,
   editAccountType,
 } from "./db";
@@ -195,6 +196,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:getNetWorthTrend", async () => {
     return getNetWorthTrend();
+  });
+
+  ipcMain.handle("db:getDatabaseVersion", async () => {
+    return getDatabaseVersion();
   });
 
 

@@ -44,6 +44,8 @@ export const useFinanceStore = defineStore("finance", () => {
   const isSearching = ref(false);
   const transactionFilter = ref<SearchOptions | null>(null);
 
+  const databaseVersion = ref<number>(0);
+
   // Summary data - always have default values
   const periodSummary = ref<PeriodSummary>({
     totalIncome: 0,
@@ -93,6 +95,8 @@ export const useFinanceStore = defineStore("finance", () => {
       // Load accounts they are always needed
       await fetchAccounts();
       await fetchAccountTypes();
+
+      databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
       console.log("[Store] Accounts loaded:", accounts.value.length);
       console.log("[Store] AccountTypes loaded:", accountTypes.value.length);
@@ -882,6 +886,7 @@ export const useFinanceStore = defineStore("finance", () => {
     searchResults,
     isSearching,
     transactionFilter,
+    databaseVersion,
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
