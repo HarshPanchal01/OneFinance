@@ -157,7 +157,7 @@
   }
 
   .privacy-blur {
-    filter: blur(5px);
+    filter: blur(7px);
     transition: filter 0.3s ease;
     user-select: none;
   }
