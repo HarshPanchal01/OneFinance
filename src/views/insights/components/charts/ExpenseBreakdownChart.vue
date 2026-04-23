@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 import AppChart from "@/components/AppChart.vue";
 import type { CategoryBreakdown } from "@/types";
 import { formatCurrency, getDateRange, toIsoDateString } from "@/utils";
@@ -12,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
 
 const totalExpenses = computed(() => {
   return props.breakdown.reduce((sum, item) => sum + item.total, 0);
@@ -102,7 +104,10 @@ const categoryOptions = computed(() => ({
       <!-- Total Text (Above Chart) -->
       <div class="flex flex-col items-center justify-center mb-1">
         <span class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">Total</span>
-        <span class="text-2xl xl:text-3xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalExpenses) }}</span>
+        <span
+          class="text-2xl xl:text-3xl font-bold text-gray-800 dark:text-white"
+          :class="{ 'privacy-blur': settingsStore.privacyMode }"
+        >{{ formatCurrency(totalExpenses) }}</span>
       </div>
 
       <!-- Chart -->

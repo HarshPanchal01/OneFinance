@@ -55,6 +55,12 @@ const defaultOptions = computed(() => {
         if (label) {
             label += ': ';
         }
+        
+        if (settingsStore.privacyMode) {
+            label += '***';
+            return label;
+        }
+
         if (context.parsed.y !== null && context.parsed.y !== undefined) {
              // For Bar/Line charts where data is x/y
             label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
@@ -100,6 +106,9 @@ const defaultOptions = computed(() => {
         ticks: {
           color: textColor,
           callback: function(value: string | number) {
+              if (settingsStore.privacyMode) {
+                  return '***';
+              }
               if (props.currencyFormat) {
                 const val = typeof value === 'string' ? parseFloat(value) : value;
                 return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 }).format(val);

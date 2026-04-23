@@ -158,6 +158,39 @@ async function importData() {
         </div>
       </div>
 
+      <!-- Privacy -->
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <i class="pi pi-shield mr-2" />
+          Privacy
+        </h3>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Privacy Mode
+            </h4>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Obfuscate financial data across the application. Hover over blurred values to reveal them.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="settingsStore.privacyMode"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            :class="settingsStore.privacyMode ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+            @click="settingsStore.togglePrivacyMode()"
+          >
+            <span
+              aria-hidden="true"
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+              :class="settingsStore.privacyMode ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+      </div>
+
       <!-- Data Management -->
       <div class="card p-6">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">

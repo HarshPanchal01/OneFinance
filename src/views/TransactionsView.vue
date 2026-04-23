@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 import { formatCurrency } from "@/utils";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
@@ -10,6 +11,7 @@ import BulkActionModal from "@/components/BulkActionModal.vue";
 import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
 
 const emit = defineEmits<{
   (e: "request-edit-account", id: number): void;
@@ -183,7 +185,10 @@ async function handleBulkAccount(accountId: number | null) {
         >
           Income
         </p>
-        <p class="text-lg font-bold text-income">
+        <p
+          class="text-lg font-bold text-income"
+          :class="{ 'privacy-blur': settingsStore.privacyMode }"
+        >
           {{ formatCurrency(filteredSummary.income) }}
         </p>
       </div>
@@ -193,7 +198,10 @@ async function handleBulkAccount(accountId: number | null) {
         >
           Expenses
         </p>
-        <p class="text-lg font-bold text-expense">
+        <p
+          class="text-lg font-bold text-expense"
+          :class="{ 'privacy-blur': settingsStore.privacyMode }"
+        >
           {{ formatCurrency(filteredSummary.expenses) }}
         </p>
       </div>
@@ -205,7 +213,10 @@ async function handleBulkAccount(accountId: number | null) {
         </p>
         <p
           class="text-lg font-bold"
-          :class="filteredSummary.balance >= 0 ? 'text-income' : 'text-expense'"
+          :class="[
+            filteredSummary.balance >= 0 ? 'text-income' : 'text-expense',
+            { 'privacy-blur': settingsStore.privacyMode }
+          ]"
         >
           {{ formatCurrency(filteredSummary.balance) }}
         </p>

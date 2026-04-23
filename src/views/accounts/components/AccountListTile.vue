@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useFinanceStore } from '@/stores/finance'
+import { useSettingsStore } from '@/stores/settings'
 import { computed, ref, watch } from 'vue';
 
 
@@ -14,6 +15,7 @@ import { computed, ref, watch } from 'vue';
     }
 
     const store = useFinanceStore();
+    const settingsStore = useSettingsStore();
     const tileRef = ref<HTMLElement | null>(null);
 
     const emits = defineEmits<{
@@ -67,7 +69,7 @@ import { computed, ref, watch } from 'vue';
         >Default</span>
       </p>
       <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
-        Balance: ${{ props.balance?.toFixed(2) ?? props.startingBalance.toFixed(2) }}
+        Balance: <span :class="{ 'privacy-blur': settingsStore.privacyMode }">${{ props.balance?.toFixed(2) ?? props.startingBalance.toFixed(2) }}</span>
       </p>
     </div>
 

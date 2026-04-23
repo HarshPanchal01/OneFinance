@@ -3,6 +3,7 @@ import { computed } from "vue";
 import type { TransactionWithCategory } from "@/types";
 import { formatCurrency, formatDate } from "@/utils";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 
 const props = defineProps<{
   transaction: TransactionWithCategory;
@@ -18,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
 const isIncome = computed(() => props.transaction.type === "income");
 const isExpense = computed(() => props.transaction.type === "expense");
 const isTransfer = computed(() => props.transaction.type === "transfer");
@@ -122,7 +124,8 @@ const transferToAccountName = computed(() => {
             :class="[
               isIncome ? 'text-income' : '',
               isExpense ? 'text-expense' : '',
-              isTransfer ? 'text-gray-600 dark:text-gray-300' : ''
+              isTransfer ? 'text-gray-600 dark:text-gray-300' : '',
+              { 'privacy-blur': settingsStore.privacyMode }
             ]"
           >
             {{ isIncome ? "+" : (isExpense ? "-" : "") }}{{ formatCurrency(transaction.amount) }}
