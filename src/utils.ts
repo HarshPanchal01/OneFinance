@@ -42,22 +42,42 @@ export function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
 }
 
-export function verifyImportData(data: {
-  accounts?: Account[],
-  transactions?: TransactionWithCategory[],
-  categories?: Category[],
-  accountTypes?: AccountType[],
-  ledgerYears?: number[]
-}): boolean {
+export function verifyImportData(
+  data: {
+    databaseVersion?: number;
+    accounts?: Account[];
+    transactions?: TransactionWithCategory[];
+    categories?: Category[];
+    accountTypes?: AccountType[];
+    ledgerYears?: number[];
+  },
+  currentDatabaseVersion: number
+): { success: boolean; reason?: string } {
   try {
+    const dbVersion = data.databaseVersion;
     const accounts = data.accounts;
     const transactions = data.transactions;
     const categories = data.categories;
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
 
+    if (dbVersion === undefined) {
+      console.log("Import data is missing databaseVersion (v1.x export)");
+      return { success: false, reason: "The backup file is from an older version of OneFinance (v1.x). Please update the older app to v2.0+ and re-export your data." };
+    }
+
+    if (dbVersion > currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is newer than current version ${currentDatabaseVersion}`);
+      return { success: false, reason: `The backup file is from a newer version of OneFinance (v${dbVersion}). Please update your app to match before importing.` };
+    }
+
+    if (dbVersion < currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is older than current version ${currentDatabaseVersion}`);
+      return { success: false, reason: `The backup file is from an older version of OneFinance (v${dbVersion}). Please update the older app and re-export your data.` };
+    }
+
     if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined) {
-      return false;
+      return { success: false, reason: "The selected file is not a valid OneFinance export file." };
     }
 
     let forEachResult = true;
@@ -138,10 +158,10 @@ export function verifyImportData(data: {
       }
     });
 
-    return forEachResult;
+    return forEachResult ? { success: true } : { success: false, reason: "Invalid data format." };
   } catch (e) {
     console.log(`Error verifying import data ${e}`);
-    return false;
+    return { success: false, reason: "Failed to parse import data." };
   }
 }
 

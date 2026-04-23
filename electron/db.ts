@@ -3,6 +3,9 @@ import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
 import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { migrateDatabase } from "./migration";
+
+export const databaseVersion = 2.0;
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -58,6 +61,45 @@ export const db = new Proxy({} as ReturnType<typeof Database>, {
  * Creates all tables if they don't exist
  */
 export function initializeDatabase(): void {
+  let currentDbVersion = databaseVersion;
+
+  try {
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='version'").get();
+    if (tableCheck) {
+      const versionRow = db.prepare("SELECT version FROM version LIMIT 1").get() as { version: number } | undefined;
+      currentDbVersion = versionRow?.version || 1.0;
+    } else {
+      const accountsCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get();
+      if (accountsCheck) {
+        currentDbVersion = 1.0;
+      } else {
+        currentDbVersion = databaseVersion;
+      }
+    }
+  } catch (e) {
+    console.error("[DB] Error checking version:", e);
+    currentDbVersion = 1.0;
+  }
+
+  if (currentDbVersion < databaseVersion) {
+    migrateDatabase(db, currentDbVersion, databaseVersion);
+  }
+
+  // Ensure version table exists for fresh installs or after migrations
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS version (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version REAL NOT NULL
+    )
+  `);
+  
+  const versionCount = db.prepare("SELECT COUNT(*) as count FROM version").get() as { count: number };
+  if (versionCount.count === 0) {
+    db.prepare("INSERT INTO version (version) VALUES (?)").run(databaseVersion);
+  } else {
+    db.prepare("UPDATE version SET version = ?").run(databaseVersion);
+  }
+
   // Ledger Years - Primary key is the year itself
   db.exec(`
     CREATE TABLE IF NOT EXISTS ledger_years (
@@ -76,18 +118,6 @@ export function initializeDatabase(): void {
     )
   `);
   
-  // comment out later when we have the migration strategy in place
-  try {
-    db.exec("ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
-    // Update known default income categories during migration for existing users
-    db.exec("UPDATE categories SET type = 'income' WHERE name = 'Salary'");
-    db.exec("UPDATE categories SET type = 'both' WHERE name = 'Other'");
-  } catch (e: any) {
-    if (!e.message.includes('duplicate column name')) {
-      console.error('Migration error:', e);
-    }
-  }
-
   // Account Type
   db.exec(`
     CREATE TABLE IF NOT EXISTS accountType (
@@ -862,6 +892,15 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
     }
     
     return trends;
+}
+
+export function getDatabaseVersion(): number {
+  try {
+    const row = db.prepare("SELECT version FROM version LIMIT 1").get() as { version: number } | undefined;
+    return row?.version || databaseVersion;
+  } catch (e) {
+    return databaseVersion;
+  }
 }
 
 // Export the database instance for advanced operations if needed

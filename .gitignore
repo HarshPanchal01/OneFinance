@@ -40,7 +40,7 @@ dist*
 *.sw?
 GEMINI.md
 PrimeVue.md
-gemini_context/
+DATABASE_MIGRATIONS.md
 
 # TypeScript incremental build info
 *.tsbuildinfo
