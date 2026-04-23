@@ -18,6 +18,9 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  deleteTransactions,
+  updateTransactionsCategory,
+  updateTransactionsAccount,
   searchTransactions,
   getMonthlyTrends,
   getDailyTransactionSum,
@@ -169,6 +172,18 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:deleteTransaction", async (_event, id: number) => {
     return deleteTransaction(id);
+  });
+
+  ipcMain.handle("db:deleteTransactions", async (_event, ids: number[]) => {
+    return deleteTransactions(ids);
+  });
+
+  ipcMain.handle("db:updateTransactionsCategory", async (_event, ids: number[], categoryId: number | null) => {
+    return updateTransactionsCategory(ids, categoryId);
+  });
+
+  ipcMain.handle("db:updateTransactionsAccount", async (_event, ids: number[], accountId: number) => {
+    return updateTransactionsAccount(ids, accountId);
   });
 
   ipcMain.handle(
