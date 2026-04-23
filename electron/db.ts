@@ -800,6 +800,43 @@ export function deleteTransaction(id: number): boolean {
   return result.changes > 0;
 }
 
+export function deleteTransactions(ids: number[]): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`);
+  stmt.run(...ids);
+  return true;
+}
+
+export function updateTransactionsCategory(ids: number[], categoryId: number | null): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  
+  if (categoryId !== null) {
+    const category = getCategoryById(categoryId);
+    if (category && category.type !== 'both') {
+      // Update both category and transaction type if the category is strictly income or expense
+      const stmt = db.prepare(`UPDATE transactions SET categoryId = ?, type = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+      stmt.run(categoryId, category.type, ...ids);
+      return true;
+    }
+  }
+
+  // Only update category for non-transfer transactions
+  const stmt = db.prepare(`UPDATE transactions SET categoryId = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+  stmt.run(categoryId, ...ids);
+  return true;
+}
+
+export function updateTransactionsAccount(ids: number[], accountId: number): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  // Only update account for non-transfer transactions to prevent complex logic bugs
+  const stmt = db.prepare(`UPDATE transactions SET accountId = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+  stmt.run(accountId, ...ids);
+  return true;
+}
+
 export function getRollingMonthlyTrends(): MonthlyTrend[] {
   const now = new Date();
   

@@ -551,7 +551,7 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
-      
+
       // Also remove from search results if present
       if (isSearching.value) {
         searchResults.value = searchResults.value.filter((t) => t.id !== id);
@@ -563,6 +563,86 @@ export const useFinanceStore = defineStore("finance", () => {
     return success;
   }
 
+  async function removeTransactions(ids: number[]) {
+    try {
+      const safeIds = Array.from(ids);
+      const success = await window.electronAPI.deleteTransactions(safeIds);
+      if (success) {
+        const idSet = new Set(safeIds);
+        transactions.value = transactions.value.filter((t) => !idSet.has(t.id));
+        await fetchRecentTransactions(5); // Update dashboard list
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync(); // Refresh summary
+
+        // Also remove from search results if present
+        if (isSearching.value) {
+          searchResults.value = searchResults.value.filter((t) => !idSet.has(t.id));
+        }
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
+      }
+      return success;
+    } catch (e) {
+      console.error("Error in removeTransactions:", e);
+      return false;
+    }
+  }
+
+  async function bulkEditCategory(ids: number[], categoryId: number | null) {
+    try {
+      const safeIds = Array.from(ids);
+      const success = await window.electronAPI.updateTransactionsCategory(safeIds, categoryId);
+      if (success) {
+        // Safest to just refetch the list
+        if (currentLedgerMonth.value) {
+          await fetchTransactions(toRaw(currentLedgerMonth.value));
+        } else {
+          await fetchTransactions(null, selectedYear.value ?? undefined);
+        }
+        if (isSearching.value) {
+          // Refetch search results if possible, or just force user to search again
+          if (transactionFilter.value) {
+            await searchTransactions(toRaw(transactionFilter.value));
+          }
+        }
+        await fetchRecentTransactions(5);
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync();
+      }
+      return success;
+    } catch (e) {
+      console.error("Error in bulkEditCategory:", e);
+      return false;
+    }
+  }
+
+  async function bulkEditAccount(ids: number[], accountId: number) {
+    try {
+      const safeIds = Array.from(ids);
+      const success = await window.electronAPI.updateTransactionsAccount(safeIds, accountId);
+      if (success) {
+        // Re-fetch transactions
+        if (currentLedgerMonth.value) {
+          await fetchTransactions(toRaw(currentLedgerMonth.value));
+        } else {
+          await fetchTransactions(null, selectedYear.value ?? undefined);
+        }
+        if (isSearching.value && transactionFilter.value) {
+          await searchTransactions(toRaw(transactionFilter.value));
+        }
+        await fetchRecentTransactions(5);
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync();
+        // Re-fetch accounts to update balances
+        await fetchAccounts();
+      }
+      return success;
+    } catch (e) {
+      console.error("Error in bulkEditAccount:", e);
+      return false;
+    }
+  }
   async function searchTransactions(options: SearchOptions) {
     // If no criteria provided, clear search
     const hasCriteria = 
@@ -946,6 +1026,9 @@ export const useFinanceStore = defineStore("finance", () => {
     addTransaction,
     editTransaction,
     removeTransaction,
+    removeTransactions,
+    bulkEditCategory,
+    bulkEditAccount,
     searchTransactions,
     clearSearch,
     setTransactionFilter,

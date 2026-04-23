@@ -88,6 +88,15 @@ const electronAPI = {
   deleteTransaction: (id: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteTransaction", id),
 
+  deleteTransactions: (ids: number[]): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteTransactions", ids),
+
+  updateTransactionsCategory: (ids: number[], categoryId: number | null): Promise<boolean> =>
+    ipcRenderer.invoke("db:updateTransactionsCategory", ids, categoryId),
+
+  updateTransactionsAccount: (ids: number[], accountId: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:updateTransactionsAccount", ids, accountId),
+
   searchTransactions: (
     options: SearchOptions,
     limit?: number
