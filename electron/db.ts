@@ -146,12 +146,14 @@ export function initializeDatabase(): void {
       title TEXT NOT NULL,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
       notes TEXT,
       categoryId INTEGER,
       accountId INTEGER NOT NULL,
+      transferAccountId INTEGER,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
-      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
 
@@ -564,7 +566,8 @@ export function searchTransactions(
   // Add account filters
   if (accountIds.length > 0) {
     const placeholders = accountIds.map(() => "?").join(",");
-    sql += ` AND t.accountId IN (${placeholders})`;
+    sql += ` AND (t.accountId IN (${placeholders}) OR t.transferAccountId IN (${placeholders}))`;
+    params.push(...accountIds);
     params.push(...accountIds);
   }
 
@@ -727,8 +730,8 @@ export function createTransaction(
   input: CreateTransactionInput
 ): TransactionWithCategory {
   const stmt = db.prepare(`
-    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -738,7 +741,8 @@ export function createTransaction(
     input.type,
     input.notes || null,
     input.categoryId || null,
-    input.accountId
+    input.accountId,
+    input.transferAccountId || null
   );
 
   return getTransactionById(result.lastInsertRowid as number)!;
@@ -746,19 +750,19 @@ export function createTransaction(
 
 export function insertTransactionWithId(transaction: Transaction): void{
   const insert = db.prepare(`
-    INSERT INTO transactions (id, ledgerPeriodId, title, amount, date, type, notes, categoryId, accountId)
+    INSERT INTO transactions (id, title, amount, date, type, notes, categoryId, accountId, transferAccountId)
     VALUES (?,?,?,?,?,?,?,?,?)
   `);
   insert.run(
     transaction.id,
-    transaction.ledgerPeriodId,
     transaction.title,
     transaction.amount,
     transaction.date,
     transaction.type,
     transaction.notes,
     transaction.categoryId,
-    transaction.accountId
+    transaction.accountId,
+    transaction.transferAccountId || null
   );
 }
 
@@ -770,8 +774,8 @@ export function updateTransaction(
   if (!current) return undefined;
 
   const stmt = db.prepare(`
-    UPDATE transactions 
-    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?
+    UPDATE transactions
+    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?, transferAccountId = ?
     WHERE id = ?
   `);
 
@@ -783,6 +787,7 @@ export function updateTransaction(
     input.notes !== undefined ? input.notes : current.notes,
     input.categoryId !== undefined ? input.categoryId : current.categoryId,
     input.accountId !== undefined ? input.accountId : current.accountId,
+    input.transferAccountId !== undefined ? input.transferAccountId : current.transferAccountId,
     id
   );
 
@@ -898,7 +903,7 @@ export function getDatabaseVersion(): number {
   try {
     const row = db.prepare("SELECT version FROM version LIMIT 1").get() as { version: number } | undefined;
     return row?.version || databaseVersion;
-  } catch (e) {
+  } catch {
     return databaseVersion;
   }
 }

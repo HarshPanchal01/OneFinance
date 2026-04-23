@@ -52,4 +52,36 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error (v1 to v2):', e);
     }
   }
+
+  // Update transactions table to support transfers
+  try {
+    db.exec(`
+      CREATE TABLE new_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
+        notes TEXT,
+        categoryId INTEGER,
+        accountId INTEGER NOT NULL,
+        transferAccountId INTEGER,
+        FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+        FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
+      )
+    `);
+    
+    db.exec(`
+      INSERT INTO new_transactions (id, title, amount, date, type, notes, categoryId, accountId)
+      SELECT id, title, amount, date, type, notes, categoryId, accountId FROM transactions
+    `);
+    
+    db.exec("DROP TABLE transactions");
+    db.exec("ALTER TABLE new_transactions RENAME TO transactions");
+  } catch (e: any) {
+    if (!e?.message?.includes('already exists')) {
+      console.error('[Migration] Migration error for transactions (v1 to v2):', e);
+    }
+  }
 }

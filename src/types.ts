@@ -37,10 +37,11 @@ export interface Transaction {
   title: string;
   amount: number;
   date: string;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   notes: string | null;
   categoryId: number | null;
   accountId: number;
+  transferAccountId?: number | null;
 }
 
 export interface TransactionWithCategory extends Transaction {
@@ -53,10 +54,11 @@ export interface CreateTransactionInput {
   title: string;
   amount: number;
   date: string;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   notes?: string
   categoryId?: number
   accountId: number
+  transferAccountId?: number
 }
 
 export interface PeriodSummary {
@@ -96,6 +98,6 @@ export interface SearchOptions {
   toDate?: string | null;
   minAmount?: number | null;
   maxAmount?: number | null;
-  type?: "income" | "expense" | null;
+  type?: "income" | "expense" | "transfer" | null;
   sortOrder?: 'desc' | 'asc';
 }
