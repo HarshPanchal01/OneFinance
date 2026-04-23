@@ -352,11 +352,11 @@ onUnmounted(() => {
                 @click.stop="toggleAccount(account.id)"
               >
                 <!-- Checkbox visual -->
-                <div
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
-                  :class="isAccountSelected(account.id)
-                    ? 'bg-primary-500 border-primary-500 after:block'
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
+                <input
+                  type="checkbox"
+                  :checked="isAccountSelected(account.id)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 pointer-events-none"
+                  tabindex="-1"
                 />
                 <span class="text-gray-900 dark:text-white truncate flex-1">{{ account.accountName }}</span>
               </button>
@@ -417,11 +417,11 @@ onUnmounted(() => {
                 @click.stop="toggleCategory(category.id)"
               >
                 <!-- Checkbox visual -->
-                <div
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
-                  :class="isCategorySelected(category.id)
-                    ? 'bg-primary-500 border-primary-500 after:block'
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
+                <input
+                  type="checkbox"
+                  :checked="isCategorySelected(category.id)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 pointer-events-none"
+                  tabindex="-1"
                 />
                 <!-- Icon & Name -->
                 <i

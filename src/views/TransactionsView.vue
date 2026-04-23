@@ -243,7 +243,7 @@ async function handleBulkAccount(accountId: number | null) {
             type="checkbox"
             :checked="allSelected"
             :indeterminate="someSelected"
-            class="w-4 h-4 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5 indeterminate:bg-primary-500 indeterminate:border-primary-500 indeterminate:after:block indeterminate:after:w-2.5 indeterminate:after:h-0.5 indeterminate:after:bg-white indeterminate:after:border-none indeterminate:after:rotate-0 indeterminate:after:mt-0"
+            class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
             @change="toggleAll"
           />
           <span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
