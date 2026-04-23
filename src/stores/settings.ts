@@ -6,6 +6,7 @@ export type AppearanceMode = 'light' | 'dark' | 'system';
 export const useSettingsStore = defineStore('settings', () => {
   const appearance = ref<AppearanceMode>('system');
   const isDark = ref(false);
+  const privacyMode = ref(false);
 
   const applyAppearance = () => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -25,7 +26,15 @@ export const useSettingsStore = defineStore('settings', () => {
     if (savedAppearance) {
       appearance.value = savedAppearance as AppearanceMode;
     }
+    const savedPrivacy = localStorage.getItem('privacyMode');
+    if (savedPrivacy) {
+      privacyMode.value = savedPrivacy === 'true';
+    }
     applyAppearance();
+  };
+
+  const togglePrivacyMode = () => {
+    privacyMode.value = !privacyMode.value;
   };
 
   watch(appearance, (newVal) => {
@@ -33,10 +42,16 @@ export const useSettingsStore = defineStore('settings', () => {
     applyAppearance();
   });
 
+  watch(privacyMode, (newVal) => {
+    localStorage.setItem('privacyMode', String(newVal));
+  });
+
   return {
     appearance,
     isDark,
+    privacyMode,
     loadSettings,
-    applyAppearance
+    applyAppearance,
+    togglePrivacyMode
   };
 });

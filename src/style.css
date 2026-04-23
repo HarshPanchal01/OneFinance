@@ -155,4 +155,13 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  .privacy-blur {
+    filter: blur(5px);
+    transition: filter 0.3s ease;
+    user-select: none;
+  }
+  .privacy-blur:hover {
+    filter: blur(0px);
+  }
 }
