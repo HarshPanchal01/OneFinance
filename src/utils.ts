@@ -131,6 +131,14 @@ export function verifyImportData(
         forEachResult = false;
         return;
       }
+
+      // Check if transfer account provided in transaction is valid
+      if (value.type === "transfer") {
+        if (value.transferAccountId == undefined || accounts.find((accountValue) => accountValue.id === value.transferAccountId) == undefined) {
+          forEachResult = false;
+          return;
+        }
+      }
     });
 
     accountTypes.forEach((value) => {

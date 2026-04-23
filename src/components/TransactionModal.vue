@@ -40,9 +40,10 @@ const form = ref({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })(),
-  type: "expense" as "income" | "expense",
+  type: "expense" as "income" | "expense" | "transfer",
   categoryId: null as number | null,
   accountId: null as number | null,
+  transferAccountId: null as number | null,
   notes: "",
 });
 
@@ -76,6 +77,7 @@ watch(
           type: props.transaction.type,
           categoryId: props.transaction.categoryId,
           accountId: props.transaction.accountId,
+          transferAccountId: props.transaction.transferAccountId || null,
           notes: props.transaction.notes || "",
         };
       } else {
@@ -90,6 +92,7 @@ watch(
           type: "expense",
           categoryId: null,
           accountId: defaultAccount ? defaultAccount.id : (store.accounts[0]?.id),
+          transferAccountId: null,
           notes: "",
         };
       }
@@ -117,7 +120,8 @@ const isValid = computed(
     form.value.title.trim().length > 0 &&
     form.value.amount > 0 &&
     form.value.date &&
-    form.value.accountId !== null
+    form.value.accountId !== null &&
+    (form.value.type !== 'transfer' || (form.value.transferAccountId !== null && form.value.transferAccountId !== form.value.accountId))
 );
 
 // Save transaction
@@ -125,28 +129,23 @@ async function save() {
   if (!isValid.value) return;
 
   try {
+    const payload = {
+      title: form.value.title,
+      amount: form.value.amount,
+      date: form.value.date,
+      type: form.value.type,
+      categoryId: form.value.type === 'transfer' ? undefined : (form.value.categoryId ?? undefined),
+      accountId: form.value.accountId!,
+      transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? undefined) : undefined,
+      notes: form.value.notes || undefined,
+    };
+
     if (isEditing.value && props.transaction) {
-      await store.editTransaction(props.transaction.id, {
-        title: form.value.title,
-        amount: form.value.amount,
-        date: form.value.date,
-        type: form.value.type,
-        categoryId: form.value.categoryId ?? undefined,
-        accountId: form.value.accountId!,
-        notes: form.value.notes || undefined,
-      });
+      await store.editTransaction(props.transaction.id, payload);
       emit("saved");
       emit("close");
     } else {
-      await store.addTransaction({
-        title: form.value.title,
-        amount: form.value.amount,
-        date: form.value.date,
-        type: form.value.type,
-        categoryId: form.value.categoryId ?? undefined,
-        accountId: form.value.accountId!,
-        notes: form.value.notes || undefined,
-      });
+      await store.addTransaction(payload);
 
       if (createAnother.value) {
         // Reset specific fields for the next transaction
@@ -232,6 +231,18 @@ function close() {
               <i class="pi pi-arrow-up mr-2" />
               Income
             </button>
+            <button
+              :class="[
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                form.type === 'transfer'
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+              ]"
+              @click="form.type = 'transfer'"
+            >
+              <i class="pi pi-sync mr-2" />
+              Transfer
+            </button>
           </div>
 
           <!-- Title -->
@@ -286,28 +297,51 @@ function close() {
           </div>
 
           <!-- Account -->
-          <div>
-            <label
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Account
-            </label>
-            <select
-              v-model="form.accountId"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option
-                v-for="account in store.accounts"
-                :key="account.id"
-                :value="account.id"
+          <div :class="form.type === 'transfer' ? 'grid grid-cols-2 gap-4' : ''">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
-                {{ account.accountName }}
-              </option>
-            </select>
+                {{ form.type === 'transfer' ? 'From Account' : 'Account' }}
+              </label>
+              <select
+                v-model="form.accountId"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option
+                  v-for="account in store.accounts"
+                  :key="account.id"
+                  :value="account.id"
+                >
+                  {{ account.accountName }}
+                </option>
+              </select>
+            </div>
+
+            <div v-if="form.type === 'transfer'">
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                To Account
+              </label>
+              <select
+                v-model="form.transferAccountId"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option
+                  v-for="account in store.accounts"
+                  :key="account.id"
+                  :value="account.id"
+                  :disabled="account.id === form.accountId"
+                >
+                  {{ account.accountName }}
+                </option>
+              </select>
+            </div>
           </div>
 
           <!-- Category -->
-          <div>
+          <div v-if="form.type !== 'transfer'">
             <label
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >

@@ -77,7 +77,7 @@ export function useDataManagement() {
 
   async function exportData(notificationModal: NotificationModalInstance | undefined) {
     const accountsValue = toRaw(store.accounts);
-    const transactionsValue = toRaw(store.transactions);
+    const transactionsValue = await window.electronAPI.getTransactions();
     const categoriesValue = toRaw(store.categories);
     const accountTypesValue = toRaw(store.accountTypes);
     const ledgerYearsValue = toRaw(store.ledgerYears);

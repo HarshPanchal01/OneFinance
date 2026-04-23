@@ -78,6 +78,10 @@ export const useFinanceStore = defineStore("finance", () => {
     transactions.value.filter((t) => t.type === "expense")
   );
 
+  const transferTransactions = computed(() =>
+    transactions.value.filter((t) => t.type === "transfer")
+  );
+
   // ============================================
   // ACTIONS - Initialization
   // ============================================
@@ -159,8 +163,9 @@ export const useFinanceStore = defineStore("finance", () => {
     // incomeBreakdown
     // expenseBreakdown
 
-    const transactionsByIncome = toRaw(transactions.value).filter((value) => value.type === "income");
-    const transactionsByExpense = toRaw(transactions.value).filter((value) => value.type === "expense");
+    const nonTransferTransactions = toRaw(transactions.value).filter((value) => value.type !== "transfer");
+    const transactionsByIncome = nonTransferTransactions.filter((value) => value.type === "income");
+    const transactionsByExpense = nonTransferTransactions.filter((value) => value.type === "expense");
 
     const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
     const transactionsExpenseSum = transactionsByExpense.reduce((sum, currentValue) => sum + currentValue.amount, 0);
@@ -331,9 +336,17 @@ export const useFinanceStore = defineStore("finance", () => {
     const transactionsRaw = await window.electronAPI.getTransactions();
 
     accountsRaw.forEach(account => {
-      const accountTransactions = transactionsRaw.filter(t => t.accountId === account.id);
+      // Find transactions where this account is either the source or the destination
+      const accountTransactions = transactionsRaw.filter(t => t.accountId === account.id || t.transferAccountId === account.id);
+      
       const transactionSum = accountTransactions.reduce((sum, t) => {
-        return t.type === 'income' ? sum + t.amount : sum - t.amount;
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        if (t.type === 'transfer') {
+          if (t.accountId === account.id) return sum - t.amount; // Outflow
+          if (t.transferAccountId === account.id) return sum + t.amount; // Inflow
+        }
+        return sum;
       }, 0);
       account.balance = account.startingBalance + transactionSum;
     });
@@ -836,17 +849,25 @@ export const useFinanceStore = defineStore("finance", () => {
           }
     
           transaction.accountId = mappedAccountId;
-    
-          await addTransaction({
-              title: transaction.title,
-              amount: transaction.amount,
-              date: transaction.date,
-              type: transaction.type,
-              categoryId: transaction.categoryId ?? undefined,
-              accountId: transaction.accountId!,
-              notes: transaction.notes || undefined,
+
+          if (transaction.transferAccountId != undefined) {
+            const mappedTransferAccountId = accountIdMap.get(transaction.transferAccountId);
+            if (mappedTransferAccountId == undefined) {
+              throw new Error("Transfer Account id mapping not found for transaction id: " + transaction.id);
             }
-          );
+            transaction.transferAccountId = mappedTransferAccountId;
+          }
+
+          await addTransaction({
+            title: transaction.title,
+            amount: transaction.amount,
+            date: transaction.date,
+            type: transaction.type,
+            categoryId: transaction.categoryId ?? undefined,
+            accountId: transaction.accountId!,
+            transferAccountId: transaction.transferAccountId ?? undefined,
+            notes: transaction.notes || undefined,
+          });
           console.log(`Inserting transaction ${transaction.title} completed`);
       }
     }
@@ -901,6 +922,7 @@ export const useFinanceStore = defineStore("finance", () => {
     hasCurrentPeriod,
     incomeTransactions,
     expenseTransactions,
+    transferTransactions,
 
     // Actions
     initialize,

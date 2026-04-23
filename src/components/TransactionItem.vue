@@ -16,10 +16,18 @@ const emit = defineEmits<{
 
 const store = useFinanceStore();
 const isIncome = computed(() => props.transaction.type === "income");
+const isExpense = computed(() => props.transaction.type === "expense");
+const isTransfer = computed(() => props.transaction.type === "transfer");
 
 const accountName = computed(() => {
   if (!props.transaction.accountId) return null;
   const account = store.accounts.find((a) => a.id === props.transaction.accountId);
+  return account ? account.accountName : null;
+});
+
+const transferToAccountName = computed(() => {
+  if (!props.transaction.transferAccountId) return null;
+  const account = store.accounts.find((a) => a.id === props.transaction.transferAccountId);
   return account ? account.accountName : null;
 });
 </script>
@@ -32,15 +40,15 @@ const accountName = computed(() => {
       <!-- Category Icon -->
       <div
         class="w-10 h-10 rounded-lg flex items-center justify-center"
-        :class="
-          isIncome
-            ? 'bg-income-light dark:bg-income/20'
-            : 'bg-expense-light dark:bg-expense/20'
-        "
+        :class="[
+          isIncome ? 'bg-income-light dark:bg-income/20' : '',
+          isExpense ? 'bg-expense-light dark:bg-expense/20' : '',
+          isTransfer ? 'bg-primary-100 dark:bg-primary-900/20' : ''
+        ]"
       >
         <i
-          :class="['pi', transaction.categoryIcon || 'pi-tag']"
-          :style="{ color: transaction.categoryColor || '#6b7280' }"
+          :class="['pi', isTransfer ? 'pi-sync' : (transaction.categoryIcon || 'pi-tag')]"
+          :style="{ color: isTransfer ? '#3b82f6' : (transaction.categoryColor || '#6b7280') }"
         />
       </div>
 
@@ -50,18 +58,37 @@ const accountName = computed(() => {
           {{ transaction.title }}
         </p>
         <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <span>{{ transaction.categoryName || "Uncategorized" }}</span>
-          <span
-            v-if="accountName"
-            class="mx-0.5"
-          >•</span>
-          <button
-            v-if="accountName"
-            class="hover:text-primary-500 hover:underline transition-colors cursor-pointer"
-            @click.stop="emit('edit-account', transaction.accountId)"
-          >
-            {{ accountName }}
-          </button>
+          <template v-if="isTransfer">
+            <span>Transfer</span>
+            <span class="mx-0.5">•</span>
+            <button
+              class="hover:text-primary-500 hover:underline transition-colors cursor-pointer"
+              @click.stop="emit('edit-account', transaction.accountId)"
+            >
+              {{ accountName }}
+            </button>
+            <i class="pi pi-arrow-right text-[10px] mx-1" />
+            <button
+              class="hover:text-primary-500 hover:underline transition-colors cursor-pointer"
+              @click.stop="emit('edit-account', transaction.transferAccountId!)"
+            >
+              {{ transferToAccountName }}
+            </button>
+          </template>
+          <template v-else>
+            <span>{{ transaction.categoryName || "Uncategorized" }}</span>
+            <span
+              v-if="accountName"
+              class="mx-0.5"
+            >•</span>
+            <button
+              v-if="accountName"
+              class="hover:text-primary-500 hover:underline transition-colors cursor-pointer"
+              @click.stop="emit('edit-account', transaction.accountId)"
+            >
+              {{ accountName }}
+            </button>
+          </template>
           <span class="mx-0.5">•</span>
           <span>{{ formatDate(transaction.date) }}</span>
         </p>
@@ -73,9 +100,13 @@ const accountName = computed(() => {
       <div class="text-right">
         <p
           class="font-semibold"
-          :class="isIncome ? 'text-income' : 'text-expense'"
+          :class="[
+            isIncome ? 'text-income' : '',
+            isExpense ? 'text-expense' : '',
+            isTransfer ? 'text-gray-600 dark:text-gray-300' : ''
+          ]"
         >
-          {{ isIncome ? "+" : "-" }}{{ formatCurrency(transaction.amount) }}
+          {{ isIncome ? "+" : (isExpense ? "-" : "") }}{{ formatCurrency(transaction.amount) }}
         </p>
       </div>
 

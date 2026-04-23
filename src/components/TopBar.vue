@@ -19,7 +19,7 @@ const selectedAccountIds = ref<number[]>([]);
 const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);
-const typeFilter = ref<'all' | 'income' | 'expense'>('all');
+const typeFilter = ref<'all' | 'income' | 'expense' | 'transfer'>('all');
 const sortOrder = ref<'desc' | 'asc'>('desc');
 
 // Label Picker State
@@ -88,7 +88,7 @@ function applyAmountFilter() {
   showAmountPicker.value = false;
 }
 
-function selectType(type: 'all' | 'income' | 'expense') {
+function selectType(type: 'all' | 'income' | 'expense' | 'transfer') {
   typeFilter.value = type;
   handleSearch();
   showTypePicker.value = false;
@@ -563,6 +563,13 @@ onUnmounted(() => {
               @click="selectType('expense')"
             >
               Expense
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="typeFilter === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectType('transfer')"
+            >
+              Transfer
             </button>
           </div>
         </div>
