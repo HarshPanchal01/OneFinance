@@ -5,7 +5,7 @@ import ErrorModal from "@/components/ErrorModal.vue";
 import NotificationModal from "@/components/NotificationModal.vue";
 import SettingsImportModal from "./components/SettingsImportModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
-import { useSettingsStore } from "@/stores/settings";
+import { useSettingsStore, regionalSettings } from "@/stores/settings";
 import Select from "primevue/select";
 import iconSvg from "@/assets/icon.svg";
 import logoPng from "@/assets/logo.png";
@@ -155,6 +155,31 @@ async function importData() {
               class="w-full md:w-56"
             />
           </div>
+        </div>
+      </div>
+
+      <!-- Localization -->
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <i class="pi pi-globe mr-2" />
+          Localization
+        </h3>
+
+        <div class="max-w-md">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Region & Currency
+          </label>
+          <Select
+            v-model="settingsStore.region"
+            :options="regionalSettings"
+            option-label="label"
+            option-value="value"
+            class="w-full md:w-64"
+            placeholder="Select a region"
+          />
+          <p class="mt-2 text-xs text-gray-500">
+            Sets the date format, number separators, and currency symbol used throughout the app.
+          </p>
         </div>
       </div>
 

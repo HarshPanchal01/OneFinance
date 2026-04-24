@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
-import { formatCurrency } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
@@ -12,6 +12,7 @@ import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
 const emit = defineEmits<{
   (e: "request-edit-account", id: number): void;

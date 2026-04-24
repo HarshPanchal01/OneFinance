@@ -61,13 +61,16 @@ const defaultOptions = computed(() => {
             return label;
         }
 
+        const localeParts = settingsStore.resolvedLocale.split('-');
+        const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
+
         if (context.parsed.y !== null && context.parsed.y !== undefined) {
              // For Bar/Line charts where data is x/y
-            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+            label += new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol' }).format(context.parsed.y);
         } else if (context.raw !== null && context.raw !== undefined && (props.type === 'doughnut' || props.type === 'pie')) {
             // For Doughnut/Pie where data is just a number in raw
             const val = context.raw as number;
-            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+            label += new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol' }).format(val);
             
             // Calculate percentage
             const meta = context.chart.getDatasetMeta(context.datasetIndex);
@@ -111,7 +114,9 @@ const defaultOptions = computed(() => {
               }
               if (props.currencyFormat) {
                 const val = typeof value === 'string' ? parseFloat(value) : value;
-                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 }).format(val);
+                const localeParts = settingsStore.resolvedLocale.split('-');
+                const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
+                return new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol', maximumSignificantDigits: 3 }).format(val);
               }
               return value;
           }

@@ -5,10 +5,11 @@ export interface DateRange {
   endDate: Date;
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(amount: number, locale = 'en-US', currency = 'USD'): string {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency: currency,
+    currencyDisplay: 'narrowSymbol',
   }).format(amount);
 }
 
@@ -19,10 +20,10 @@ export function toIsoDateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string, locale = 'en-US'): string {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
