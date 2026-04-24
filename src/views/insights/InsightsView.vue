@@ -2,8 +2,7 @@
 import { computed, onMounted, watch, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { 
-  formatCurrency, 
-  getMetricsForRange, 
+  getMetricsForRange,
   getTimeRangeLabel, 
   getExpenseBreakdownForRange, 
   getCustomRangeObj, 
@@ -12,6 +11,7 @@ import {
   calculateNetCashFlow, 
   getPacingLabel,
   getMonthStr } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 import type { DailyTransactionSum } from "@/types";
 import CashFlowChart from "@/views/insights/components/charts/CashFlowChart.vue";
 import PacingChart from "@/views/insights/components/charts/PacingChart.vue";
@@ -22,6 +22,7 @@ import InsightMetricCard from "@/views/insights/components/InsightMetricCard.vue
 import InsightTimeRangeSelector from "@/views/insights/components/InsightTimeRangeSelector.vue";
 
 const store = useFinanceStore();
+const { formatCurrency } = useFormatter();
 
 // ===============================================
 // DATA FETCHING

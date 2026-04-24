@@ -104,7 +104,7 @@ const chartOptions = computed(() => {
         title: { display: true, text: 'Month(s)' }
       },
       y: {
-        title: { display: true, text: 'Total Balance ($)' }
+        title: { display: true, text: 'Total Balance' }
       }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

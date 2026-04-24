@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
-import { formatCurrency } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 import Popover from "primevue/popover";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
@@ -11,6 +11,7 @@ import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
 onMounted(async () => {
   await store.fetchDashboardBreakdown();

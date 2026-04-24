@@ -4,7 +4,8 @@ import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 import AppChart from "@/components/AppChart.vue";
 import type { CategoryBreakdown } from "@/types";
-import { formatCurrency, getDateRange, toIsoDateString } from "@/utils";
+import { getDateRange, toIsoDateString } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 
 const props = defineProps<{
   breakdown: CategoryBreakdown[];
@@ -13,6 +14,7 @@ const props = defineProps<{
 }>();
 
 const store = useFinanceStore();
+const { formatCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 
 const totalExpenses = computed(() => {

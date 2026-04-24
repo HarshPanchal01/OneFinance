@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { TransactionWithCategory } from "@/types";
-import { formatCurrency, formatDate } from "@/utils";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
+import { useFormatter } from "@/composables/useFormatter";
 
 const props = defineProps<{
   transaction: TransactionWithCategory;
@@ -20,6 +20,7 @@ const emit = defineEmits<{
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
+const { formatCurrency, formatDate } = useFormatter();
 const isIncome = computed(() => props.transaction.type === "income");
 const isExpense = computed(() => props.transaction.type === "expense");
 const isTransfer = computed(() => props.transaction.type === "transfer");
