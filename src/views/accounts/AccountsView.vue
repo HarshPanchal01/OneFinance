@@ -5,6 +5,7 @@ import AccountListView from './components/AccountListView.vue';
 import { Account } from '@/types';
 import ErrorModal from '@/components/ErrorModal.vue';
 import AccountDeleteModal from './components/AccountDeleteModal.vue';
+import AmountInput from '@/components/AmountInput.vue';
 
 const props = defineProps<{
   highlightAccountId?: number | null;
@@ -58,7 +59,7 @@ watch(() => props.highlightAccountId, (newId) => {
 const form = reactive({
   accountName: '',
   institutionName: '',
-  startingBalance: 0,
+  startingBalance: 0 as number | null,
   accountType: 0,
   isDefault: false
 });
@@ -72,7 +73,7 @@ function closeDialog() {
   Object.assign(form, {
     accountName: '',
     institutionName: '',
-    startingBalance: 0,
+    startingBalance: 0 as number | null,
     accountType: 0,
     isDefault: false
   });
@@ -85,7 +86,7 @@ async function submitForm() {
       id : 0,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance,
+      startingBalance: form.startingBalance ?? 0,
       accountTypeId:  form.accountType,
       isDefault: form.isDefault,
     } as Account);
@@ -95,9 +96,10 @@ async function submitForm() {
       id : accountEditId,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance,
+      startingBalance: form.startingBalance ?? 0,
       accountTypeId: form.accountType,
-      isDefault: form.isDefault} as Account);
+      isDefault: form.isDefault
+    } as Account);
   }
 
   closeDialog();
@@ -186,9 +188,9 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
 
       <div
         v-if="openDialog"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       >
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg flex flex-col max-h-[90vh]">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md sm:mx-auto shadow-lg flex flex-col max-h-[90vh]">
           <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white shrink-0">
             Add New Account
           </h2>
@@ -225,19 +227,11 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
               >
                 Starting Balance
               </label>
-              <div class="relative">
-                <span
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-                >$</span>
-                <input
-                  v-model.number="form.startingBalance"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  class="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
+              <AmountInput
+                v-model="form.startingBalance"
+                show-currency
+                placeholder="0.00"
+              />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Account Type</label>

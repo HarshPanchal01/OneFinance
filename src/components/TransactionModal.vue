@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import type { Transaction } from "@/types";
+import AmountInput from "@/components/AmountInput.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -35,7 +36,7 @@ onUnmounted(() => {
 // Form data
 const form = ref({
   title: "",
-  amount: 0,
+  amount: 0 as number | null,
   date: (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -118,7 +119,7 @@ const createAnother = ref(false);
 const isValid = computed(
   () =>
     form.value.title.trim().length > 0 &&
-    form.value.amount > 0 &&
+    (form.value.amount ?? 0) > 0 &&
     form.value.date &&
     form.value.accountId !== null &&
     (form.value.type !== 'transfer' || (form.value.transferAccountId !== null && form.value.transferAccountId !== form.value.accountId))
@@ -131,7 +132,7 @@ async function save() {
   try {
     const payload = {
       title: form.value.title,
-      amount: form.value.amount,
+      amount: form.value.amount ?? 0,
       date: form.value.date,
       type: form.value.type,
       categoryId: form.value.type === 'transfer' ? undefined : (form.value.categoryId ?? undefined),
@@ -182,7 +183,7 @@ function close() {
 
       <!-- Modal -->
       <div
-        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]"
+        class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full sm:max-w-md mx-4 sm:mx-auto flex flex-col max-h-[90vh]"
         @click.stop
         @mousedown.stop
       >
@@ -267,19 +268,11 @@ function close() {
             >
               Amount
             </label>
-            <div class="relative">
-              <span
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-              >$</span>
-              <input
-                v-model.number="form.amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                class="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
+            <AmountInput
+              v-model="form.amount"
+              show-currency
+              placeholder="0.00"
+            />
           </div>
 
           <!-- Date -->

@@ -3,6 +3,7 @@ import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import DatePicker from "primevue/datepicker";
 import { toIsoDateString } from "@/utils";
+import AmountInput from "@/components/AmountInput.vue";
 
 const props = defineProps<{
   initialAccountId?: number | null;
@@ -210,7 +211,9 @@ function clear() {
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   // Press '/' to focus search
-  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
+  const isInputFocused = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+  
+  if (e.key === "/" && !isInputFocused && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
     e.preventDefault();
     searchInput.value?.focus();
     return;
@@ -492,20 +495,16 @@ onUnmounted(() => {
           >
             <div>
               <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Min Amount</label>
-              <input
-                v-model.number="minAmount"
-                type="number"
+              <AmountInput
+                v-model="minAmount"
                 placeholder="0.00"
-                class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all"
               />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Amount</label>
-              <input
-                v-model.number="maxAmount"
-                type="number"
+              <AmountInput
+                v-model="maxAmount"
                 placeholder="∞"
-                class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all"
               />
             </div>
             <button
