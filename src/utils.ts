@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown } from "@/types";
+import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -51,6 +51,7 @@ export function verifyImportData(
     categories?: Category[];
     accountTypes?: AccountType[];
     ledgerYears?: number[];
+    recurringTransactions?: RecurringTransaction[];
   },
   currentDatabaseVersion: number
 ): { success: boolean; reason?: string } {
@@ -61,6 +62,7 @@ export function verifyImportData(
     const categories = data.categories;
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
+    const recurringTransactions = data.recurringTransactions;
 
     if (dbVersion === undefined) {
       console.log("Import data is missing databaseVersion (v1.x export)");
@@ -77,7 +79,7 @@ export function verifyImportData(
       return { success: false, reason: `The backup file is from an older version of OneFinance (v${dbVersion}). Please update the older app and re-export your data.` };
     }
 
-    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined) {
+    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined) {
       return { success: false, reason: "The selected file is not a valid OneFinance export file." };
     }
 

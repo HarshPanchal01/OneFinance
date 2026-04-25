@@ -15,16 +15,18 @@ import CategoriesView from "@/views/labels/LabelsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
 import InsightsView from "@/views/insights/InsightsView.vue";
+import RecurringView from "@/views/recurring/RecurringView.vue";
   
 const store = useFinanceStore();
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights";
+type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
 const activeAccountId = ref<number | null>(null);
 const activeFilterAccountId = ref<number | null>(null);
+const activeFilterRecurringId = ref<number | null>(null);
 
 // Watch for search active
 watch(
@@ -46,6 +48,7 @@ function navigateTo(view: string) {
   // Clear cross-view state on manual navigation
   activeAccountId.value = null;
   activeFilterAccountId.value = null;
+  activeFilterRecurringId.value = null;
 
   if (view === "dashboard") {
     // Keep the current period context when going to Dashboard
@@ -62,8 +65,12 @@ function handleRequestEditAccount(id: number) {
   // But keeping it as state is fine.
 }
 
-function handleRequestViewTransactions(id: number) {
-  activeFilterAccountId.value = id;
+function handleRequestViewTransactions(id: number, type: 'account' | 'recurring' = 'account') {
+  if (type === 'account') {
+    activeFilterAccountId.value = id;
+  } else if (type === 'recurring') {
+    activeFilterRecurringId.value = id;
+  }
   currentView.value = "transactions";
 }
 
@@ -108,11 +115,16 @@ function handleKeydown(e: KeyboardEvent) {
               e.preventDefault();
               currentView.value = "insights";
               break;
+            case "r":
+              e.preventDefault();
+              currentView.value = "recurring";
+              break;
             case "c":
-              if (e.shiftKey) {          e.preventDefault();
-          currentView.value = "categories";
-        }
-        break;
+              if (e.shiftKey) {
+                e.preventDefault();
+                currentView.value = "categories";
+              }
+              break;
       case "a":
         if (e.shiftKey) {
           e.preventDefault();
@@ -144,6 +156,7 @@ function handleKeydown(e: KeyboardEvent) {
       <TopBar 
         v-if="currentView === 'transactions'" 
         :initial-account-id="activeFilterAccountId"
+        :initial-recurring-id="activeFilterRecurringId"
       />
 
       <!-- Content Area -->
@@ -188,6 +201,11 @@ function handleKeydown(e: KeyboardEvent) {
             @request-view-transactions="handleRequestViewTransactions"
           />
           <InsightsView v-else-if="currentView === 'insights'" />
+          <RecurringView 
+            v-else-if="currentView === 'recurring'" 
+            @request-view-transactions="handleRequestViewTransactions"
+            @request-edit-account="handleRequestEditAccount"
+          />
         </template>
       </main>
     </div>

@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -139,6 +139,26 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Recurring Transactions - Templates for automated cash flows
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      amount REAL NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
+      categoryId INTEGER,
+      accountId INTEGER NOT NULL,
+      transferAccountId INTEGER,
+      frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'bi-weekly', 'monthly', 'yearly')),
+      startDate TEXT NOT NULL,
+      nextRunDate TEXT NOT NULL,
+      isActive BOOLEAN NOT NULL DEFAULT 1,
+      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
   // Transactions - The main data
   db.exec(`
     CREATE TABLE IF NOT EXISTS transactions (
@@ -151,9 +171,11 @@ export function initializeDatabase(): void {
       categoryId INTEGER,
       accountId INTEGER NOT NULL,
       transferAccountId INTEGER,
+      recurringId INTEGER,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
-      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
+      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (recurringId) REFERENCES recurring_transactions(id) ON DELETE SET NULL
     )
   `);
 
@@ -180,7 +202,95 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
   `);
 
+  processRecurringTransactions();
+
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
+}
+
+/**
+ * Calculates the next occurrence date based on frequency
+ */
+function calculateNextDate(currentDateStr: string, frequency: string): string {
+  const parts = currentDateStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  
+  const nextDate = new Date(year, month, day);
+
+  if (frequency === 'weekly') {
+    nextDate.setDate(nextDate.getDate() + 7);
+  } else if (frequency === 'bi-weekly') {
+    nextDate.setDate(nextDate.getDate() + 14);
+  } else if (frequency === 'monthly') {
+    const targetMonth = nextDate.getMonth() + 1;
+    nextDate.setMonth(targetMonth);
+    // Handle end-of-month snap (e.g. Jan 31 -> Feb 28)
+    if (nextDate.getMonth() !== targetMonth % 12) {
+      nextDate.setDate(0);
+    }
+  } else if (frequency === 'yearly') {
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+  }
+
+  return nextDate.getFullYear() + '-' + 
+         String(nextDate.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(nextDate.getDate()).padStart(2, '0');
+}
+
+/**
+ * Processes any due recurring transactions and generates transactions
+ */
+export function processRecurringTransactions(): void {
+  try {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const dueRecurrings = db.prepare(`
+      SELECT * FROM recurring_transactions 
+      WHERE isActive = 1 AND nextRunDate <= ?
+    `).all(todayStr) as RecurringTransaction[];
+
+    if (dueRecurrings.length === 0) return;
+
+    db.exec('BEGIN TRANSACTION');
+
+    const insertTx = db.prepare(`
+      INSERT INTO transactions (title, amount, date, type, categoryId, accountId, transferAccountId, recurringId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateRecurring = db.prepare(`
+      UPDATE recurring_transactions SET nextRunDate = ? WHERE id = ?
+    `);
+
+    for (const rec of dueRecurrings) {
+      let currentDateStr = rec.nextRunDate;
+      
+      while (currentDateStr <= todayStr) {
+        insertTx.run(
+          rec.title, 
+          rec.amount, 
+          currentDateStr, 
+          rec.type, 
+          rec.categoryId, 
+          rec.accountId, 
+          rec.transferAccountId, 
+          rec.id
+        );
+
+        currentDateStr = calculateNextDate(currentDateStr, rec.frequency);
+      }
+
+      updateRecurring.run(currentDateStr, rec.id);
+    }
+
+    db.exec('COMMIT');
+    console.log(`[DB] Processed ${dueRecurrings.length} recurring transactions.`);
+  } catch (e) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('[DB] Error processing recurring transactions:', e);
+  }
 }
 
 /**
@@ -243,6 +353,7 @@ function seedDefaultAccountData(): void{
 export function deleteAllDataFromTables(): void{
   const tables = [
     "transactions",
+    "recurring_transactions",
     "accounts",
     "accountType",
     "categories",
@@ -534,11 +645,11 @@ export function searchTransactions(
   options: SearchOptions,
   limit?: number
 ): TransactionWithCategory[] {
-  const { text = "", categoryIds = [], accountIds = [], fromDate, toDate, minAmount, maxAmount, type, sortOrder = 'desc' } = options;
+  const { text = "", categoryIds = [], accountIds = [], recurringId, fromDate, toDate, minAmount, maxAmount, type, sortOrder = 'desc' } = options;
   const searchTerm = `%${text.trim()}%`;
 
   let sql = `
-    SELECT 
+    SELECT
       t.*,
       c.name as categoryName,
       c.colorCode as categoryColor,
@@ -547,7 +658,7 @@ export function searchTransactions(
     LEFT JOIN categories c ON t.categoryId = c.id
     WHERE 1=1
   `;
-  
+
   const params: (string | number)[] = [];
 
   // Add type filter
@@ -556,6 +667,11 @@ export function searchTransactions(
     params.push(type);
   }
 
+  // Add recurring filter
+  if (recurringId !== undefined) {
+    sql += " AND t.recurringId = ?";
+    params.push(recurringId);
+  }
   // Add category filters
   if (categoryIds.length > 0) {
     const placeholders = categoryIds.map(() => "?").join(",");
@@ -730,8 +846,8 @@ export function createTransaction(
   input: CreateTransactionInput
 ): TransactionWithCategory {
   const stmt = db.prepare(`
-    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId, recurringId)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -742,7 +858,8 @@ export function createTransaction(
     input.notes || null,
     input.categoryId || null,
     input.accountId,
-    input.transferAccountId || null
+    input.transferAccountId || null,
+    input.recurringId || null
   );
 
   return getTransactionById(result.lastInsertRowid as number)!;
@@ -775,7 +892,7 @@ export function updateTransaction(
 
   const stmt = db.prepare(`
     UPDATE transactions
-    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?, transferAccountId = ?
+    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?, transferAccountId = ?, recurringId = ?
     WHERE id = ?
   `);
 
@@ -788,6 +905,7 @@ export function updateTransaction(
     input.categoryId !== undefined ? input.categoryId : current.categoryId,
     input.accountId !== undefined ? input.accountId : current.accountId,
     input.transferAccountId !== undefined ? input.transferAccountId : current.transferAccountId,
+    input.recurringId !== undefined ? input.recurringId : current.recurringId,
     id
   );
 
@@ -943,6 +1061,94 @@ export function getDatabaseVersion(): number {
   } catch {
     return databaseVersion;
   }
+}
+
+// ============================================
+// RECURRING TRANSACTIONS OPERATIONS
+// ============================================
+
+export function getRecurringTransactions(): RecurringTransaction[] {
+  return db.prepare("SELECT * FROM recurring_transactions ORDER BY nextRunDate ASC").all() as RecurringTransaction[];
+}
+
+export function createRecurringTransaction(data: Omit<RecurringTransaction, 'id'>): RecurringTransaction {
+  const insert = db.prepare(`
+    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const result = insert.run(
+    data.title, data.amount, data.type, data.categoryId, data.accountId, data.transferAccountId, 
+    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0
+  );
+  
+  // Process immediately in case the start date is in the past
+  processRecurringTransactions();
+  
+  return db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(result.lastInsertRowid) as RecurringTransaction;
+}
+
+export function updateRecurringTransaction(id: number, data: Partial<RecurringTransaction>): RecurringTransaction {
+  const current = db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction | undefined;
+  if (!current) throw new Error("Recurring transaction not found");
+
+  const update = db.prepare(`
+    UPDATE recurring_transactions
+    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?
+    WHERE id = ?
+  `);
+
+  update.run(
+    data.title ?? current.title,
+    data.amount ?? current.amount,
+    data.type ?? current.type,
+    data.categoryId !== undefined ? data.categoryId : current.categoryId,
+    data.accountId ?? current.accountId,
+    data.transferAccountId !== undefined ? data.transferAccountId : current.transferAccountId,
+    data.frequency ?? current.frequency,
+    data.startDate ?? current.startDate,
+    data.nextRunDate ?? current.nextRunDate,
+    data.isActive !== undefined ? (data.isActive ? 1 : 0) : current.isActive,
+    id
+  );
+
+  // Process immediately in case the nextRunDate was changed to the past
+  processRecurringTransactions();
+
+  return db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction;
+}
+
+export function deleteRecurringTransaction(id: number): boolean {
+  const result = db.prepare("DELETE FROM recurring_transactions WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function toggleRecurringTransactionActive(id: number, isActive: boolean): boolean {
+  if (isActive) {
+    const rec = db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction | undefined;
+    if (rec) {
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+      
+      let nextRun = rec.nextRunDate;
+      // Advance nextRunDate to today or future so we don't back-fill the paused period
+      while (nextRun < todayStr) {
+        nextRun = calculateNextDate(nextRun, rec.frequency);
+      }
+      
+      if (nextRun !== rec.nextRunDate) {
+        db.prepare("UPDATE recurring_transactions SET nextRunDate = ? WHERE id = ?").run(nextRun, id);
+      }
+    }
+  }
+
+  const result = db.prepare("UPDATE recurring_transactions SET isActive = ? WHERE id = ?").run(isActive ? 1 : 0, id);
+  
+  // If re-activated, process (this will create today's transaction if nextRun was advanced exactly to today)
+  if (isActive) {
+    processRecurringTransactions();
+  }
+  
+  return result.changes > 0;
 }
 
 // Export the database instance for advanced operations if needed

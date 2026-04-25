@@ -31,6 +31,7 @@ const shortcuts = [
   { keys: ["Ctrl", "N"], description: "New transaction" },
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
+  { keys: ["Ctrl", "R"], description: "Go to Recurring" },
   { keys: ["Ctrl", "I"], description: "Go to Insights" },
   { keys: ["Ctrl", "Shift", "C"], description: "Go to Categories" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },

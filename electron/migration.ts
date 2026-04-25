@@ -79,9 +79,39 @@ function migrate1to2(db: any): void {
     
     db.exec("DROP TABLE transactions");
     db.exec("ALTER TABLE new_transactions RENAME TO transactions");
-  } catch (e: any) {
-    if (!e?.message?.includes('already exists')) {
-      console.error('[Migration] Migration error for transactions (v1 to v2):', e);
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('already exists')) {
+      console.error('[Migration] Migration error for transactions (v1 to v2):', error);
+    }
+  }
+
+  // Add recurring transactions support
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS recurring_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
+        categoryId INTEGER,
+        accountId INTEGER NOT NULL,
+        transferAccountId INTEGER,
+        frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'bi-weekly', 'monthly', 'yearly')),
+        startDate TEXT NOT NULL,
+        nextRunDate TEXT NOT NULL,
+        isActive BOOLEAN NOT NULL DEFAULT 1,
+        FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+        FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
+      )
+    `);
+    
+    db.exec("ALTER TABLE transactions ADD COLUMN recurringId INTEGER REFERENCES recurring_transactions(id) ON DELETE SET NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error for recurring_transactions (v1 to v2):', error);
     }
   }
 }

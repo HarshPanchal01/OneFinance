@@ -7,6 +7,7 @@ import AmountInput from "@/components/AmountInput.vue";
 
 const props = defineProps<{
   initialAccountId?: number | null;
+  initialRecurringId?: number | null;
 }>();
 
 const store = useFinanceStore();
@@ -16,6 +17,7 @@ const searchInput = ref<HTMLInputElement | null>(null);
 // Search State
 const selectedCategoryIds = ref<number[]>([]);
 const selectedAccountIds = ref<number[]>([]);
+const selectedRecurringId = ref<number | null>(null);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
@@ -186,6 +188,7 @@ async function handleSearch() {
     text: searchText.value,
     categoryIds: [...selectedCategoryIds.value],
     accountIds: [...selectedAccountIds.value],
+    recurringId: selectedRecurringId.value ?? undefined,
     fromDate,
     toDate,
     minAmount: minAmount.value,
@@ -199,6 +202,7 @@ function clear() {
   searchText.value = "";
   selectedCategoryIds.value = [];
   selectedAccountIds.value = [];
+  selectedRecurringId.value = null;
   dateRange.value = null;
   minAmount.value = null;
   maxAmount.value = null;
@@ -245,9 +249,17 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-async function checkInitialAccountId(id?: number | null) {
-  if (id) {
-    selectedAccountIds.value = [id];
+async function checkInitialFilters() {
+  let needsSearch = false;
+  if (props.initialAccountId) {
+    selectedAccountIds.value = [props.initialAccountId];
+    needsSearch = true;
+  }
+  if (props.initialRecurringId) {
+    selectedRecurringId.value = props.initialRecurringId;
+    needsSearch = true;
+  }
+  if (needsSearch) {
     await handleSearch();
   }
 }
@@ -263,6 +275,9 @@ onMounted(async () => {
   if (store.accounts.length === 0) {
     await store.fetchAccounts();
   }
+  if (store.recurringTransactions.length === 0) {
+    await store.fetchRecurringTransactions();
+  }
 
   // Sync state from store transactionFilter (if initiated from another view)
   if (store.transactionFilter) {
@@ -270,22 +285,27 @@ onMounted(async () => {
     if (f.text) searchText.value = f.text;
     if (f.categoryIds) selectedCategoryIds.value = [...f.categoryIds];
     if (f.accountIds) selectedAccountIds.value = [...f.accountIds];
+    if (f.recurringId) selectedRecurringId.value = f.recurringId;
     if (f.fromDate) {
       const start = new Date(f.fromDate + 'T00:00:00'); 
       const end = f.toDate ? new Date(f.toDate + 'T00:00:00') : new Date(start);
       dateRange.value = [start, end];
     }
-    if (f.minAmount !== undefined) minAmount.value = f.minAmount;
-    if (f.maxAmount !== undefined) maxAmount.value = f.maxAmount;
+    if (f.minAmount !== undefined && f.minAmount !== null) minAmount.value = f.minAmount;
+    if (f.maxAmount !== undefined && f.maxAmount !== null) maxAmount.value = f.maxAmount;
     if (f.type) typeFilter.value = f.type;
     if (f.sortOrder) sortOrder.value = f.sortOrder;
   }
 
-  checkInitialAccountId(props.initialAccountId);
+  checkInitialFilters();
 });
 
-watch(() => props.initialAccountId, (newId) => {
-  checkInitialAccountId(newId);
+watch(() => props.initialAccountId, () => {
+  checkInitialFilters();
+});
+
+watch(() => props.initialRecurringId, () => {
+  checkInitialFilters();
 });
 
 onUnmounted(() => {
