@@ -31,6 +31,22 @@ export interface Account{
   isDefault: boolean
 }
 
+export type RecurringFrequency = "weekly" | "bi-weekly" | "monthly" | "yearly";
+
+export interface RecurringTransaction {
+  id: number;
+  title: string;
+  amount: number;
+  type: "income" | "expense" | "transfer";
+  categoryId: number | null;
+  accountId: number;
+  transferAccountId?: number | null;
+  frequency: RecurringFrequency;
+  startDate: string;
+  nextRunDate: string;
+  isActive: boolean;
+}
+
 export interface Transaction {
   id: number;
   ledgerPeriodId: number;
@@ -42,6 +58,7 @@ export interface Transaction {
   categoryId: number | null;
   accountId: number;
   transferAccountId?: number | null;
+  recurringId?: number | null;
 }
 
 export interface TransactionWithCategory extends Transaction {
@@ -59,6 +76,7 @@ export interface CreateTransactionInput {
   categoryId?: number
   accountId: number
   transferAccountId?: number
+  recurringId?: number
 }
 
 export interface PeriodSummary {
@@ -94,6 +112,7 @@ export interface SearchOptions {
   text?: string;
   categoryIds?: number[];
   accountIds?: number[];
+  recurringId?: number;
   fromDate?: string | null;
   toDate?: string | null;
   minAmount?: number | null;

@@ -1,8 +1,31 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
 const electronAPI = {
+  // ============================================
+  // RECURRING TRANSACTIONS
+  // ============================================
+
+  getRecurringTransactions: (): Promise<RecurringTransaction[]> =>
+    ipcRenderer.invoke("db:getRecurringTransactions"),
+
+  createRecurringTransaction: (data: Omit<RecurringTransaction, 'id'>): Promise<RecurringTransaction> =>
+    ipcRenderer.invoke("db:createRecurringTransaction", data),
+
+  updateRecurringTransaction: (id: number, data: Partial<RecurringTransaction>): Promise<RecurringTransaction> =>
+    ipcRenderer.invoke("db:updateRecurringTransaction", id, data),
+
+  deleteRecurringTransaction: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteRecurringTransaction", id),
+
+  toggleRecurringTransactionActive: (id: number, isActive: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("db:toggleRecurringTransactionActive", id, isActive),
+
+  onRecurringProcessed: (callback: () => void) => {
+    ipcRenderer.on("recurring-processed", callback);
+  },
+
   // ============================================
   // LEDGER YEARS
   // ============================================
@@ -148,6 +171,7 @@ const electronAPI = {
     categories?: Category[],
     accountTypes?: AccountType[],
     ledgerYears?: number[],
+    recurringTransactions?: RecurringTransaction[]
   }}> =>
     ipcRenderer.invoke("import-file"),
 

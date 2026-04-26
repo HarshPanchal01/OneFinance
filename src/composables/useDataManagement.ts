@@ -81,6 +81,7 @@ export function useDataManagement() {
     const categoriesValue = toRaw(store.categories);
     const accountTypesValue = toRaw(store.accountTypes);
     const ledgerYearsValue = toRaw(store.ledgerYears);
+    const recurringTransactionsValue = await window.electronAPI.getRecurringTransactions();
     const databaseVersion = toRaw(store.databaseVersion);
 
     const data = {
@@ -90,6 +91,7 @@ export function useDataManagement() {
       categories: categoriesValue,
       accountTypes: accountTypesValue,
       ledgerYears: ledgerYearsValue,
+      recurringTransactions: recurringTransactionsValue,
     };
 
     const timestamp = new Date().toDateString();

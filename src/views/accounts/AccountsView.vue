@@ -162,9 +162,6 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
         <h2 class="text-xl font-bold text-gray-900 dark:text-white">
           Accounts
         </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          <span>All Accounts</span> ({{ store.accounts.length }})
-        </p>
       </div>
       <button
         class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"

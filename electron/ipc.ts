@@ -43,8 +43,15 @@ import {
   getDatabaseVersion,
   deleteAccountTypeById,
   editAccountType,
+
+  // Recurring Transactions
+  getRecurringTransactions,
+  createRecurringTransaction,
+  updateRecurringTransaction,
+  deleteRecurringTransaction,
+  toggleRecurringTransactionActive,
 } from "./db";
-import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -220,6 +227,30 @@ export function registerIpcHandlers(): void {
 
 
 
+
+  // ============================================
+  // RECURRING TRANSACTIONS HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getRecurringTransactions", async () => {
+    return getRecurringTransactions();
+  });
+
+  ipcMain.handle("db:createRecurringTransaction", async (_event, data: Omit<RecurringTransaction, 'id'>) => {
+    return createRecurringTransaction(data);
+  });
+
+  ipcMain.handle("db:updateRecurringTransaction", async (_event, id: number, data: Partial<RecurringTransaction>) => {
+    return updateRecurringTransaction(id, data);
+  });
+
+  ipcMain.handle("db:deleteRecurringTransaction", async (_event, id: number) => {
+    return deleteRecurringTransaction(id);
+  });
+
+  ipcMain.handle("db:toggleRecurringTransactionActive", async (_event, id: number, isActive: boolean) => {
+    return toggleRecurringTransactionActive(id, isActive);
+  });
 
   // ============================================
   // SYSTEM HANDLERS

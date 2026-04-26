@@ -13,6 +13,7 @@ import type {
   MonthlyTrend,
   DailyTransactionSum,
   LedgerMonth,
+  RecurringTransaction,
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -39,6 +40,8 @@ export const useFinanceStore = defineStore("finance", () => {
   const transactions = ref<TransactionWithCategory[]>([]);
   // Global recent transactions (always Global)
   const recentTransactions = ref<TransactionWithCategory[]>([]);
+  // Recurring transactions
+  const recurringTransactions = ref<RecurringTransaction[]>([]);
   // Search results
   const searchResults = ref<TransactionWithCategory[]>([]);
   const isSearching = ref(false);
@@ -99,6 +102,9 @@ export const useFinanceStore = defineStore("finance", () => {
       // Load accounts they are always needed
       await fetchAccounts();
       await fetchAccountTypes();
+      
+      // Load recurring transactions
+      await fetchRecurringTransactions();
 
       databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
@@ -441,6 +447,57 @@ export const useFinanceStore = defineStore("finance", () => {
     const success = await window.electronAPI.deleteCategory(id);
     if (success) {
       categories.value = categories.value.filter((c) => c.id !== id);
+    }
+    return success;
+  }
+
+  // ============================================
+  // ACTIONS - Recurring Transactions
+  // ============================================
+
+  async function fetchRecurringTransactions() {
+    recurringTransactions.value = await window.electronAPI.getRecurringTransactions();
+  }
+
+  async function addRecurringTransaction(data: Omit<RecurringTransaction, 'id'>) {
+    const newRec = await window.electronAPI.createRecurringTransaction(data);
+    if (newRec) {
+      await fetchRecurringTransactions();
+      // Refresh current transactions and account balances in case catch-up triggered
+      await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+      await fetchAccounts();
+    }
+    return newRec;
+  }
+
+  async function editRecurringTransaction(id: number, data: Partial<RecurringTransaction>) {
+    const updated = await window.electronAPI.updateRecurringTransaction(id, data);
+    if (updated) {
+      await fetchRecurringTransactions();
+      // Refresh current transactions and account balances in case catch-up triggered
+      await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+      await fetchAccounts();
+    }
+    return updated;
+  }
+
+  async function removeRecurringTransaction(id: number) {
+    const success = await window.electronAPI.deleteRecurringTransaction(id);
+    if (success) {
+      recurringTransactions.value = recurringTransactions.value.filter(r => r.id !== id);
+    }
+    return success;
+  }
+
+  async function toggleRecurringTransaction(id: number, isActive: boolean) {
+    const success = await window.electronAPI.toggleRecurringTransactionActive(id, isActive);
+    if (success) {
+      await fetchRecurringTransactions();
+      if (isActive) {
+        // Refresh in case catch-up triggered on activation
+        await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+        await fetchAccounts();
+      }
     }
     return success;
   }
@@ -795,7 +852,8 @@ export const useFinanceStore = defineStore("finance", () => {
     transactions?: TransactionWithCategory[],
     categories?: Category[],
     accountTypes?: AccountType[],
-    ledgerYears?: number[]
+    ledgerYears?: number[],
+    recurringTransactions?: RecurringTransaction[]
   }, skipDuplicates: boolean): Promise<boolean> {
 
     const importAccounts = data.accounts!;
@@ -803,10 +861,12 @@ export const useFinanceStore = defineStore("finance", () => {
     const importCategories = data.categories!;
     const importAccountTypes = data.accountTypes!;
     const importLedgerYears = data.ledgerYears!;
+    const importRecurringTransactions = data.recurringTransactions || [];
 
     const accountTypeIdMap = new Map<number, number>();
     const categoryTypeIdMap = new Map<number, number>();
     const accountIdMap = new Map<number, number>();
+    const recurringIdMap = new Map<number, number>();
 
     try {
       for (const accountType of importAccountTypes){
@@ -901,6 +961,61 @@ export const useFinanceStore = defineStore("finance", () => {
         console.log(`Inserting ledger year ${ledgerYear} completed`);
       }
     
+      for (const recurring of importRecurringTransactions) {
+        // Check for existing recurring transaction
+        const existing = recurringTransactions.value.find((r) => 
+          r.title === recurring.title && r.amount === recurring.amount && r.frequency === recurring.frequency
+        );
+        
+        if (existing) {
+          recurringIdMap.set(recurring.id, existing.id);
+          console.log(`Skipping inserting existing recurring transaction ${recurring.title}`);
+          continue;
+        }
+
+        if (recurring.categoryId != undefined) {
+          const mappedCategoryId = categoryTypeIdMap.get(recurring.categoryId);
+          if (mappedCategoryId == undefined) {
+            throw new Error("Category id mapping not found for recurring transaction id: " + recurring.id);
+          }
+          recurring.categoryId = mappedCategoryId;
+        }
+
+        const mappedAccountId = accountIdMap.get(recurring.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for recurring transaction id: " + recurring.id);
+        }
+        recurring.accountId = mappedAccountId;
+
+        if (recurring.transferAccountId != undefined) {
+          const mappedTransferAccountId = accountIdMap.get(recurring.transferAccountId);
+          if (mappedTransferAccountId == undefined) {
+            throw new Error("Transfer Account id mapping not found for recurring transaction id: " + recurring.id);
+          }
+          recurring.transferAccountId = mappedTransferAccountId;
+        }
+
+        const result = await addRecurringTransaction({
+          title: recurring.title,
+          amount: recurring.amount,
+          type: recurring.type,
+          categoryId: recurring.categoryId ?? null,
+          accountId: recurring.accountId,
+          transferAccountId: recurring.transferAccountId ?? null,
+          frequency: recurring.frequency,
+          startDate: recurring.startDate,
+          nextRunDate: recurring.nextRunDate,
+          isActive: recurring.isActive,
+        });
+
+        console.log(`Inserting recurring transaction ${recurring.title} completed`);
+        
+        if (result == null) {
+          throw new Error("Resulting Id from inserting of recurring transaction is null");
+        }
+        recurringIdMap.set(recurring.id, result.id);
+      }
+
       for (const transaction of importTransactions){
 
           if (skipDuplicates){
@@ -937,6 +1052,13 @@ export const useFinanceStore = defineStore("finance", () => {
             }
             transaction.transferAccountId = mappedTransferAccountId;
           }
+          
+          if (transaction.recurringId != undefined) {
+            const mappedRecurringId = recurringIdMap.get(transaction.recurringId);
+            if (mappedRecurringId != undefined) {
+              transaction.recurringId = mappedRecurringId;
+            }
+          }
 
           await addTransaction({
             title: transaction.title,
@@ -946,6 +1068,7 @@ export const useFinanceStore = defineStore("finance", () => {
             categoryId: transaction.categoryId ?? undefined,
             accountId: transaction.accountId!,
             transferAccountId: transaction.transferAccountId ?? undefined,
+            recurringId: transaction.recurringId ?? undefined,
             notes: transaction.notes || undefined,
           });
           console.log(`Inserting transaction ${transaction.title} completed`);
@@ -984,6 +1107,7 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes,
     transactions,
     recentTransactions,
+    recurringTransactions,
     searchResults,
     isSearching,
     transactionFilter,
@@ -1015,6 +1139,11 @@ export const useFinanceStore = defineStore("finance", () => {
     addCategory,
     editCategory,
     removeCategory,
+    fetchRecurringTransactions,
+    addRecurringTransaction,
+    editRecurringTransaction,
+    removeRecurringTransaction,
+    toggleRecurringTransaction,
     fetchTransactions,
     fetchRecentTransactions,
     fetchDashboardBreakdown,
