@@ -87,6 +87,15 @@ onMounted(async () => {
 
   await store.initialize();
 
+  // Listen for background recurring transactions
+  window.electronAPI.onRecurringProcessed(async () => {
+    console.log("Background recurring transactions processed, refreshing...");
+    await store.fetchRecurringTransactions();
+    await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+    await store.fetchAccounts();
+    store.fetchPeriodSummarySync();
+  });
+
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
 });

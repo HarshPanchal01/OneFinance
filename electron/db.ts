@@ -240,8 +240,9 @@ function calculateNextDate(currentDateStr: string, frequency: string): string {
 
 /**
  * Processes any due recurring transactions and generates transactions
+ * @returns boolean - true if any transactions were generated, false otherwise
  */
-export function processRecurringTransactions(): void {
+export function processRecurringTransactions(): boolean {
   try {
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -251,7 +252,7 @@ export function processRecurringTransactions(): void {
       WHERE isActive = 1 AND nextRunDate <= ?
     `).all(todayStr) as RecurringTransaction[];
 
-    if (dueRecurrings.length === 0) return;
+    if (dueRecurrings.length === 0) return false;
 
     db.exec('BEGIN TRANSACTION');
 
@@ -287,9 +288,11 @@ export function processRecurringTransactions(): void {
 
     db.exec('COMMIT');
     console.log(`[DB] Processed ${dueRecurrings.length} recurring transactions.`);
+    return true;
   } catch (e) {
     if (db.inTransaction) db.exec('ROLLBACK');
     console.error('[DB] Error processing recurring transactions:', e);
+    return false;
   }
 }
 

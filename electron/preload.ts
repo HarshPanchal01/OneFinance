@@ -22,6 +22,10 @@ const electronAPI = {
   toggleRecurringTransactionActive: (id: number, isActive: boolean): Promise<boolean> =>
     ipcRenderer.invoke("db:toggleRecurringTransactionActive", id, isActive),
 
+  onRecurringProcessed: (callback: () => void) => {
+    ipcRenderer.on("recurring-processed", callback);
+  },
+
   // ============================================
   // LEDGER YEARS
   // ============================================
