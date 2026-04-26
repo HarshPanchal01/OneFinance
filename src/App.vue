@@ -115,29 +115,26 @@ function handleKeydown(e: KeyboardEvent) {
               e.preventDefault();
               currentView.value = "insights";
               break;
-            case "r":
-              e.preventDefault();
-              currentView.value = "recurring";
-              break;
             case "c":
               if (e.shiftKey) {
                 e.preventDefault();
                 currentView.value = "categories";
               }
               break;
-      case "a":
-        if (e.shiftKey) {
-          e.preventDefault();
-          currentView.value = "accounts";
-        }
-        break;
-      case "s":
-        if (e.shiftKey) {
-          e.preventDefault();
-          currentView.value = "settings";
-        }
-        break;
-    }
+            case "a":
+              if (e.shiftKey) {
+                e.preventDefault();
+                currentView.value = "accounts";
+              }
+              break;
+            case "s":
+              e.preventDefault();
+              if (e.shiftKey) {
+                currentView.value = "settings";
+              } else {
+                currentView.value = "recurring";
+              }
+              break;    }
   }
 }
 </script>

@@ -71,7 +71,7 @@ function getAccountName(id: number) {
     <header class="flex items-center justify-between px-4 h-14 bg-gray-100 dark:bg-gray-900 border-b border-transparent dark:border-gray-800 shrink-0">
       <div>
         <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-          Recurring
+          Schedules
         </h2>
       </div>
       <button
@@ -84,12 +84,19 @@ function getAccountName(id: number) {
 
     <!-- Content -->
     <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-2 pb-4">
-      <div v-if="store.recurringTransactions.length === 0" class="card p-12 text-center flex flex-col items-center justify-center h-full">
+      <div
+        v-if="store.recurringTransactions.length === 0"
+        class="card p-12 text-center flex flex-col items-center justify-center h-full"
+      >
         <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
           <i class="pi pi-sync text-2xl text-gray-400" />
         </div>
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Recurring Schedules</h3>
-        <p class="text-gray-500 mb-6 max-w-md">Automate your fixed cash flow like subscriptions, rent, and paychecks. They will be generated automatically when due.</p>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          No Recurring Schedules
+        </h3>
+        <p class="text-gray-500 mb-6 max-w-md">
+          Automate your fixed cash flow like subscriptions, rent, and paychecks. They will be generated automatically when due.
+        </p>
         <button 
           class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors shadow-sm"
           @click="handleNew"
@@ -98,10 +105,15 @@ function getAccountName(id: number) {
         </button>
       </div>
 
-      <div v-else class="space-y-6">
+      <div
+        v-else
+        class="space-y-6"
+      >
         <!-- Active -->
         <div v-if="activeItems.length > 0">
-          <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">Active Schedules</h3>
+          <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+            Active
+          </h3>
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden">
             <div 
               v-for="item in activeItems" 
@@ -113,10 +125,15 @@ function getAccountName(id: number) {
                   class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   :class="item.type === 'income' ? 'bg-income/10 text-income' : item.type === 'transfer' ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-500' : 'bg-expense/10 text-expense'"
                 >
-                  <i class="pi" :class="item.type === 'income' ? 'pi-arrow-up' : item.type === 'transfer' ? 'pi-sync' : 'pi-arrow-down'" />
+                  <i
+                    class="pi"
+                    :class="item.type === 'income' ? 'pi-arrow-up' : item.type === 'transfer' ? 'pi-sync' : 'pi-arrow-down'"
+                  />
                 </div>
                 <div class="flex flex-col">
-                  <p class="font-medium text-gray-900 dark:text-white">{{ item.title }}</p>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    {{ item.title }}
+                  </p>
                   <p class="text-sm text-gray-500 flex items-center gap-1">
                     <span class="capitalize">{{ item.frequency }}</span>
                     <span class="mx-0.5">•</span>
@@ -129,7 +146,9 @@ function getAccountName(id: number) {
                     <span class="mx-0.5">•</span>
                     {{ item.type === 'transfer' ? 'Transfer' : getCategoryName(item.categoryId) }}
                   </p>
-                  <p class="text-xs text-gray-400 mt-0.5">Next: {{ formatDate(item.nextRunDate) }}</p>
+                  <p class="text-xs text-gray-400 mt-0.5">
+                    Next: {{ formatDate(item.nextRunDate) }}
+                  </p>
                 </div>
               </div>
 
@@ -148,13 +167,25 @@ function getAccountName(id: number) {
 
                 <div class="flex items-center gap-2">
                   <div class="hidden group-hover:flex items-center gap-1 mr-2">
-                    <button class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" @click="handleEdit(item)" title="Edit">
+                    <button
+                      class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Edit"
+                      @click="handleEdit(item)"
+                    >
                       <i class="pi pi-pencil text-sm" />
                     </button>
-                    <button class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" @click="handleViewTransactions(item)" title="View Transactions">
+                    <button
+                      class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="View Transactions"
+                      @click="handleViewTransactions(item)"
+                    >
                       <i class="pi pi-list text-sm" />
                     </button>
-                    <button class="p-2 text-gray-400 hover:text-expense hover:bg-expense/10 rounded-lg transition-colors" @click="handleDelete(item)" title="Delete">
+                    <button
+                      class="p-2 text-gray-400 hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
+                      title="Delete"
+                      @click="handleDelete(item)"
+                    >
                       <i class="pi pi-trash text-sm" />
                     </button>
                   </div>
@@ -181,7 +212,9 @@ function getAccountName(id: number) {
 
         <!-- Inactive -->
         <div v-if="inactiveItems.length > 0">
-          <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">Inactive Schedules</h3>
+          <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+            Inactive
+          </h3>
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden opacity-60">
             <div 
               v-for="item in inactiveItems" 
@@ -192,10 +225,15 @@ function getAccountName(id: number) {
                 <div 
                   class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 dark:bg-gray-800 text-gray-500"
                 >
-                  <i class="pi" :class="item.type === 'income' ? 'pi-arrow-up' : item.type === 'transfer' ? 'pi-sync' : 'pi-arrow-down'" />
+                  <i
+                    class="pi"
+                    :class="item.type === 'income' ? 'pi-arrow-up' : item.type === 'transfer' ? 'pi-sync' : 'pi-arrow-down'"
+                  />
                 </div>
                 <div class="flex flex-col">
-                  <p class="font-medium text-gray-900 dark:text-white">{{ item.title }}</p>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    {{ item.title }}
+                  </p>
                   <p class="text-sm text-gray-500 flex items-center gap-1">
                     <span class="capitalize">{{ item.frequency }}</span>
                     <span class="mx-0.5">•</span>
@@ -223,13 +261,25 @@ function getAccountName(id: number) {
 
                 <div class="flex items-center gap-2">
                   <div class="hidden group-hover:flex items-center gap-1 mr-2">
-                    <button class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" @click="handleEdit(item)" title="Edit">
+                    <button
+                      class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Edit"
+                      @click="handleEdit(item)"
+                    >
                       <i class="pi pi-pencil text-sm" />
                     </button>
-                    <button class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" @click="handleViewTransactions(item)" title="View Transactions">
+                    <button
+                      class="p-2 text-gray-400 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="View Transactions"
+                      @click="handleViewTransactions(item)"
+                    >
                       <i class="pi pi-list text-sm" />
                     </button>
-                    <button class="p-2 text-gray-400 hover:text-expense hover:bg-expense/10 rounded-lg transition-colors" @click="handleDelete(item)" title="Delete">
+                    <button
+                      class="p-2 text-gray-400 hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
+                      title="Delete"
+                      @click="handleDelete(item)"
+                    >
                       <i class="pi pi-trash text-sm" />
                     </button>
                   </div>

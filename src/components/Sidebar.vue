@@ -45,7 +45,7 @@ const yearToDelete = ref<number | null>(null);
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: "pi-home" },
   { id: "transactions", label: "Transactions", icon: "pi-list" },
-  { id: "recurring", label: "Recurring", icon: "pi-sync" },
+  { id: "recurring", label: "Schedules", icon: "pi-sync" },
   { id: "insights", label: "Insights", icon: "pi-chart-line" },
   { id: "accounts", label: "Accounts", icon: "pi-wallet" },
   { id: "categories", label: "Labels", icon: "pi-tags" },
