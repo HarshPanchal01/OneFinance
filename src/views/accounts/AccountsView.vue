@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, watch } from 'vue';
+import { reactive, ref, onMounted, watch, computed } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import AccountListView from './components/AccountListView.vue';
-import { Account } from '@/types';
+import { Account, AccountClassification } from '@/types';
 import ErrorModal from '@/components/ErrorModal.vue';
 import AccountDeleteModal from './components/AccountDeleteModal.vue';
 import AmountInput from '@/components/AmountInput.vue';
@@ -27,7 +27,7 @@ const showDeleteModal = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const highlightedId = ref<number | null>(null);
 
-let isEdit = false;
+const isEdit = ref(false);
 let accountEditId = 0;
 
 const state = reactive({
@@ -60,31 +60,37 @@ const form = reactive({
   accountName: '',
   institutionName: '',
   startingBalance: 0 as number | null,
-  accountType: 0,
+  classification: 'liquid' as AccountClassification,
+  accountType: null as number | null,
   isDefault: false
+});
+
+const filteredAccountTypes = computed(() => {
+  return state.accountTypeArray.filter(t => t.classification === form.classification);
 });
 
 
 function closeDialog() {
   openDialog.value = false;
-  isEdit = false;
+  isEdit.value = false;
   accountEditId = 0;
   // Reset form object entirely
   Object.assign(form, {
     accountName: '',
     institutionName: '',
     startingBalance: 0 as number | null,
-    accountType: 0,
+    classification: 'liquid',
+    accountType: null,
     isDefault: false
   });
 }
 
 async function submitForm() {
-  const isLiability = state.accountTypeArray.find(t => t.id === form.accountType)?.classification === 'liability';
+  const isLiability = form.classification === 'liability';
   const amount = form.startingBalance ?? 0;
   const processedBalance = isLiability ? -Math.abs(amount) : Math.abs(amount);
 
-  if(!isEdit){
+  if(!isEdit.value){
     store.addAccount({
       id : 0,
       accountName: form.accountName,
@@ -115,14 +121,16 @@ async function submitForm() {
 }
 
 function editAccount(account: Account) {
+  const accountTypeObj = state.accountTypeArray.find(t => t.id === account.accountTypeId);
 
   openDialog.value = true;
   form.accountName= account.accountName;
   form.institutionName = account.institutionName ?? "";
   form.startingBalance = Math.abs(account.startingBalance);
+  form.classification = accountTypeObj?.classification || 'liquid';
   form.accountType = account.accountTypeId;
   form.isDefault = Boolean(account.isDefault);
-  isEdit = true;
+  isEdit.value = true;
   accountEditId = account.id;
 }
 
@@ -192,13 +200,65 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
       >
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md sm:mx-auto shadow-lg flex flex-col max-h-[90vh]">
           <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white shrink-0">
-            Add New Account
+            {{ isEdit ? 'Edit Account' : 'Add New Account' }}
           </h2>
 
           <form
             class="space-y-4 overflow-y-auto min-h-0 pr-1"
             @submit.prevent="submitForm"
           >
+            <!-- Classification Toggle -->
+            <div
+              class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+              :class="{ 'opacity-75 cursor-not-allowed': isEdit }"
+            >
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'liquid'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'liquid' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'liquid'; form.accountType = null;"
+              >
+                <i class="pi pi-wallet mr-2" />
+                Liquid
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'liability'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'liability' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'liability'; form.accountType = null;"
+              >
+                <i class="pi pi-credit-card mr-2" />
+                Liability
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'asset'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'asset' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'asset'; form.accountType = null;"
+              >
+                <i class="pi pi-building mr-2" />
+                Asset
+              </button>
+            </div>
+
             <div>
               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Account Name</label>
               <input
@@ -241,7 +301,14 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 required
               >
                 <option
-                  v-for="type in state.accountTypeArray"
+                  :value="null"
+                  disabled
+                  hidden
+                >
+                  Select an account type
+                </option>
+                <option
+                  v-for="type in filteredAccountTypes"
                   :key="type.id"
                   :value="type.id"
                 >
@@ -261,17 +328,19 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
               >Set as Default</label>
             </div>
 
-            <div class="flex justify-end space-x-2 mt-4">
+            <!-- Footer -->
+            <div class="flex justify-end items-center pt-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-x-3 mt-4">
               <button
                 type="button"
-                class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 @click="closeDialog"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                :disabled="!form.accountType || !form.accountName.trim()"
+                class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
                 Save
               </button>
