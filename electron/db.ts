@@ -331,6 +331,7 @@ function seedDefaultAccountData(): void{
     {type: "Loan", classification: "liability"},
     {type: "Mortgage", classification: "liability"},
     {type: "Vehicle", classification: "asset"},
+    {type: "House", classification: "asset"},
   ];
 
   const defaultAccounts = [

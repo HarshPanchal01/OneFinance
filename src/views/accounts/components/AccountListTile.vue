@@ -48,8 +48,8 @@ import { computed, ref, watch } from 'vue';
 
     const textClass = computed(() => {
       if (accountClassification.value === 'liability') return 'text-expense';
-      if (accountType.value === 'Savings' || accountClassification.value === 'asset') return 'text-green-600 dark:text-green-400';
-      if (accountClassification.value === 'liquid') return 'text-primary-600 dark:text-primary-400';
+      if (accountClassification.value === 'liquid') return 'text-green-600 dark:text-green-400';
+      if (accountClassification.value === 'asset') return 'text-primary-600 dark:text-primary-400';
       return 'text-gray-900 dark:text-white';
     });
 

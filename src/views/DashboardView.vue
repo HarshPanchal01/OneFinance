@@ -142,22 +142,14 @@ void confirmModal;
 
     <!-- Expense Breakdown -->
     <div class="card p-6">
-      <div class="grid grid-cols-3 items-center mb-4">
-        <!-- Spacer for left -->
-        <div />
-
-        <div class="flex items-center gap-2 justify-self-center">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-            Recent Expense Breakdown
-          </h2>
-          <i 
-            class="pi pi-info-circle text-primary-500 cursor-pointer transition-colors text-xs" 
-            @click="toggle"
-          />
-        </div>
-
-        <!-- Spacer for right -->
-        <div />
+      <div class="flex items-center gap-2 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Recent Expense Breakdown
+        </h2>
+        <i 
+          class="pi pi-info-circle text-primary-500 cursor-pointer transition-colors text-xs" 
+          @click="toggle"
+        />
       </div>
 
       <Popover ref="op">
