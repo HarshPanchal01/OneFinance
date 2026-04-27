@@ -102,7 +102,7 @@ const categoryOptions = computed(() => ({
 <template>
   <div class="flex flex-col xl:flex-row h-full w-full items-center xl:justify-between gap-6">
     <!-- Left Column: Title + Total Text + Chart -->
-    <div class="flex flex-col items-center justify-center gap-0 shrink-0 -mt-8">
+    <div class="flex flex-col items-center justify-center gap-0 shrink-0">
       <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">
         Expense Breakdown
       </h3>
