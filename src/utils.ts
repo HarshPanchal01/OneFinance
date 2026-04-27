@@ -256,7 +256,7 @@ export function getMetricsForRange(range: string, transactions: TransactionWithC
   });
 
   const income = filtered.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const expense = filtered.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const expense = filtered.filter(t => t.type === 'expense' || (t.type === 'transfer' && t.isExpenseTransfer)).reduce((sum, t) => sum + t.amount, 0);
 
   return { income, expense, days: daysDivisor };
 }
@@ -265,7 +265,7 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
   const { startDate, endDate } = getDateRange(range, transactions, customRange);
 
   const filtered = transactions.filter(t => {
-    if (t.type !== 'expense') return false;
+    if (t.type !== 'expense' && !(t.type === 'transfer' && t.isExpenseTransfer)) return false;
     const [y, m, d] = t.date.split('-').map(Number);
     const tDate = new Date(y, m - 1, d);
     return tDate >= startDate && tDate <= endDate;

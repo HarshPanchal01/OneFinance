@@ -124,4 +124,23 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error for accountType classification (v1 to v2):', error);
     }
   }
+
+  // Add isExpenseTransfer
+  try {
+    db.exec("ALTER TABLE transactions ADD COLUMN isExpenseTransfer BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding isExpenseTransfer to transactions:', error);
+    }
+  }
+
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN isExpenseTransfer BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding isExpenseTransfer to recurring_transactions:', error);
+    }
+  }
 }

@@ -44,6 +44,7 @@ const form = ref({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })(),
+  isExpenseTransfer: false,
 });
 
 const isEditing = computed(() => !!props.recurring);
@@ -51,7 +52,7 @@ const modalTitle = computed(() => isEditing.value ? "Edit Schedule" : "New Sched
 
 // Filter categories by type
 const filteredCategories = computed(() => 
-  store.categories.filter(c => c.type === form.value.type || c.type === "both")
+  store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense'))
 );
 
 // Filter accounts by transaction type (Assets only allowed for transfers)
@@ -67,8 +68,9 @@ const filteredAccounts = computed(() => {
 
 function handleTypeChange(newType: "income" | "expense" | "transfer") {
   form.value.type = newType;
-  form.value.categoryId = null;
   if (newType !== 'transfer') {
+    form.value.categoryId = null;
+    form.value.isExpenseTransfer = false;
     const isCurrentAccountValid = filteredAccounts.value.some(a => a.id === form.value.accountId);
     if (!isCurrentAccountValid) {
       form.value.accountId = filteredAccounts.value[0]?.id ?? null;
@@ -90,6 +92,7 @@ watch(
           transferAccountId: props.recurring.transferAccountId || null,
           frequency: props.recurring.frequency,
           startDate: props.recurring.startDate,
+          isExpenseTransfer: !!props.recurring.isExpenseTransfer,
         };
       } else {
         const validAccounts = store.accounts.filter(a => {
@@ -108,6 +111,7 @@ watch(
           transferAccountId: null,
           frequency: "monthly",
           startDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          isExpenseTransfer: false,
         };
       }
     }
@@ -149,13 +153,14 @@ async function save() {
       title: form.value.title,
       amount: form.value.amount ?? 0,
       type: form.value.type,
-      categoryId: form.value.type === 'transfer' ? null : (form.value.categoryId ?? null),
+      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer) ? null : (form.value.categoryId ?? null),
       accountId: form.value.accountId!,
       transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? null) : null,
       frequency: form.value.frequency,
       startDate: form.value.startDate,
       nextRunDate: nextRunDate,
       isActive: isEditing.value && props.recurring ? props.recurring.isActive : true,
+      isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
     };
 
     if (isEditing.value && props.recurring) {
@@ -373,8 +378,25 @@ function close() {
             </div>
           </div>
 
+          <!-- Transfer Expense Toggle -->
+          <div
+            v-if="form.type === 'transfer'"
+            class="flex items-center space-x-2 pt-1 pb-1"
+          >
+            <input
+              id="isExpenseTransferRecurring"
+              v-model="form.isExpenseTransfer"
+              type="checkbox"
+              class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+            />
+            <label
+              for="isExpenseTransferRecurring"
+              class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >Log as Expense</label>
+          </div>
+
           <!-- Category -->
-          <div v-if="form.type !== 'transfer'">
+          <div v-if="form.type !== 'transfer' || form.isExpenseTransfer">
             <label
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >

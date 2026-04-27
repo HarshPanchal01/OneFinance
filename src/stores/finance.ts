@@ -1006,6 +1006,7 @@ export const useFinanceStore = defineStore("finance", () => {
           startDate: recurring.startDate,
           nextRunDate: recurring.nextRunDate,
           isActive: recurring.isActive,
+          isExpenseTransfer: recurring.isExpenseTransfer,
         });
 
         console.log(`Inserting recurring transaction ${recurring.title} completed`);
@@ -1070,6 +1071,7 @@ export const useFinanceStore = defineStore("finance", () => {
             transferAccountId: transaction.transferAccountId ?? undefined,
             recurringId: transaction.recurringId ?? undefined,
             notes: transaction.notes || undefined,
+            isExpenseTransfer: transaction.isExpenseTransfer,
           });
           console.log(`Inserting transaction ${transaction.title} completed`);
       }

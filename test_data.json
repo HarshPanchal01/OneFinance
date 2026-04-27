@@ -68,6 +68,7 @@
       "accountId": 5,
       "transferAccountId": null,
       "recurringId": null,
+      "isExpenseTransfer": false,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
       "categoryIcon": "pi-car"
@@ -85,7 +86,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 3,
@@ -100,7 +102,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 4,
@@ -115,7 +118,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 5,
@@ -130,7 +134,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 6,
@@ -145,7 +150,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 7,
@@ -160,7 +166,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 8,
@@ -175,7 +182,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 9,
@@ -190,7 +198,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 10,
@@ -205,7 +214,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 11,
@@ -220,7 +230,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 12,
@@ -235,7 +246,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 13,
@@ -250,7 +262,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 14,
@@ -265,7 +278,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 15,
@@ -280,7 +294,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 16,
@@ -295,7 +310,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 17,
@@ -310,7 +326,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 18,
@@ -325,7 +342,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 19,
@@ -340,7 +358,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 20,
@@ -355,7 +374,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 21,
@@ -370,7 +390,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 22,
@@ -385,7 +406,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 23,
@@ -400,7 +422,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 24,
@@ -415,7 +438,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 25,
@@ -430,7 +454,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 26,
@@ -445,7 +470,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 27,
@@ -460,7 +486,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 28,
@@ -475,7 +502,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 29,
@@ -490,7 +518,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 30,
@@ -505,7 +534,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 31,
@@ -520,7 +550,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 32,
@@ -535,7 +566,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 33,
@@ -550,7 +582,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 34,
@@ -565,7 +598,8 @@
       "recurringId": null,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 342,
@@ -580,7 +614,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 35,
@@ -595,7 +630,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 36,
@@ -610,7 +646,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 341,
@@ -625,7 +662,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 354,
@@ -640,7 +678,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 42,
@@ -655,7 +694,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 41,
@@ -670,7 +710,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 40,
@@ -685,7 +726,8 @@
       "recurringId": null,
       "categoryName": "Other",
       "categoryColor": "#6b7280",
-      "categoryIcon": "pi-ellipsis-h"
+      "categoryIcon": "pi-ellipsis-h",
+      "isExpenseTransfer": false
     },
     {
       "id": 39,
@@ -700,7 +742,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 38,
@@ -715,7 +758,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 37,
@@ -730,7 +774,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 43,
@@ -745,7 +790,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 340,
@@ -760,7 +806,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 339,
@@ -775,7 +822,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 44,
@@ -790,7 +838,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 353,
@@ -805,7 +854,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 45,
@@ -820,7 +870,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 338,
@@ -835,7 +886,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 294,
@@ -850,7 +902,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 357,
@@ -865,7 +918,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 46,
@@ -880,7 +934,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 47,
@@ -895,7 +950,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 363,
@@ -910,7 +966,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 337,
@@ -925,7 +982,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 352,
@@ -940,7 +998,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 48,
@@ -955,7 +1014,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 336,
@@ -970,7 +1030,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 362,
@@ -985,7 +1046,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 335,
@@ -1000,7 +1062,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 49,
@@ -1015,7 +1078,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 351,
@@ -1030,7 +1094,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 50,
@@ -1045,7 +1110,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 334,
@@ -1060,7 +1126,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 293,
@@ -1075,7 +1142,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 356,
@@ -1090,7 +1158,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 361,
@@ -1105,7 +1174,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 333,
@@ -1120,7 +1190,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 350,
@@ -1135,7 +1206,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 51,
@@ -1150,7 +1222,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 332,
@@ -1165,7 +1238,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 52,
@@ -1180,7 +1254,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 360,
@@ -1195,7 +1270,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 331,
@@ -1210,7 +1286,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 349,
@@ -1225,7 +1302,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 53,
@@ -1240,7 +1318,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 54,
@@ -1255,7 +1334,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 330,
@@ -1270,7 +1350,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 359,
@@ -1285,7 +1366,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 355,
@@ -1300,7 +1382,8 @@
       "recurringId": 1,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 329,
@@ -1315,7 +1398,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 348,
@@ -1330,7 +1414,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 55,
@@ -1345,7 +1430,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 56,
@@ -1360,7 +1446,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 328,
@@ -1375,7 +1462,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 58,
@@ -1390,7 +1478,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 57,
@@ -1405,7 +1494,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 59,
@@ -1420,7 +1510,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 62,
@@ -1435,7 +1526,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 61,
@@ -1450,7 +1542,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 60,
@@ -1465,7 +1558,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 65,
@@ -1480,7 +1574,8 @@
       "recurringId": null,
       "categoryName": "Shopping",
       "categoryColor": "#ec4899",
-      "categoryIcon": "pi-shopping-bag"
+      "categoryIcon": "pi-shopping-bag",
+      "isExpenseTransfer": false
     },
     {
       "id": 64,
@@ -1495,7 +1590,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 63,
@@ -1510,7 +1606,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 327,
@@ -1525,7 +1622,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 67,
@@ -1540,7 +1638,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 66,
@@ -1555,7 +1654,8 @@
       "recurringId": null,
       "categoryName": "Healthcare",
       "categoryColor": "#14b8a6",
-      "categoryIcon": "pi-heart"
+      "categoryIcon": "pi-heart",
+      "isExpenseTransfer": false
     },
     {
       "id": 347,
@@ -1570,7 +1670,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 68,
@@ -1585,7 +1686,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 69,
@@ -1600,7 +1702,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 70,
@@ -1615,7 +1718,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 71,
@@ -1630,7 +1734,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 326,
@@ -1645,7 +1750,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 72,
@@ -1660,7 +1766,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 73,
@@ -1675,7 +1782,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 74,
@@ -1690,7 +1798,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 75,
@@ -1705,7 +1814,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 77,
@@ -1720,7 +1830,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 76,
@@ -1735,7 +1846,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 325,
@@ -1750,7 +1862,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 346,
@@ -1765,7 +1878,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 78,
@@ -1780,7 +1894,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 80,
@@ -1795,7 +1910,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 79,
@@ -1810,7 +1926,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 324,
@@ -1825,7 +1942,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 82,
@@ -1840,7 +1958,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 81,
@@ -1855,7 +1974,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 83,
@@ -1870,7 +1990,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 323,
@@ -1885,7 +2006,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 345,
@@ -1900,7 +2022,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 85,
@@ -1915,7 +2038,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 84,
@@ -1930,7 +2054,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 322,
@@ -1945,7 +2070,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 88,
@@ -1960,7 +2086,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 87,
@@ -1975,7 +2102,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 86,
@@ -1990,7 +2118,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 89,
@@ -2005,7 +2134,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 91,
@@ -2020,7 +2150,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 90,
@@ -2035,7 +2166,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 321,
@@ -2050,7 +2182,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 92,
@@ -2065,7 +2198,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 344,
@@ -2080,7 +2214,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 93,
@@ -2095,7 +2230,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 94,
@@ -2110,7 +2246,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 320,
@@ -2125,7 +2262,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 98,
@@ -2140,7 +2278,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 97,
@@ -2155,7 +2294,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 96,
@@ -2170,7 +2310,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 95,
@@ -2185,7 +2326,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 319,
@@ -2200,7 +2342,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 99,
@@ -2215,7 +2358,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 343,
@@ -2230,7 +2374,8 @@
       "recurringId": 3,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 100,
@@ -2245,7 +2390,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 101,
@@ -2260,7 +2406,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 102,
@@ -2275,7 +2422,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 318,
@@ -2290,7 +2438,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 103,
@@ -2305,7 +2454,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 107,
@@ -2320,7 +2470,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 106,
@@ -2335,7 +2486,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 105,
@@ -2350,7 +2502,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 104,
@@ -2365,7 +2518,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 108,
@@ -2380,7 +2534,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 317,
@@ -2395,7 +2550,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 109,
@@ -2410,7 +2566,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 110,
@@ -2425,7 +2582,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 316,
@@ -2440,7 +2598,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 111,
@@ -2455,7 +2614,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 112,
@@ -2470,7 +2630,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 113,
@@ -2485,7 +2646,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 114,
@@ -2500,7 +2662,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 315,
@@ -2515,7 +2678,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 116,
@@ -2530,7 +2694,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 115,
@@ -2545,7 +2710,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 117,
@@ -2560,7 +2726,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 118,
@@ -2575,7 +2742,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 314,
@@ -2590,7 +2758,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 313,
@@ -2605,7 +2774,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 122,
@@ -2620,7 +2790,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 121,
@@ -2635,7 +2806,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 120,
@@ -2650,7 +2822,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 119,
@@ -2665,7 +2838,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 123,
@@ -2680,7 +2854,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 124,
@@ -2695,7 +2870,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 125,
@@ -2710,7 +2886,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 126,
@@ -2725,7 +2902,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 127,
@@ -2740,7 +2918,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 312,
@@ -2755,7 +2934,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 128,
@@ -2770,7 +2950,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 129,
@@ -2785,7 +2966,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 130,
@@ -2800,7 +2982,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 311,
@@ -2815,7 +2998,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 131,
@@ -2830,7 +3014,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 135,
@@ -2845,7 +3030,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 134,
@@ -2860,7 +3046,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 133,
@@ -2875,7 +3062,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 132,
@@ -2890,7 +3078,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 136,
@@ -2905,7 +3094,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 137,
@@ -2920,7 +3110,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 310,
@@ -2935,7 +3126,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 138,
@@ -2950,7 +3142,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 139,
@@ -2965,7 +3158,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 140,
@@ -2980,7 +3174,8 @@
       "recurringId": null,
       "categoryName": "Other",
       "categoryColor": "#6b7280",
-      "categoryIcon": "pi-ellipsis-h"
+      "categoryIcon": "pi-ellipsis-h",
+      "isExpenseTransfer": false
     },
     {
       "id": 309,
@@ -2995,7 +3190,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 143,
@@ -3010,7 +3206,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 142,
@@ -3025,7 +3222,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 141,
@@ -3040,7 +3238,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 144,
@@ -3055,7 +3254,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 308,
@@ -3070,7 +3270,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 145,
@@ -3085,7 +3286,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 146,
@@ -3100,7 +3302,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 307,
@@ -3115,7 +3318,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 147,
@@ -3130,7 +3334,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 149,
@@ -3145,7 +3350,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 148,
@@ -3160,7 +3366,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 151,
@@ -3175,7 +3382,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 150,
@@ -3190,7 +3398,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 306,
@@ -3205,7 +3414,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 152,
@@ -3220,7 +3430,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 153,
@@ -3235,7 +3446,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 305,
@@ -3250,7 +3462,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 154,
@@ -3265,7 +3478,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 158,
@@ -3280,7 +3494,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 157,
@@ -3295,7 +3510,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 156,
@@ -3310,7 +3526,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 155,
@@ -3325,7 +3542,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 304,
@@ -3340,7 +3558,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 159,
@@ -3355,7 +3574,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 160,
@@ -3370,7 +3590,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 303,
@@ -3385,7 +3606,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 161,
@@ -3400,7 +3622,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 302,
@@ -3415,7 +3638,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 164,
@@ -3430,7 +3654,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 163,
@@ -3445,7 +3670,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 162,
@@ -3460,7 +3686,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 166,
@@ -3475,7 +3702,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 165,
@@ -3490,7 +3718,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 301,
@@ -3505,7 +3734,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 167,
@@ -3520,7 +3750,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 168,
@@ -3535,7 +3766,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 300,
@@ -3550,7 +3782,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 171,
@@ -3565,7 +3798,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 170,
@@ -3580,7 +3814,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 169,
@@ -3595,7 +3830,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 172,
@@ -3610,7 +3846,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 173,
@@ -3625,7 +3862,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 299,
@@ -3640,7 +3878,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 174,
@@ -3655,7 +3894,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 175,
@@ -3670,7 +3910,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 176,
@@ -3685,7 +3926,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 298,
@@ -3700,7 +3942,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 178,
@@ -3715,7 +3958,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 177,
@@ -3730,7 +3974,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 180,
@@ -3745,7 +3990,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 179,
@@ -3760,7 +4006,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 297,
@@ -3775,7 +4022,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 181,
@@ -3790,7 +4038,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 182,
@@ -3805,7 +4054,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 183,
@@ -3820,7 +4070,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 184,
@@ -3835,7 +4086,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 296,
@@ -3850,7 +4102,8 @@
       "recurringId": 2,
       "categoryName": null,
       "categoryColor": null,
-      "categoryIcon": null
+      "categoryIcon": null,
+      "isExpenseTransfer": false
     },
     {
       "id": 186,
@@ -3865,7 +4118,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 185,
@@ -3880,7 +4134,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 189,
@@ -3895,7 +4150,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 188,
@@ -3910,7 +4166,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 187,
@@ -3925,7 +4182,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 191,
@@ -3940,7 +4198,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 190,
@@ -3955,7 +4214,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 192,
@@ -3970,7 +4230,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 193,
@@ -3985,7 +4246,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 194,
@@ -4000,7 +4262,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 195,
@@ -4015,7 +4278,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 196,
@@ -4030,7 +4294,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 197,
@@ -4045,7 +4310,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 200,
@@ -4060,7 +4326,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 199,
@@ -4075,7 +4342,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 198,
@@ -4090,7 +4358,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 201,
@@ -4105,7 +4374,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 202,
@@ -4120,7 +4390,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 204,
@@ -4135,7 +4406,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 203,
@@ -4150,7 +4422,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 205,
@@ -4165,7 +4438,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 206,
@@ -4180,7 +4454,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 207,
@@ -4195,7 +4470,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 210,
@@ -4210,7 +4486,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 209,
@@ -4225,7 +4502,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 208,
@@ -4240,7 +4518,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 212,
@@ -4255,7 +4534,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 211,
@@ -4270,7 +4550,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 213,
@@ -4285,7 +4566,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 214,
@@ -4300,7 +4582,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 215,
@@ -4315,7 +4598,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 217,
@@ -4330,7 +4614,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 216,
@@ -4345,7 +4630,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 219,
@@ -4360,7 +4646,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 218,
@@ -4375,7 +4662,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 220,
@@ -4390,7 +4678,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 221,
@@ -4405,7 +4694,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 222,
@@ -4420,7 +4710,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 223,
@@ -4435,7 +4726,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 224,
@@ -4450,7 +4742,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 225,
@@ -4465,7 +4758,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 229,
@@ -4480,7 +4774,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 228,
@@ -4495,7 +4790,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 227,
@@ -4510,7 +4806,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 226,
@@ -4525,7 +4822,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 230,
@@ -4540,7 +4838,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 231,
@@ -4555,7 +4854,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 232,
@@ -4570,7 +4870,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 233,
@@ -4585,7 +4886,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 234,
@@ -4600,7 +4902,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 236,
@@ -4615,7 +4918,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 235,
@@ -4630,7 +4934,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 237,
@@ -4645,7 +4950,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 241,
@@ -4660,7 +4966,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 240,
@@ -4675,7 +4982,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 239,
@@ -4690,7 +4998,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 238,
@@ -4705,7 +5014,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 242,
@@ -4720,7 +5030,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 243,
@@ -4735,7 +5046,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 244,
@@ -4750,7 +5062,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 245,
@@ -4765,7 +5078,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 249,
@@ -4780,7 +5094,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 248,
@@ -4795,7 +5110,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 247,
@@ -4810,7 +5126,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 246,
@@ -4825,7 +5142,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 250,
@@ -4840,7 +5158,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 251,
@@ -4855,7 +5174,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 252,
@@ -4870,7 +5190,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 253,
@@ -4885,7 +5206,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 254,
@@ -4900,7 +5222,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 256,
@@ -4915,7 +5238,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 255,
@@ -4930,7 +5254,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 259,
@@ -4945,7 +5270,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 258,
@@ -4960,7 +5286,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 257,
@@ -4975,7 +5302,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 261,
@@ -4990,7 +5318,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 260,
@@ -5005,7 +5334,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 262,
@@ -5020,7 +5350,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 263,
@@ -5035,7 +5366,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 264,
@@ -5050,7 +5382,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 265,
@@ -5065,7 +5398,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 266,
@@ -5080,7 +5414,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 270,
@@ -5095,7 +5430,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 269,
@@ -5110,7 +5446,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 268,
@@ -5125,7 +5462,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     },
     {
       "id": 267,
@@ -5140,7 +5478,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 271,
@@ -5155,7 +5494,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 272,
@@ -5170,7 +5510,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 274,
@@ -5185,7 +5526,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 273,
@@ -5200,7 +5542,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 275,
@@ -5215,7 +5558,8 @@
       "recurringId": null,
       "categoryName": "Transportation",
       "categoryColor": "#3b82f6",
-      "categoryIcon": "pi-car"
+      "categoryIcon": "pi-car",
+      "isExpenseTransfer": false
     },
     {
       "id": 276,
@@ -5230,7 +5574,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 277,
@@ -5245,7 +5590,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 278,
@@ -5260,7 +5606,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 280,
@@ -5275,7 +5622,8 @@
       "recurringId": null,
       "categoryName": "Salary",
       "categoryColor": "#22c55e",
-      "categoryIcon": "pi-wallet"
+      "categoryIcon": "pi-wallet",
+      "isExpenseTransfer": false
     },
     {
       "id": 279,
@@ -5290,7 +5638,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 281,
@@ -5305,7 +5654,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 282,
@@ -5320,7 +5670,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 283,
@@ -5335,7 +5686,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 284,
@@ -5350,7 +5702,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 285,
@@ -5365,7 +5718,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 287,
@@ -5380,7 +5734,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 286,
@@ -5395,7 +5750,8 @@
       "recurringId": null,
       "categoryName": "Other",
       "categoryColor": "#6b7280",
-      "categoryIcon": "pi-ellipsis-h"
+      "categoryIcon": "pi-ellipsis-h",
+      "isExpenseTransfer": false
     },
     {
       "id": 288,
@@ -5410,7 +5766,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 289,
@@ -5425,7 +5782,8 @@
       "recurringId": null,
       "categoryName": "Food & Dining",
       "categoryColor": "#f97316",
-      "categoryIcon": "pi-shopping-cart"
+      "categoryIcon": "pi-shopping-cart",
+      "isExpenseTransfer": false
     },
     {
       "id": 292,
@@ -5440,7 +5798,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 291,
@@ -5455,7 +5814,8 @@
       "recurringId": null,
       "categoryName": "Bills & Utilities",
       "categoryColor": "#eab308",
-      "categoryIcon": "pi-bolt"
+      "categoryIcon": "pi-bolt",
+      "isExpenseTransfer": false
     },
     {
       "id": 290,
@@ -5470,7 +5830,8 @@
       "recurringId": null,
       "categoryName": "Entertainment",
       "categoryColor": "#a855f7",
-      "categoryIcon": "pi-ticket"
+      "categoryIcon": "pi-ticket",
+      "isExpenseTransfer": false
     }
   ],
   "categories": [
@@ -5564,7 +5925,8 @@
       "frequency": "bi-weekly",
       "startDate": "2025-11-11",
       "nextRunDate": "2026-04-28",
-      "isActive": 1
+      "isActive": 1,
+      "isExpenseTransfer": false
     },
     {
       "id": 2,
@@ -5577,7 +5939,8 @@
       "frequency": "weekly",
       "startDate": "2025-06-04",
       "nextRunDate": "2026-04-29",
-      "isActive": 1
+      "isActive": 1,
+      "isExpenseTransfer": false
     },
     {
       "id": 1,
@@ -5590,7 +5953,8 @@
       "frequency": "bi-weekly",
       "startDate": "2026-01-22",
       "nextRunDate": "2026-04-30",
-      "isActive": 1
+      "isActive": 1,
+      "isExpenseTransfer": false
     },
     {
       "id": 4,
@@ -5603,7 +5967,8 @@
       "frequency": "weekly",
       "startDate": "2025-10-10",
       "nextRunDate": "2026-05-01",
-      "isActive": 1
+      "isActive": 1,
+      "isExpenseTransfer": false
     }
   ]
 }
