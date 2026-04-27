@@ -57,7 +57,7 @@ const toggle = (event: Event) => {
     
     <div class="mt-2 flex items-baseline gap-2">
       <div 
-        class="text-3xl font-bold transition-all duration-200 select-none"
+        class="text-2xl font-bold transition-all duration-200 select-none"
         :class="[valueClass, { 'privacy-blur': settingsStore.privacyMode }]"
       >
         {{ value }}

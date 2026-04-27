@@ -346,21 +346,21 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <!-- Charts Row 2 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Expense Breakdown -->
-      <div class="card p-4 lg:col-span-1 flex flex-col">
-        <div class="flex items-center justify-end mb-1 min-h-[32px]">
+      <div class="card p-4 lg:col-span-1 flex flex-col relative">
+        <div class="absolute top-4 right-4 z-20">
           <InsightTimeRangeSelector
             v-model:model-value="expenseBreakdownTimeRange"
             v-model:custom-range="expenseBreakdownCustomDate"
           />
         </div>
-        <div class="h-72">
+        <div class="flex-1">
           <ExpenseBreakdownChart
             :breakdown="expenseBreakdownData"
             :time-range="expenseBreakdownTimeRange"
             :custom-range="getCustomRangeObj(expenseBreakdownCustomDate)"
           />
         </div>
-        <div class="text-xs text-gray-400 mt-4 pl-1">
+        <div class="text-xs text-gray-400 mt-auto pt-4 pl-1">
           Based on {{ getTimeRangeLabel(expenseBreakdownTimeRange, getCustomRangeObj(expenseBreakdownCustomDate)) }}
         </div>
       </div>
@@ -402,7 +402,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </select>
           </div>
         </div>
-        <div class="h-72">
+        <div class="h-64 xl:h-72">
           <NetWorthChart :option="netWorthOption" />
         </div>
       </div>
