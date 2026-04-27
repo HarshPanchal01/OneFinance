@@ -16,9 +16,12 @@ export interface Category {
   type: "income" | "expense" | "both";
 }
 
+export type AccountClassification = "liquid" | "asset" | "liability";
+
 export interface AccountType{
   id: number
   type: string
+  classification: AccountClassification
 }
 
 export interface Account{

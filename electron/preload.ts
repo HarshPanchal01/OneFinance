@@ -138,7 +138,7 @@ const electronAPI = {
   getTotalMonthSpend: (year: number, month: number): Promise<number> =>
     ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
 
-  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
+  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number, liquidBalance: number }[]> =>
     ipcRenderer.invoke("db:getNetWorthTrend"),
 
   getDatabaseVersion: (): Promise<number> =>

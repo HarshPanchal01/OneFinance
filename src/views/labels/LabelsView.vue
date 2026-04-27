@@ -31,6 +31,7 @@ const accountTypeForm = ref<
 >({
   id: 0,
   type: "",
+  classification: "liquid",
 });
 
 // Delete category
@@ -80,6 +81,7 @@ function openAccountTypeCreateModal() {
   accountTypeForm.value = {
     id: 0,
     type: "",
+    classification: "liquid",
   };
   showAccountTypeModal.value = true;
 }

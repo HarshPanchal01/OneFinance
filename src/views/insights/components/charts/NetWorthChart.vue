@@ -30,14 +30,15 @@ const filteredTrends = computed(() => {
 const chartData = computed(() => {
   const displayTrends = filteredTrends.value;
   const labels = displayTrends.map((t) => getMonthName(t.month).slice(0, 3));
-  const data = displayTrends.map((t) => t.balance);
+  const dataTotal = displayTrends.map((t) => t.balance);
+  const dataLiquid = displayTrends.map((t) => t.liquidBalance);
 
   return {
     labels,
     datasets: [
       {
-        label: "Net Worth",
-        data,
+        label: "Total Net Worth",
+        data: dataTotal,
         // Dynamic area fill: Green above 0, Red below 0
         fill: {
           target: "origin",
@@ -51,6 +52,18 @@ const chartData = computed(() => {
         pointRadius: 4,
         pointHoverRadius: 6,
       },
+      {
+        label: "Liquid Net Worth",
+        data: dataLiquid,
+        fill: false,
+        borderColor: "#22c55e", // Green
+        pointBackgroundColor: "#22c55e",
+        pointBorderColor: "#22c55e",
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderDash: [5, 5],
+      }
     ],
   };
 });

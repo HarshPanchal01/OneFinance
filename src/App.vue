@@ -124,11 +124,9 @@ function handleKeydown(e: KeyboardEvent) {
               e.preventDefault();
               currentView.value = "insights";
               break;
-            case "c":
-              if (e.shiftKey) {
-                e.preventDefault();
-                currentView.value = "categories";
-              }
+            case "l":
+              e.preventDefault();
+              currentView.value = "categories";
               break;
             case "a":
               if (e.shiftKey) {

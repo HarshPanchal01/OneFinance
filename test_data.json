@@ -5534,15 +5534,18 @@
   "accountTypes": [
     {
       "id": 4,
-      "type": "Cash"
+      "type": "Cash",
+      "classification": "liquid"
     },
     {
       "id": 5,
-      "type": "Chequing"
+      "type": "Chequing",
+      "classification": "liquid"
     },
     {
       "id": 6,
-      "type": "Savings"
+      "type": "Savings",
+      "classification": "liquid"
     }
   ],
   "ledgerYears": [

@@ -149,6 +149,9 @@ export function verifyImportData(
         forEachResult = false;
         return;
       }
+      if (value.classification == undefined) {
+        value.classification = "liquid";
+      }
     });
 
     categories.forEach((value) => {

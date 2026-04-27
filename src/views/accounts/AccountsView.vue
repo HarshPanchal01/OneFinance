@@ -80,13 +80,16 @@ function closeDialog() {
 }
 
 async function submitForm() {
+  const isLiability = state.accountTypeArray.find(t => t.id === form.accountType)?.classification === 'liability';
+  const amount = form.startingBalance ?? 0;
+  const processedBalance = isLiability ? -Math.abs(amount) : Math.abs(amount);
 
   if(!isEdit){
     store.addAccount({
       id : 0,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance ?? 0,
+      startingBalance: processedBalance,
       accountTypeId:  form.accountType,
       isDefault: form.isDefault,
     } as Account);
@@ -96,7 +99,7 @@ async function submitForm() {
       id : accountEditId,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance ?? 0,
+      startingBalance: processedBalance,
       accountTypeId: form.accountType,
       isDefault: form.isDefault
     } as Account);
@@ -116,7 +119,7 @@ function editAccount(account: Account) {
   openDialog.value = true;
   form.accountName= account.accountName;
   form.institutionName = account.institutionName ?? "";
-  form.startingBalance = account.startingBalance;
+  form.startingBalance = Math.abs(account.startingBalance);
   form.accountType = account.accountTypeId;
   form.isDefault = Boolean(account.isDefault);
   isEdit = true;

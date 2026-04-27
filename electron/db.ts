@@ -122,7 +122,8 @@ export function initializeDatabase(): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS accountType (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL
+      type TEXT NOT NULL,
+      classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability'))
     )
   `);
 
@@ -323,9 +324,13 @@ function seedDefaultCategories(): void {
 function seedDefaultAccountData(): void{
   
   const defaultAccountTypes = [
-    {type: "Cash"},
-    {type: "Chequing"},
-    {type: "Savings"},
+    {type: "Cash", classification: "liquid"},
+    {type: "Chequing", classification: "liquid"},
+    {type: "Savings", classification: "liquid"},
+    {type: "Credit Card", classification: "liability"},
+    {type: "Loan", classification: "liability"},
+    {type: "Mortgage", classification: "liability"},
+    {type: "Vehicle", classification: "asset"},
   ];
 
   const defaultAccounts = [
@@ -333,22 +338,24 @@ function seedDefaultAccountData(): void{
   ];
 
   const insertAccountType = db.prepare(
-    "INSERT INTO accountType (type) VALUES (?)"
+    "INSERT INTO accountType (type, classification) VALUES (?, ?)"
   );
 
   let result = null;
+  let savingsId = 0;
   for (const accType of defaultAccountTypes){
-    result = insertAccountType.run(accType.type);
+    result = insertAccountType.run(accType.type, accType.classification);
+    if (accType.type === "Savings") {
+      savingsId = Number(result.lastInsertRowid);
+    }
   }
-
-  const id = result?.lastInsertRowid ?? 0; 
 
   const insertAccount = db.prepare(
     "INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)"
   );
 
   for (const acc of defaultAccounts){
-    insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, id, Number(acc.isDefault));
+    insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, savingsId, Number(acc.isDefault));
   }
   console.log("Account Data Seeded")
 }
@@ -1023,34 +1030,67 @@ export function getTotalMonthSpend(year: number, month: number): number {
     return result.total || 0;
 }
 
-export function getNetWorthTrend(): { month: number, year: number, balance: number }[] {
-    // 1. Get sum of all starting balances
+export function getNetWorthTrend(): { month: number, year: number, balance: number, liquidBalance: number }[] {
     const accounts = getAccounts();
-    const initialBalance = accounts.reduce((sum, acc) => sum + acc.startingBalance, 0);
+    const accountTypes = getAccountTypes();
+    
+    const typeClassificationMap = new Map(accountTypes.map(at => [at.id, at.classification]));
+    
+    let initialTotalBalance = 0;
+    let initialLiquidBalance = 0;
+    
+    for (const acc of accounts) {
+        const classification = typeClassificationMap.get(acc.accountTypeId) || 'liquid';
+        initialTotalBalance += acc.startingBalance;
+        if (classification === 'liquid') {
+            initialLiquidBalance += acc.startingBalance;
+        }
+    }
 
-    // 2. Get monthly net changes (income - expense) for all time
     const query = `
         SELECT 
-            strftime('%Y', date) as yearStr,
-            strftime('%m', date) as monthStr,
-            SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as netChange
-        FROM transactions 
+            strftime('%Y', t.date) as yearStr,
+            strftime('%m', t.date) as monthStr,
+            SUM(
+              CASE 
+                WHEN t.type = 'income' THEN t.amount 
+                WHEN t.type = 'expense' THEN -t.amount 
+                ELSE 0 
+              END
+            ) as netChangeTotal,
+            SUM(
+              CASE
+                WHEN t.type = 'income' AND at.classification = 'liquid' THEN t.amount
+                WHEN t.type = 'expense' AND at.classification = 'liquid' THEN -t.amount
+                WHEN t.type = 'transfer' THEN
+                  (CASE WHEN at.classification = 'liquid' THEN -t.amount ELSE 0 END) +
+                  (CASE WHEN tat.classification = 'liquid' THEN t.amount ELSE 0 END)
+                ELSE 0
+              END
+            ) as netChangeLiquid
+        FROM transactions t
+        LEFT JOIN accounts a ON t.accountId = a.id
+        LEFT JOIN accountType at ON a.accountTypeId = at.id
+        LEFT JOIN accounts ta ON t.transferAccountId = ta.id
+        LEFT JOIN accountType tat ON ta.accountTypeId = tat.id
         GROUP BY yearStr, monthStr
         ORDER BY yearStr ASC, monthStr ASC
     `;
     
-    const rows = db.prepare(query).all() as { yearStr: string, monthStr: string, netChange: number }[];
+    const rows = db.prepare(query).all() as { yearStr: string, monthStr: string, netChangeTotal: number, netChangeLiquid: number }[];
     
-    // 3. Calculate cumulative balance
-    const trends: { month: number, year: number, balance: number }[] = [];
-    let runningBalance = initialBalance;
+    const trends: { month: number, year: number, balance: number, liquidBalance: number }[] = [];
+    let runningBalance = initialTotalBalance;
+    let runningLiquidBalance = initialLiquidBalance;
     
     for (const row of rows) {
-        runningBalance += row.netChange;
+        runningBalance += row.netChangeTotal;
+        runningLiquidBalance += row.netChangeLiquid;
         trends.push({
             year: parseInt(row.yearStr),
             month: parseInt(row.monthStr),
-            balance: runningBalance
+            balance: runningBalance,
+            liquidBalance: runningLiquidBalance
         });
     }
     

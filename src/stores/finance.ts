@@ -60,7 +60,7 @@ export const useFinanceStore = defineStore("finance", () => {
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
   const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
-  const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
+  const netWorthTrends = ref<{ month: number, year: number, balance: number, liquidBalance: number }[]>([]);
 
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load

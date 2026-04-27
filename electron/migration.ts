@@ -114,4 +114,14 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error for recurring_transactions (v1 to v2):', error);
     }
   }
+
+  // Add classification to accountType
+  try {
+    db.exec("ALTER TABLE accountType ADD COLUMN classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability'))");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error for accountType classification (v1 to v2):', error);
+    }
+  }
 }

@@ -63,6 +63,29 @@ defineEmits<{
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+
+          <!-- Classification -->
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Classification
+            </label>
+            <select
+              v-model="accountTypeForm.classification"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="liquid">
+                Liquid (Cash/Checking)
+              </option>
+              <option value="asset">
+                Asset (Property/Investments)
+              </option>
+              <option value="liability">
+                Liability (Loans/Credit Cards)
+              </option>
+            </select>
+          </div>
         </div>  
 
         <!-- Footer -->

@@ -223,12 +223,9 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Cash Flow -->
       <div class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Cash Flow
-          </h3>
-          <!-- Custom Legend -->
-          <div class="flex flex-row gap-4">
+        <div class="grid grid-cols-3 items-center mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="flex flex-row gap-4 justify-self-start">
             <div class="flex items-center gap-2">
               <div class="w-3 h-1.5 rounded-sm bg-income shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Income</span>
@@ -239,7 +236,11 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </div>
           </div>
 
-          <div>
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 justify-self-center">
+            Cash Flow
+          </h3>
+
+          <div class="justify-self-end">
             <select
               v-model="cashFlowOption"
               class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
@@ -264,12 +265,9 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
       <!-- Spending Pacing -->
       <div class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Spending Pacing
-          </h3>
-          <!-- Custom Legend -->
-          <div class="flex flex-row gap-4">
+        <div class="grid grid-cols-3 items-center mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="flex flex-row gap-4 justify-self-start">
             <div class="flex items-center gap-2">
               <div class="w-3 h-1.5 rounded-sm bg-primary-500 shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Current</span>
@@ -280,8 +278,12 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </div>
           </div>
 
-          <!-- Date Pickers for Pacing -->
-          <div class="flex flex-wrap items-center gap-2">
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 justify-self-center">
+            Spending Pacing
+          </h3>
+
+          <!-- Date Pickers for Pacing (Right) -->
+          <div class="flex items-center gap-2 justify-self-end">
             <!-- Target Month Picker -->            
             <div class="relative">                                       
               <DatePicker                       
@@ -345,10 +347,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Expense Breakdown -->
       <div class="card p-4 lg:col-span-1 flex flex-col">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Expense Breakdown
-          </h3>
+        <div class="flex items-center justify-end mb-2 min-h-[32px]">
           <InsightTimeRangeSelector
             v-model:model-value="expenseBreakdownTimeRange"
             v-model:custom-range="expenseBreakdownCustomDate"
@@ -368,11 +367,24 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
       <!-- Net Worth Trend -->
       <div class="card p-4 lg:col-span-2 flex flex-col">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+        <div class="grid grid-cols-3 items-center mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="flex flex-row gap-4 justify-self-start">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-1.5 rounded-sm bg-[#0ea5e9] shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Total Net Worth</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-1.5 rounded-sm border-2 border-dashed border-[#22c55e] shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Liquid Net Worth</span>
+            </div>
+          </div>
+
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 justify-self-center">
             Net Worth Trend
           </h3>
-          <div>
+
+          <div class="justify-self-end">
             <select
               v-model="netWorthOption"
               class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"

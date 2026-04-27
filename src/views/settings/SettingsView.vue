@@ -10,7 +10,7 @@ import Select from "primevue/select";
 import iconSvg from "@/assets/icon.svg";
 import logoPng from "@/assets/logo.png";
 
-const appVersion = "1.1.0";
+const appVersion = "2.0.0";
 const logoUrl = ref(iconSvg);
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
@@ -33,7 +33,7 @@ const shortcuts = [
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
   { keys: ["Ctrl", "S"], description: "Go to Schedules" },
   { keys: ["Ctrl", "I"], description: "Go to Insights" },
-  { keys: ["Ctrl", "Shift", "C"], description: "Go to Categories" },
+  { keys: ["Ctrl", "L"], description: "Go to Labels" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
   { keys: ["/"], description: "Go to Search Bar" },
