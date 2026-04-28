@@ -144,7 +144,7 @@ export function useDataManagement() {
       if (response.action === "replace") {
         await store.deleteAllDataFromTables();
 
-        const success = await store.importDatabaseData(result.data, false);
+        const success = await store.importDatabaseData(result.data, false, true);
 
         if (!success) {
           return await errorModal?.openConfirmation({

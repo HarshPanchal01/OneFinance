@@ -839,7 +839,7 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes?: AccountType[],
     ledgerYears?: number[],
     recurringTransactions?: RecurringTransaction[]
-  }, skipDuplicates: boolean): Promise<boolean> {
+  }, skipDuplicates: boolean, isReplace: boolean = false): Promise<boolean> {
 
     const importAccounts = data.accounts!;
     const importTransactions = data.transactions!;
@@ -856,12 +856,14 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       for (const accountType of importAccountTypes){
 
-        // Check for existing account type
-        const existing = accountTypes.value.find((at) => at.type === accountType.type);
-        if (existing){
-          accountTypeIdMap.set(accountType.id, existing.id);
-          console.log(`Skipping inserting existing account type ${accountType.type}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing account type
+          const existing = accountTypes.value.find((at) => at.type === accountType.type);
+          if (existing){
+            accountTypeIdMap.set(accountType.id, existing.id);
+            console.log(`Skipping inserting existing account type ${accountType.type}`);
+            continue;
+          }
         }
     
         const result = await addAccountType(accountType);
@@ -877,12 +879,14 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const account of importAccounts){
 
-        // Check for existing account
-        const existing = accounts.value.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
-        if (existing){
-          accountIdMap.set(account.id, existing.id);
-          console.log(`Skipping inserting existing account ${account.accountName}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing account
+          const existing = accounts.value.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
+          if (existing){
+            accountIdMap.set(account.id, existing.id);
+            console.log(`Skipping inserting existing account ${account.accountName}`);
+            continue;
+          }
         }
     
         const accountTypeId = accountTypeIdMap.get(account.accountTypeId);
@@ -907,12 +911,14 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const category of importCategories){
 
-        // Check for existing category
-        const existing = categories.value.find((c) => c.name === category.name);
-        if (existing){
-          categoryTypeIdMap.set(category.id, existing.id);
-          console.log(`Skipping inserting existing category ${category.name}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing category
+          const existing = categories.value.find((c) => c.name === category.name);
+          if (existing){
+            categoryTypeIdMap.set(category.id, existing.id);
+            console.log(`Skipping inserting existing category ${category.name}`);
+            continue;
+          }
         }
     
         const result = await addCategory(
@@ -934,11 +940,13 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const ledgerYear of importLedgerYears){
 
-        // Check for existing ledger year
-        const existing = ledgerYears.value.find((ly) => ly === ledgerYear);
-        if (existing){
-          console.log(`Skipping inserting existing ledger year ${ledgerYear}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing ledger year
+          const existing = ledgerYears.value.find((ly) => ly === ledgerYear);
+          if (existing){
+            console.log(`Skipping inserting existing ledger year ${ledgerYear}`);
+            continue;
+          }
         }
     
         await createYear(ledgerYear);
@@ -947,15 +955,17 @@ export const useFinanceStore = defineStore("finance", () => {
       }
     
       for (const recurring of importRecurringTransactions) {
-        // Check for existing recurring transaction
-        const existing = recurringTransactions.value.find((r) => 
-          r.title === recurring.title && r.amount === recurring.amount && r.frequency === recurring.frequency
-        );
-        
-        if (existing) {
-          recurringIdMap.set(recurring.id, existing.id);
-          console.log(`Skipping inserting existing recurring transaction ${recurring.title}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing recurring transaction
+          const existing = recurringTransactions.value.find((r) => 
+            r.title === recurring.title && r.amount === recurring.amount && r.frequency === recurring.frequency
+          );
+          
+          if (existing) {
+            recurringIdMap.set(recurring.id, existing.id);
+            console.log(`Skipping inserting existing recurring transaction ${recurring.title}`);
+            continue;
+          }
         }
 
         if (recurring.categoryId != undefined) {
@@ -1004,7 +1014,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
       for (const transaction of importTransactions){
 
-          if (skipDuplicates){
+          if (!isReplace && skipDuplicates){
             // Check for existing transaction
             const existing = transactions.value.find((t) => t.title === transaction.title && t.amount === transaction.amount && t.date === transaction.date);
             if (existing){
@@ -1043,6 +1053,10 @@ export const useFinanceStore = defineStore("finance", () => {
             const mappedRecurringId = recurringIdMap.get(transaction.recurringId);
             if (mappedRecurringId != undefined) {
               transaction.recurringId = mappedRecurringId;
+            } else {
+              // If we didn't find the recurring mapping, it might be an orphaned link.
+              // We set it to undefined to avoid foreign key failure.
+              transaction.recurringId = undefined;
             }
           }
 
