@@ -169,33 +169,31 @@ export const useFinanceStore = defineStore("finance", () => {
     // incomeBreakdown
     // expenseBreakdown
 
-    const nonTransferTransactions = toRaw(transactions.value).filter((value) => value.type !== "transfer");
-    const transactionsByIncome = nonTransferTransactions.filter((value) => value.type === "income");
-    const transactionsByExpense = nonTransferTransactions.filter((value) => value.type === "expense");
+    const allTransactions = transactions.value;
+    const transactionsByIncome = allTransactions.filter((t) => t.type === "income");
+    const transactionsByExpense = allTransactions.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)));
 
-    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
-    const transactionsExpenseSum = transactionsByExpense.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+    const transactionsIncomeSum = transactionsByIncome.reduce((sum, t) => sum + t.amount, 0);
+    const transactionsExpenseSum = transactionsByExpense.reduce((sum, t) => sum + t.amount, 0);
 
     const incomeCategoryBreakdown = new Map<number, CategoryBreakdown>();
     const expenseCategoryBreakdown = new Map<number, CategoryBreakdown>();
 
     for(const income of transactionsByIncome){
+      if (income.categoryId == null || income.categoryName == null) continue;
 
-      const entry = incomeCategoryBreakdown.get(income.id);
+      const entry = incomeCategoryBreakdown.get(income.categoryId);
 
       if (entry !== undefined) {
         entry.count += 1;
         entry.total += income.amount;
       } 
       else{
-
-        if (income.categoryId == undefined || income.categoryName == undefined || income.categoryColor == undefined || income.categoryIcon == undefined) {continue}
-
         incomeCategoryBreakdown.set(income.categoryId, 
           { categoryId: income.categoryId,
             categoryName: income.categoryName,
-            categoryColor: income.categoryColor,
-            categoryIcon: income.categoryIcon,
+            categoryColor: income.categoryColor || '#6b7280',
+            categoryIcon: income.categoryIcon || 'pi-tag',
             total: income.amount,
             count: 1
         });
@@ -204,30 +202,19 @@ export const useFinanceStore = defineStore("finance", () => {
 
 
     for(const expense of transactionsByExpense){
-
-
-      if (expense.categoryId == undefined) {
-        continue
-      }
+      if (expense.categoryId == null || expense.categoryName == null) continue;
 
       const entry = expenseCategoryBreakdown.get(expense.categoryId);
       if (entry != undefined) {
         entry.count += 1;
         entry.total += expense.amount;
-
-        expenseCategoryBreakdown.set(expense.categoryId, entry);
       }
       else {
-
-        if (expense.categoryId == undefined || expense.categoryName == undefined || expense.categoryColor == undefined || expense.categoryIcon == undefined) {
-          continue
-        }
-
         expenseCategoryBreakdown.set(expense.categoryId, 
           { categoryId: expense.categoryId,
             categoryName: expense.categoryName,
-            categoryColor: expense.categoryColor,
-            categoryIcon: expense.categoryIcon,
+            categoryColor: expense.categoryColor || '#6b7280',
+            categoryIcon: expense.categoryIcon || 'pi-tag',
             total: expense.amount,
             count: 1
         });
@@ -240,8 +227,6 @@ export const useFinanceStore = defineStore("finance", () => {
 
     incomeBreakdown.value = Array.from(incomeCategoryBreakdown.values());
     expenseBreakdown.value = Array.from(expenseCategoryBreakdown.values());
-
-
   }
 
   async function createYear(year: number) {
