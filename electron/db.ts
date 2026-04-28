@@ -676,8 +676,12 @@ export function searchTransactions(
 
   // Add type filter
   if (type) {
-    sql += " AND t.type = ?";
-    params.push(type);
+    if (type === 'expense') {
+      sql += " AND (t.type = 'expense' OR (t.type = 'transfer' AND t.isExpenseTransfer = 1))";
+    } else {
+      sql += " AND t.type = ?";
+      params.push(type);
+    }
   }
 
   // Add recurring filter

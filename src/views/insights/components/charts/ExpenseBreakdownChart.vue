@@ -66,6 +66,9 @@ const categoryData = computed(() => {
 });
 
 const categoryOptions = computed(() => ({
+  layout: {
+    padding: 8
+  },
   plugins: {
     legend: { display: false },
   },
