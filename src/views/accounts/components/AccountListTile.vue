@@ -46,13 +46,6 @@ import { computed, ref, watch } from 'vue';
     const accountType = computed(() => accountTypeObj.value?.type ?? 'N/A');
     const accountClassification = computed(() => accountTypeObj.value?.classification ?? 'liquid');
 
-    const textClass = computed(() => {
-      if (accountClassification.value === 'liability') return 'text-expense';
-      if (accountClassification.value === 'liquid') return 'text-green-600 dark:text-green-400';
-      if (accountClassification.value === 'asset') return 'text-primary-600 dark:text-primary-400';
-      return 'text-gray-900 dark:text-white';
-    });
-
     const displayBalance = computed(() => {
       const rawBalance = props.balance ?? props.startingBalance;
       return accountClassification.value === 'liability' ? Math.abs(rawBalance) : rawBalance;
@@ -76,8 +69,7 @@ import { computed, ref, watch } from 'vue';
   >
     <div class="flex flex-col">
       <p 
-        class="font-semibold transition-colors"
-        :class="textClass"
+        class="font-semibold transition-colors text-gray-900 dark:text-white"
       >
         {{ props.accountName }}
       </p>

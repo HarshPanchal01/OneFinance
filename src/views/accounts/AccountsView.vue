@@ -184,15 +184,13 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
     </header>
 
     <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-2 pb-4">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <AccountListView
-          :account-array="state.accountArray"
-          :highlighted-id="highlightedId"
-          @edit="editAccount"
-          @delete="deleteAccount"
-          @view-transactions="viewTransactions"
-        />
-      </div>
+      <AccountListView
+        :account-array="state.accountArray"
+        :highlighted-id="highlightedId"
+        @edit="editAccount"
+        @delete="deleteAccount"
+        @view-transactions="viewTransactions"
+      />
 
       <div
         v-if="openDialog"
