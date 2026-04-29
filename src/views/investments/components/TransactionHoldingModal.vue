@@ -1,0 +1,197 @@
+<script setup lang="ts">
+import { ref, reactive, watch } from 'vue';
+import { useFinanceStore } from '@/stores/finance';
+import { InvestmentHolding } from '@/types';
+import DatePicker from 'primevue/datepicker';
+
+const props = defineProps<{
+  holding: InvestmentHolding | null;
+  type: 'buy' | 'sell' | null;
+}>();
+
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'saved'): void;
+}>();
+
+const store = useFinanceStore();
+
+const isSubmitting = ref(false);
+
+const form = reactive({
+  date: new Date() as any,
+  quantity: null as number | null,
+  price: null as number | null,
+  fees: 0 as number | null,
+});
+
+watch(() => props.holding, (newHolding) => {
+  if (newHolding) {
+    form.price = newHolding.lastPrice;
+    form.quantity = null;
+    form.fees = 0;
+    form.date = new Date();
+  }
+});
+
+async function submit() {
+  if (!props.holding || !props.type || !form.quantity || form.price === null) return;
+  
+  if (props.type === 'sell' && form.quantity > props.holding.quantity) {
+      alert("You cannot sell more shares than you own.");
+      return;
+  }
+
+  isSubmitting.value = true;
+  try {
+    const isoDate = new Date(form.date.getTime() - form.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    
+    await store.addInvestmentTransaction({
+      holdingId: props.holding.id,
+      date: isoDate,
+      type: props.type,
+      quantity: form.quantity,
+      price: form.price,
+      fees: form.fees || 0
+    });
+    
+    // We also need to add a transaction to the actual account to subtract/add cash
+    // For buy: negative cash flow. For sell: positive cash flow.
+    const totalAmount = (form.quantity * form.price) + (props.type === 'buy' ? (form.fees || 0) : -(form.fees || 0));
+    
+    const accountId = props.holding.accountId;
+    
+    // In OneFinance, transactions usually require a category. For buy/sell of investments,
+    // they act as transfers to/from the investment holding, but since holdings aren't accounts in `transactions` table,
+    // we use a standard 'expense' or 'income' to reflect the cash leaving/entering the investment account's cash balance.
+    // However, the user is directly buying/selling inside the investment account. 
+    // Usually, the cash balance is part of the account. So we will log an income/expense transaction to the account.
+    
+    await store.addTransaction({
+        title: `${props.type === 'buy' ? 'Bought' : 'Sold'} ${form.quantity} ${props.holding.symbol}`,
+        amount: totalAmount,
+        date: isoDate,
+        type: props.type === 'buy' ? 'expense' : 'income',
+        accountId: accountId,
+        notes: `Price: ${form.price}, Fees: ${form.fees || 0}`
+    });
+
+    emit('saved');
+  } catch (error) {
+    console.error(`Error logging ${props.type}:`, error);
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+</script>
+
+<template>
+  <Teleport to="body">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        class="absolute inset-0 bg-black/50"
+        @click="emit('close')"
+      />
+      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white capitalize">
+            {{ type }} {{ holding?.symbol }}
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Log a new {{ type }} transaction for this asset.
+          </p>
+        </div>
+
+        <div class="p-6 overflow-y-auto">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <DatePicker 
+                v-model="form.date" 
+                date-format="yy-mm-dd"
+                class="w-full"
+                input-class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+              <input
+                v-model.number="form.quantity"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+              <p
+                v-if="type === 'sell'"
+                class="text-[10px] text-gray-500 mt-1 italic"
+              >
+                Max available: {{ holding?.quantity }}
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per Share</label>
+              <input
+                v-model.number="form.price"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fees (Optional)</label>
+              <input
+                v-model.number="form.fees"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <!-- Summary -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
+              <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span>Total Cash Value:</span>
+                <span
+                  :class="type === 'buy' ? 'text-expense' : 'text-income'"
+                  class="font-bold"
+                >
+                  <span v-if="type==='buy'">-</span><span v-else>+</span>
+                  ${{ (((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0))).toFixed(2) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end space-x-3">
+          <button
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            @click="emit('close')"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-6 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors flex items-center capitalize"
+            :disabled="!form.quantity || form.price === null || isSubmitting"
+            @click="submit"
+          >
+            <i
+              v-if="isSubmitting"
+              class="pi pi-spinner animate-spin mr-2"
+            />
+            Confirm {{ type }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>

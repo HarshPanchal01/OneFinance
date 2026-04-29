@@ -16,7 +16,7 @@ export interface Category {
   type: "income" | "expense" | "both";
 }
 
-export type AccountClassification = "liquid" | "asset" | "liability";
+export type AccountClassification = "liquid" | "asset" | "liability" | "investment";
 
 export interface AccountType{
   id: number
@@ -32,6 +32,35 @@ export interface Account{
   balance?: number
   accountTypeId: number
   isDefault: boolean
+}
+
+export interface InvestmentHolding {
+  id: number;
+  accountId: number;
+  symbol: string;
+  name: string | null;
+  quantity: number;
+  lastPrice: number | null;
+  lastUpdated: string | null;
+}
+
+export type InvestmentTransactionType = 'buy' | 'sell' | 'drip';
+
+export interface InvestmentTransaction {
+  id: number;
+  holdingId: number;
+  date: string;
+  type: InvestmentTransactionType;
+  quantity: number;
+  price: number;
+  fees: number;
+}
+
+export interface InvestmentHistory {
+  id: number;
+  accountId: number;
+  date: string;
+  totalValue: number;
 }
 
 export type RecurringFrequency = "weekly" | "bi-weekly" | "monthly" | "yearly";

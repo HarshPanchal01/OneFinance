@@ -35,7 +35,8 @@
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
-    "primevue": "^4.5.4"
+    "primevue": "^4.5.4",
+    "yahoo-finance2": "^3.14.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

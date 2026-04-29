@@ -1,0 +1,266 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useFinanceStore } from '@/stores/finance';
+import { InvestmentHolding } from '@/types';
+import AmountDisplay from '@/components/AmountDisplay.vue';
+import AddHoldingModal from './components/AddHoldingModal.vue';
+import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
+
+const store = useFinanceStore();
+
+const investmentAccounts = computed(() => {
+  return store.accounts.filter(account => {
+    const type = store.accountTypes.find(t => t.id === account.accountTypeId);
+    return type?.classification === 'investment';
+  });
+});
+
+const selectedAccountId = ref<number | null>(null);
+const showAddHoldingModal = ref(false);
+const isRefreshing = ref(false);
+
+const showTransactionModal = ref(false);
+const selectedHolding = ref<InvestmentHolding | null>(null);
+const transactionType = ref<'buy' | 'sell' | null>(null);
+
+onMounted(async () => {
+  await store.fetchAccounts();
+  await store.fetchAccountTypes();
+  await store.fetchInvestmentHoldings();
+});
+
+async function refreshPrices() {
+  isRefreshing.value = true;
+  await store.refreshInvestmentPrices();
+  await store.fetchAccounts(); // Refresh balances
+  isRefreshing.value = false;
+}
+
+function openAddHolding(accountId: number) {
+  selectedAccountId.value = accountId;
+  showAddHoldingModal.value = true;
+}
+
+async function handleHoldingAdded() {
+  showAddHoldingModal.value = false;
+  if (selectedAccountId.value) {
+    await store.fetchInvestmentHoldings(selectedAccountId.value);
+    await store.fetchAccounts();
+  }
+}
+
+function openTransactionModal(holding: InvestmentHolding, type: 'buy' | 'sell') {
+  selectedHolding.value = holding;
+  transactionType.value = type;
+  showTransactionModal.value = true;
+}
+
+async function handleTransactionSaved() {
+  showTransactionModal.value = false;
+  selectedHolding.value = null;
+  transactionType.value = null;
+  // Refresh data
+  await store.fetchAccounts();
+  await store.fetchInvestmentHoldings();
+}
+
+function getAccountTypeLabel(typeId: number) {
+  return store.accountTypes.find(t => t.id === typeId)?.type || 'Unknown';
+}
+
+async function removeHolding(id: number) {
+  if (confirm("Are you sure you want to remove this asset?")) {
+    await store.removeInvestmentHolding(id);
+    await store.fetchAccounts();
+  }
+}
+</script>
+
+<template>
+  <div class="flex flex-col h-full overflow-hidden">
+    <header class="flex items-center justify-between mb-6 shrink-0">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          Investments
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400">
+          Manage your portfolios and track holdings.
+        </p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button
+          class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          :disabled="isRefreshing"
+          @click="refreshPrices"
+        >
+          <i :class="['pi pi-refresh mr-2', { 'animate-spin': isRefreshing }]" />
+          Refresh Prices
+        </button>
+        <!-- For adding a new account, we could redirect to the accounts view or handle it here -->
+        <!-- Since we wanted them separate, let's add a button here too -->
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto min-h-0 space-y-6 pb-6">
+      <div
+        v-if="investmentAccounts.length === 0"
+        class="flex flex-col items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700"
+      >
+        <i class="pi pi-briefcase text-4xl text-gray-300 dark:text-gray-600 mb-3" />
+        <p class="text-gray-500 dark:text-gray-400">
+          No investment accounts found.
+        </p>
+        <p class="text-sm text-gray-400 dark:text-gray-500 mb-4">
+          Add an account with an investment classification to get started.
+        </p>
+      </div>
+
+      <div
+        v-for="account in investmentAccounts"
+        :key="account.id"
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+      >
+        <!-- Account Header -->
+        <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-gray-900 dark:text-white">
+                {{ account.accountName }}
+              </h3>
+              <span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium">
+                {{ getAccountTypeLabel(account.accountTypeId) }}
+              </span>
+            </div>
+            <p
+              v-if="account.institutionName"
+              class="text-xs text-gray-500 dark:text-gray-400"
+            >
+              {{ account.institutionName }}
+            </p>
+          </div>
+          <div class="text-right">
+            <AmountDisplay
+              :amount="account.balance || 0"
+              class="text-lg font-bold text-gray-900 dark:text-white"
+            />
+            <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+              Total Value
+            </p>
+          </div>
+        </div>
+
+        <!-- Holdings Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/30 dark:bg-gray-800/30">
+              <tr>
+                <th class="px-4 py-2 font-semibold">
+                  Symbol
+                </th>
+                <th class="px-4 py-2 font-semibold">
+                  Name
+                </th>
+                <th class="px-4 py-2 font-semibold text-right">
+                  Quantity
+                </th>
+                <th class="px-4 py-2 font-semibold text-right">
+                  Price
+                </th>
+                <th class="px-4 py-2 font-semibold text-right">
+                  Market Value
+                </th>
+                <th class="px-4 py-2 font-semibold text-right">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+              <tr
+                v-for="holding in store.investmentHoldings.filter(h => h.accountId === account.id)"
+                :key="holding.id"
+                class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                  {{ holding.symbol }}
+                </td>
+                <td class="px-4 py-3 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                  {{ holding.name || '---' }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                  {{ holding.quantity }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                  <AmountDisplay :amount="holding.lastPrice || 0" />
+                </td>
+                <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
+                  <AmountDisplay :amount="holding.quantity * (holding.lastPrice || 0)" />
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end space-x-2">
+                    <button 
+                      class="px-2 py-1 text-xs font-semibold bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
+                      title="Buy Asset"
+                      @click="openTransactionModal(holding, 'buy')"
+                    >
+                      Buy
+                    </button>
+                    <button 
+                      class="px-2 py-1 text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
+                      title="Sell Asset"
+                      @click="openTransactionModal(holding, 'sell')"
+                    >
+                      Sell
+                    </button>
+                    <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+                    <button 
+                      class="p-1 text-gray-400 hover:text-red-500 transition-colors" 
+                      title="Remove Holding"
+                      @click="removeHolding(holding.id)"
+                    >
+                      <i class="pi pi-trash" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id).length === 0">
+                <td
+                  colspan="6"
+                  class="px-4 py-8 text-center text-gray-400 dark:text-gray-500 italic"
+                >
+                  No holdings in this account.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Account Footer/Actions -->
+        <div class="p-3 bg-gray-50/30 dark:bg-gray-800/30 flex justify-end">
+          <button
+            class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center"
+            @click="openAddHolding(account.id)"
+          >
+            <i class="pi pi-plus-circle mr-1.5" />
+            Add Holding
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <AddHoldingModal
+      v-if="showAddHoldingModal"
+      :account-id="selectedAccountId"
+      @close="showAddHoldingModal = false"
+      @added="handleHoldingAdded"
+    />
+
+    <TransactionHoldingModal
+      v-if="showTransactionModal"
+      :holding="selectedHolding"
+      :type="transactionType"
+      @close="showTransactionModal = false"
+      @saved="handleTransactionSaved"
+    />
+  </div>
+</template>

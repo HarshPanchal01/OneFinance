@@ -81,6 +81,15 @@
       "accountTypeId": 1,
       "isDefault": 0,
       "balance": 854.5300000000002
+    },
+    {
+      "id": 10,
+      "accountName": "Wealthsimple RRSP",
+      "institutionName": "Wealthsimple",
+      "startingBalance": 1000,
+      "accountTypeId": 11,
+      "isDefault": 0,
+      "balance": 15000
     }
   ],
   "transactions": [
@@ -6044,6 +6053,11 @@
       "id": 7,
       "type": "Vehicle",
       "classification": "asset"
+    },
+    {
+      "id": 11,
+      "type": "RRSP",
+      "classification": "investment"
     }
   ],
   "ledgerYears": [
@@ -6120,6 +6134,81 @@
       "nextRunDate": "2026-05-01",
       "isActive": 1,
       "isExpenseTransfer": 0
+    }
+  ],
+  "investmentHoldings": [
+    {
+      "id": 1,
+      "accountId": 10,
+      "symbol": "VFV.TO",
+      "name": "Vanguard S&P 500 Index ETF",
+      "quantity": 100,
+      "lastPrice": 125.5,
+      "lastUpdated": "2026-05-01T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "accountId": 10,
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "quantity": 10,
+      "lastPrice": 185.2,
+      "lastUpdated": "2026-05-01T12:00:00.000Z"
+    }
+  ],
+  "investmentTransactions": [
+    {
+      "id": 1,
+      "holdingId": 1,
+      "date": "2025-01-15",
+      "type": "buy",
+      "quantity": 50,
+      "price": 110,
+      "fees": 0
+    },
+    {
+      "id": 2,
+      "holdingId": 1,
+      "date": "2026-01-15",
+      "type": "buy",
+      "quantity": 50,
+      "price": 120,
+      "fees": 0
+    },
+    {
+      "id": 3,
+      "holdingId": 2,
+      "date": "2025-06-10",
+      "type": "buy",
+      "quantity": 10,
+      "price": 150,
+      "fees": 0
+    }
+  ],
+  "investmentHistory": [
+    {
+      "id": 1,
+      "accountId": 10,
+      "date": "2025-01-31",
+      "totalValue": 5500
+    },
+    {
+      "id": 2,
+      "accountId": 10,
+      "date": "2025-06-30",
+      "totalValue": 7500
+    },
+    {
+      "id": 3,
+      "accountId": 10,
+      "date": "2026-01-31",
+      "totalValue": 13500
+    },
+    {
+      "id": 4,
+      "accountId": 10,
+      "date": "2026-04-30",
+      "totalValue": 14402
     }
   ]
 }

@@ -117,7 +117,7 @@ function migrate1to2(db: any): void {
 
   // Add classification to accountType
   try {
-    db.exec("ALTER TABLE accountType ADD COLUMN classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability'))");
+    db.exec("ALTER TABLE accountType ADD COLUMN classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability', 'investment'))");
   } catch (e) {
     const error = e as any;
     if (!error?.message?.includes('duplicate column name')) {
@@ -142,5 +142,46 @@ function migrate1to2(db: any): void {
     if (!error?.message?.includes('duplicate column name')) {
       console.error('[Migration] Migration error adding isExpenseTransfer to recurring_transactions:', error);
     }
+  }
+
+  // Add Investment Tables
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS investment_holdings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        accountId INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        name TEXT,
+        quantity REAL NOT NULL,
+        lastPrice REAL,
+        lastUpdated TEXT,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+      )
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS investment_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        holdingId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'drip')),
+        quantity REAL NOT NULL,
+        price REAL NOT NULL,
+        fees REAL DEFAULT 0,
+        FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
+      )
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS investment_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        accountId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        totalValue REAL NOT NULL,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating investment tables:', e);
   }
 }

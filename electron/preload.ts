@@ -1,8 +1,49 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
 const electronAPI = {
+  // ============================================
+  // INVESTMENT
+  // ============================================
+
+  getInvestmentHoldings: (accountId?: number): Promise<InvestmentHolding[]> =>
+    ipcRenderer.invoke("db:getInvestmentHoldings", accountId),
+
+  createInvestmentHolding: (data: Omit<InvestmentHolding, 'id'>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:createInvestmentHolding", data),
+
+  updateInvestmentHolding: (id: number, data: Partial<InvestmentHolding>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:updateInvestmentHolding", id, data),
+
+  deleteInvestmentHolding: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteInvestmentHolding", id),
+
+  getInvestmentTransactions: (holdingId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getInvestmentTransactions", holdingId),
+
+  createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
+    ipcRenderer.invoke("db:createInvestmentTransaction", data),
+
+  getInvestmentHistory: (accountId: number): Promise<InvestmentHistory[]> =>
+    ipcRenderer.invoke("db:getInvestmentHistory", accountId),
+
+  createInvestmentHistoryEntry: (accountId: number, totalValue: number, date: string): Promise<InvestmentHistory> =>
+    ipcRenderer.invoke("db:createInvestmentHistoryEntry", accountId, totalValue, date),
+
+  // ============================================
+  // FINANCE
+  // ============================================
+
+  getQuote: (symbol: string): Promise<any> =>
+    ipcRenderer.invoke("finance:getQuote", symbol),
+
+  getQuotes: (symbols: string[]): Promise<any[]> =>
+    ipcRenderer.invoke("finance:getQuotes", symbols),
+
+  searchSymbols: (query: string): Promise<any[]> =>
+    ipcRenderer.invoke("finance:searchSymbols", query),
+
   // ============================================
   // RECURRING TRANSACTIONS
   // ============================================

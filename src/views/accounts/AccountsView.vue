@@ -17,8 +17,6 @@ const emit = defineEmits<{
 
 const store = useFinanceStore();
 
-//Deep copy because the compiler is stupid and can't handle nested reactives
-const accounts = store.accounts.filter(() => true);
 const accountsTypeArray = store.accountTypes.filter(() => true);
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 
@@ -31,7 +29,7 @@ const isEdit = ref(false);
 let accountEditId = 0;
 
 const state = reactive({
-  accountArray: accounts,
+  accountArray: store.accounts,
   accountTypeArray: accountsTypeArray
 });
 
@@ -222,7 +220,6 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 ]"
                 @click="form.classification = 'liquid'; form.accountType = null;"
               >
-                <i class="pi pi-wallet mr-2" />
                 Liquid
               </button>
               <button
@@ -237,7 +234,6 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 ]"
                 @click="form.classification = 'liability'; form.accountType = null;"
               >
-                <i class="pi pi-credit-card mr-2" />
                 Liability
               </button>
               <button
@@ -250,10 +246,23 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                     : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
                   !isEdit && form.classification !== 'asset' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
                 ]"
-                @click="form.classification = 'asset'; form.accountType = null;"
+                @click="form.classification = 'asset'; form.accountType = null; form.isDefault = false;"
               >
-                <i class="pi pi-building mr-2" />
                 Asset
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'investment'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'investment' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'investment'; form.accountType = null; form.isDefault = false;"
+              >
+                Investment
               </button>
             </div>
 
@@ -314,7 +323,10 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 </option>
               </select>
             </div>
-            <div class="flex items-center space-x-2">
+            <div
+              v-if="form.classification !== 'asset' && form.classification !== 'investment'"
+              class="flex items-center space-x-2"
+            >
               <input
                 v-model="form.isDefault"
                 type="checkbox"
@@ -356,3 +368,7 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
     <ErrorModal ref="errorModal" />
   </div>
 </template>
+e>
+>
+e>
+>

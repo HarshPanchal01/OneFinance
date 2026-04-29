@@ -14,6 +14,9 @@ import type {
   DailyTransactionSum,
   LedgerMonth,
   RecurringTransaction,
+  InvestmentHolding,
+  InvestmentTransaction,
+  InvestmentHistory,
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -61,6 +64,11 @@ export const useFinanceStore = defineStore("finance", () => {
   const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number, liquidBalance: number }[]>([]);
+
+  // Investment State
+  const investmentHoldings = ref<InvestmentHolding[]>([]);
+  const investmentTransactions = ref<InvestmentTransaction[]>([]);
+  const investmentHistory = ref<InvestmentHistory[]>([]);
 
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load
@@ -325,6 +333,7 @@ export const useFinanceStore = defineStore("finance", () => {
   async function fetchAccounts(){
     const accountsRaw = await window.electronAPI.getAccounts();
     const transactionsRaw = await window.electronAPI.getTransactions();
+    const holdingsRaw = await window.electronAPI.getInvestmentHoldings();
 
     accountsRaw.forEach(account => {
       // Find transactions where this account is either the source or the destination
@@ -339,7 +348,12 @@ export const useFinanceStore = defineStore("finance", () => {
         }
         return sum;
       }, 0);
-      account.balance = account.startingBalance + transactionSum;
+
+      // Add investment holdings value
+      const accountHoldings = holdingsRaw.filter(h => h.accountId === account.id);
+      const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+
+      account.balance = account.startingBalance + transactionSum + holdingsValue;
     });
 
     accounts.value = accountsRaw;
@@ -685,6 +699,105 @@ export const useFinanceStore = defineStore("finance", () => {
       return false;
     }
   }
+
+  // ============================================
+  // ACTIONS - Investments
+  // ============================================
+
+  async function fetchInvestmentHoldings(accountId?: number) {
+    investmentHoldings.value = await window.electronAPI.getInvestmentHoldings(accountId);
+  }
+
+  async function fetchInvestmentTransactions(holdingId: number) {
+    investmentTransactions.value = await window.electronAPI.getInvestmentTransactions(holdingId);
+  }
+
+  async function fetchInvestmentHistory(accountId: number) {
+    investmentHistory.value = await window.electronAPI.getInvestmentHistory(accountId);
+  }
+
+  async function addInvestmentHolding(data: Omit<InvestmentHolding, 'id'>) {
+    const newHolding = await window.electronAPI.createInvestmentHolding(data);
+    if (newHolding) {
+      await fetchInvestmentHoldings(data.accountId);
+    }
+    return newHolding;
+  }
+
+  async function editInvestmentHolding(id: number, data: Partial<InvestmentHolding>) {
+    const updated = await window.electronAPI.updateInvestmentHolding(id, data);
+    if (updated) {
+      const index = investmentHoldings.value.findIndex(h => h.id === id);
+      if (index !== -1) {
+        investmentHoldings.value[index] = updated;
+      }
+    }
+    return updated;
+  }
+
+  async function removeInvestmentHolding(id: number) {
+    const holding = investmentHoldings.value.find(h => h.id === id);
+    const success = await window.electronAPI.deleteInvestmentHolding(id);
+    if (success && holding) {
+      investmentHoldings.value = investmentHoldings.value.filter(h => h.id !== id);
+    }
+    return success;
+  }
+
+  async function addInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>) {
+    const newTx = await window.electronAPI.createInvestmentTransaction(data);
+    if (newTx) {
+      // Find the holding to know which account to refresh
+      const holding = investmentHoldings.value.find(h => h.id === data.holdingId);
+      if (holding) {
+        await fetchInvestmentHoldings(holding.accountId);
+        await fetchInvestmentTransactions(data.holdingId);
+        // Also refresh accounts because investment balance might change
+        await fetchAccounts();
+      }
+    }
+    return newTx;
+  }
+
+  async function refreshInvestmentPrices() {
+    if (investmentHoldings.value.length === 0) return;
+    
+    const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
+    try {
+      const quotes = await window.electronAPI.getQuotes(symbols);
+      
+      for (const quote of quotes) {
+        // Update all holdings with this symbol in DB
+        const holdingsToUpdate = investmentHoldings.value.filter(h => h.symbol === quote.symbol);
+        for (const holding of holdingsToUpdate) {
+          await window.electronAPI.updateInvestmentHolding(holding.id, {
+            lastPrice: quote.price,
+            lastUpdated: quote.updatedAt,
+            name: quote.name
+          });
+        }
+      }
+
+      // Refresh store state
+      await fetchInvestmentHoldings();
+      await fetchAccounts();
+
+      // Record history for each investment account
+      const investmentAccounts = accounts.value.filter(a => {
+        const type = accountTypes.value.find(at => at.id === a.accountTypeId);
+        return type?.classification === 'investment';
+      });
+
+      const today = new Date().toISOString().split('T')[0];
+      for (const acc of investmentAccounts) {
+          await window.electronAPI.createInvestmentHistoryEntry(acc.id, acc.balance || 0, today);
+      }
+
+    } catch (e) {
+      console.error("[Store] Failed to refresh investment prices:", e);
+    }
+  }
+
   async function searchTransactions(options: SearchOptions) {
     // If no criteria provided, clear search
     const hasCriteria = 
@@ -838,7 +951,10 @@ export const useFinanceStore = defineStore("finance", () => {
     categories?: Category[],
     accountTypes?: AccountType[],
     ledgerYears?: number[],
-    recurringTransactions?: RecurringTransaction[]
+    recurringTransactions?: RecurringTransaction[],
+    investmentHoldings?: InvestmentHolding[],
+    investmentTransactions?: InvestmentTransaction[],
+    investmentHistory?: InvestmentHistory[]
   }, skipDuplicates: boolean, isReplace: boolean = false): Promise<boolean> {
 
     const importAccounts = data.accounts!;
@@ -847,11 +963,15 @@ export const useFinanceStore = defineStore("finance", () => {
     const importAccountTypes = data.accountTypes!;
     const importLedgerYears = data.ledgerYears!;
     const importRecurringTransactions = data.recurringTransactions || [];
+    const importInvestmentHoldings = data.investmentHoldings || [];
+    const importInvestmentTransactions = data.investmentTransactions || [];
+    const importInvestmentHistory = data.investmentHistory || [];
 
     const accountTypeIdMap = new Map<number, number>();
     const categoryTypeIdMap = new Map<number, number>();
     const accountIdMap = new Map<number, number>();
     const recurringIdMap = new Map<number, number>();
+    const holdingIdMap = new Map<number, number>();
 
     try {
       for (const accountType of importAccountTypes){
@@ -1074,6 +1194,100 @@ export const useFinanceStore = defineStore("finance", () => {
           });
           console.log(`Inserting transaction ${transaction.title} completed`);
       }
+
+      for (const holding of importInvestmentHoldings) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(holding.accountId);
+          const existing = investmentHoldings.value.find(h => h.accountId === mappedAccountId && h.symbol === holding.symbol);
+          if (existing) {
+            holdingIdMap.set(holding.id, existing.id);
+            console.log(`Skipping inserting existing holding ${holding.symbol}`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(holding.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for holding id: " + holding.id);
+        }
+
+        const result = await addInvestmentHolding({
+          accountId: mappedAccountId,
+          symbol: holding.symbol,
+          name: holding.name,
+          quantity: holding.quantity,
+          lastPrice: holding.lastPrice,
+          lastUpdated: holding.lastUpdated
+        });
+
+        console.log(`Inserting holding ${holding.symbol} completed`);
+        if (result == null) {
+          throw new Error("Resulting Id from inserting holding is null");
+        }
+        holdingIdMap.set(holding.id, result.id);
+      }
+
+      for (const tx of importInvestmentTransactions) {
+        if (!isReplace && skipDuplicates) {
+          const mappedHoldingId = holdingIdMap.get(tx.holdingId);
+          const existing = investmentTransactions.value.find(t => 
+            t.holdingId === mappedHoldingId && t.date === tx.date && t.type === tx.type && t.quantity === tx.quantity
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment transaction`);
+            continue;
+          }
+        }
+
+        const mappedHoldingId = holdingIdMap.get(tx.holdingId);
+        if (mappedHoldingId == undefined) {
+          throw new Error("Holding id mapping not found for investment transaction id: " + tx.id);
+        }
+
+        await addInvestmentTransaction({
+          holdingId: mappedHoldingId,
+          date: tx.date,
+          type: tx.type,
+          quantity: tx.quantity,
+          price: tx.price,
+          fees: tx.fees
+        });
+      }
+
+      // Reset holding quantities to their exported values since adding transactions artificially inflates them
+      for (const holding of importInvestmentHoldings) {
+        const mappedHoldingId = holdingIdMap.get(holding.id);
+        if (mappedHoldingId !== undefined) {
+          await window.electronAPI.updateInvestmentHolding(mappedHoldingId, {
+            quantity: holding.quantity
+          });
+        }
+      }
+
+      for (const hist of importInvestmentHistory) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(hist.accountId);
+          const existing = investmentHistory.value.find(h => 
+            h.accountId === mappedAccountId && h.date === hist.date && h.totalValue === hist.totalValue
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment history`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(hist.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for investment history id: " + hist.id);
+        }
+
+        await window.electronAPI.createInvestmentHistoryEntry(
+          mappedAccountId,
+          hist.totalValue,
+          hist.date
+        );
+      }
+
     }
    catch (error) {
       console.log(error);
@@ -1119,6 +1333,9 @@ export const useFinanceStore = defineStore("finance", () => {
     dashboardBreakdown,
     monthlyTrends,
     netWorthTrends,
+    investmentHoldings,
+    investmentTransactions,
+    investmentHistory,
     isLoading,
     isChangingPeriod,
     error,
@@ -1153,6 +1370,14 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchRollingMonthlyTrends,
     fetchNetWorthTrend,
     fetchPacingData,
+    fetchInvestmentHoldings,
+    fetchInvestmentTransactions,
+    fetchInvestmentHistory,
+    addInvestmentHolding,
+    editInvestmentHolding,
+    removeInvestmentHolding,
+    addInvestmentTransaction,
+    refreshInvestmentPrices,
     addTransaction,
     editTransaction,
     removeTransaction,

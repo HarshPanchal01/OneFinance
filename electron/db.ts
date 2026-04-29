@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -123,7 +123,7 @@ export function initializeDatabase(): void {
     CREATE TABLE IF NOT EXISTS accountType (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL,
-      classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability'))
+      classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability', 'investment'))
     )
   `);
 
@@ -179,6 +179,45 @@ export function initializeDatabase(): void {
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
       FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE,
       FOREIGN KEY (recurringId) REFERENCES recurring_transactions(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Investment Holdings - Track individual assets within an investment account
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_holdings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      symbol TEXT NOT NULL,
+      name TEXT,
+      quantity REAL NOT NULL,
+      lastPrice REAL,
+      lastUpdated TEXT,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment Transactions - Track buys, sells, and drips
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      holdingId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'drip')),
+      quantity REAL NOT NULL,
+      price REAL NOT NULL,
+      fees REAL DEFAULT 0,
+      FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment History - Track total account value over time
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      totalValue REAL NOT NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
 
@@ -311,6 +350,7 @@ function seedDefaultCategories(): void {
     { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag", type: "expense" },
     { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt", type: "expense" },
     { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart", type: "expense" },
+    { name: "Dividend", colorCode: "#84cc16", icon: "pi-percentage", type: "income" },
     { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h", type: "both" },
   ];
 
@@ -334,6 +374,11 @@ function seedDefaultAccountData(): void{
     {type: "Mortgage", classification: "liability"},
     {type: "Vehicle", classification: "asset"},
     {type: "House", classification: "asset"},
+    {type: "Investment", classification: "investment"},
+    {type: "TFSA", classification: "investment"},
+    {type: "RRSP", classification: "investment"},
+    {type: "FHSA", classification: "investment"},
+    {type: "Crypto", classification: "investment"},
   ];
 
   const defaultAccounts = [
@@ -1202,6 +1247,114 @@ export function toggleRecurringTransactionActive(id: number, isActive: boolean):
   }
   
   return result.changes > 0;
+}
+
+// ============================================
+// INVESTMENT FUNCTIONS
+// ============================================
+
+export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
+  let query = "SELECT * FROM investment_holdings";
+  const params: any[] = [];
+  
+  if (accountId) {
+    query += " WHERE accountId = ?";
+    params.push(accountId);
+  }
+  
+  return db.prepare(query).all(...params) as InvestmentHolding[];
+}
+
+export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
+  const insert = db.prepare(`
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = insert.run(
+    data.accountId,
+    data.symbol,
+    data.name,
+    data.quantity,
+    data.lastPrice,
+    data.lastUpdated
+  );
+  
+  return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
+}
+
+export function updateInvestmentHolding(id: number, data: Partial<InvestmentHolding>): InvestmentHolding {
+  const current = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
+  
+  const update = db.prepare(`
+    UPDATE investment_holdings 
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?
+    WHERE id = ?
+  `);
+  
+  update.run(
+    data.symbol ?? current.symbol,
+    data.name !== undefined ? data.name : current.name,
+    data.quantity ?? current.quantity,
+    data.lastPrice ?? current.lastPrice,
+    data.lastUpdated ?? current.lastUpdated,
+    id
+  );
+  
+  return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
+}
+
+export function deleteInvestmentHolding(id: number): boolean {
+  const result = db.prepare("DELETE FROM investment_holdings WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function getInvestmentTransactions(holdingId: number): InvestmentTransaction[] {
+  return db.prepare("SELECT * FROM investment_transactions WHERE holdingId = ? ORDER BY date DESC").all(holdingId) as InvestmentTransaction[];
+}
+
+export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>): InvestmentTransaction {
+  const insert = db.prepare(`
+    INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = insert.run(
+    data.holdingId,
+    data.date,
+    data.type,
+    data.quantity,
+    data.price,
+    data.fees
+  );
+  
+  // Update the holding quantity automatically
+  const holding = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(data.holdingId) as InvestmentHolding;
+  let newQuantity = holding.quantity;
+  
+  if (data.type === 'buy' || data.type === 'drip') {
+    newQuantity += data.quantity;
+  } else if (data.type === 'sell') {
+    newQuantity -= data.quantity;
+  }
+  
+  db.prepare("UPDATE investment_holdings SET quantity = ? WHERE id = ?").run(newQuantity, data.holdingId);
+  
+  return db.prepare("SELECT * FROM investment_transactions WHERE id = ?").get(result.lastInsertRowid) as InvestmentTransaction;
+}
+
+export function getInvestmentHistory(accountId: number): InvestmentHistory[] {
+  return db.prepare("SELECT * FROM investment_history WHERE accountId = ? ORDER BY date ASC").all(accountId) as InvestmentHistory[];
+}
+
+export function createInvestmentHistoryEntry(accountId: number, totalValue: number, date: string): InvestmentHistory {
+  const insert = db.prepare(`
+    INSERT INTO investment_history (accountId, totalValue, date)
+    VALUES (?, ?, ?)
+  `);
+  
+  const result = insert.run(accountId, totalValue, date);
+  return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(result.lastInsertRowid) as InvestmentHistory;
 }
 
 // Export the database instance for advanced operations if needed

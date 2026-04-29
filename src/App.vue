@@ -16,11 +16,13 @@ import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
 import InsightsView from "@/views/insights/InsightsView.vue";
 import RecurringView from "@/views/recurring/RecurringView.vue";
+import PortfolioView from "@/views/investments/PortfolioView.vue";
+import InvestmentInsightsView from "@/views/investments/InvestmentInsightsView.vue";
   
 const store = useFinanceStore();
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring";
+type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
@@ -205,6 +207,8 @@ function handleKeydown(e: KeyboardEvent) {
             @request-view-transactions="handleRequestViewTransactions"
           />
           <InsightsView v-else-if="currentView === 'insights'" />
+          <PortfolioView v-else-if="currentView === 'investments'" />
+          <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
           <RecurringView 
             v-else-if="currentView === 'recurring'" 
             @request-view-transactions="handleRequestViewTransactions"
