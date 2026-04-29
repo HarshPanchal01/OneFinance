@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { InvestmentHolding } from '@/types';
 import DatePicker from 'primevue/datepicker';
+import { useFormatter } from '@/composables/useFormatter';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -15,6 +16,19 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const { formatCurrency } = useFormatter();
+
+const cashBalance = computed(() => {
+  if (!props.holding) return 0;
+  const accountId = props.holding.accountId;
+  const account = store.accounts.find(a => a.id === accountId);
+  if (!account) return 0;
+  
+  const accountHoldings = store.investmentHoldings.filter(h => h.accountId === accountId);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  
+  return (account.balance || 0) - holdingsValue;
+});
 
 const isSubmitting = ref(false);
 
@@ -159,13 +173,16 @@ async function submit() {
             <!-- Summary -->
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span>Total Cash Value:</span>
-                <span
-                  :class="type === 'buy' ? 'text-expense' : 'text-income'"
-                  class="font-bold"
-                >
-                  <span v-if="type==='buy'">-</span><span v-else>+</span>
-                  ${{ (((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0))).toFixed(2) }}
+                <span>Total Cash:</span>
+                <span class="font-bold text-gray-900 dark:text-white">
+                  {{ formatCurrency(cashBalance) }}
+                  <span
+                    :class="type === 'buy' ? 'text-expense' : 'text-income'"
+                    class="ml-1"
+                  >
+                    <span v-if="type==='buy'">-</span><span v-else>+</span>
+                    {{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}
+                  </span>
                 </span>
               </div>
             </div>

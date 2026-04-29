@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import DatePicker from 'primevue/datepicker';
+import { useFormatter } from '@/composables/useFormatter';
 
 const props = defineProps<{
   accountId: number | null;
@@ -12,6 +14,18 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const { formatCurrency } = useFormatter();
+
+const cashBalance = computed(() => {
+  if (!props.accountId) return 0;
+  const account = store.accounts.find(a => a.id === props.accountId);
+  if (!account) return 0;
+  
+  const accountHoldings = store.investmentHoldings.filter(h => h.accountId === props.accountId);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  
+  return (account.balance || 0) - holdingsValue;
+});
 
 const searchResults = ref<any[]>([]);
 const isSearching = ref(false);
@@ -22,6 +36,9 @@ const form = reactive({
   symbol: '',
   name: '',
   quantity: null as number | null,
+  date: new Date() as any,
+  price: null as number | null,
+  fees: 0 as number | null,
 });
 
 let searchTimeout: any = null;
@@ -45,43 +62,63 @@ watch(searchQuery, (newQuery) => {
   }, 300);
 });
 
-function selectSymbol(result: any) {
+async function selectSymbol(result: any) {
   form.symbol = result.symbol;
   form.name = result.name;
   searchQuery.value = result.symbol;
   searchResults.value = [];
+  try {
+    const quote = await window.electronAPI.getQuote(result.symbol);
+    if (quote && quote.price) {
+      form.price = quote.price;
+    }
+  } catch (e) {
+    console.error("Failed to fetch initial price for symbol", e);
+  }
 }
 
 async function submit() {
-  if (!props.accountId || !form.symbol) return;
+  if (!props.accountId || !form.symbol || !form.quantity || form.price === null) return;
   
   isSubmitting.value = true;
   try {
-    // Get latest price for the selected symbol to seed the holding
-    const quote = await window.electronAPI.getQuote(form.symbol);
-    
-    await store.addInvestmentHolding({
-      accountId: props.accountId,
-      symbol: form.symbol,
-      name: form.name || quote.name,
-      quantity: form.quantity || 0,
-      lastPrice: quote.price,
-      lastUpdated: new Date().toISOString()
-    });
-    
-    emit('added');
-  } catch (error) {
-    console.error("Error adding holding:", error);
-    // Fallback if price fetch fails
-    await store.addInvestmentHolding({
+    const isoDate = new Date(form.date.getTime() - form.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+    // Create holding with 0 quantity initially, the transaction will update it
+    const holding = await store.addInvestmentHolding({
       accountId: props.accountId,
       symbol: form.symbol,
       name: form.name,
-      quantity: form.quantity || 0,
-      lastPrice: 0,
+      quantity: 0,
+      lastPrice: form.price,
       lastUpdated: new Date().toISOString()
     });
+    
+    if (holding) {
+      await store.addInvestmentTransaction({
+        holdingId: holding.id,
+        date: isoDate,
+        type: 'buy',
+        quantity: form.quantity,
+        price: form.price,
+        fees: form.fees || 0
+      });
+
+      const totalAmount = (form.quantity * form.price) + (form.fees || 0);
+      
+      await store.addTransaction({
+          title: `Bought ${form.quantity} ${form.symbol}`,
+          amount: totalAmount,
+          date: isoDate,
+          type: 'expense',
+          accountId: props.accountId,
+          notes: `Price: ${form.price}, Fees: ${form.fees || 0}`
+      });
+    }
+
     emit('added');
+  } catch (error) {
+    console.error("Error adding holding:", error);
   } finally {
     isSubmitting.value = false;
   }
@@ -167,17 +204,60 @@ async function submit() {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Initial Quantity</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <DatePicker 
+                v-model="form.date" 
+                date-format="yy-mm-dd"
+                class="w-full"
+                input-class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
               <input
                 v-model.number="form.quantity"
                 type="number"
                 step="any"
+                min="0"
                 placeholder="0.00"
                 class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
               />
-              <p class="text-[10px] text-gray-500 mt-1 italic">
-                You can add buy/sell transactions later for better tracking.
-              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per Share</label>
+              <input
+                v-model.number="form.price"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fees (Optional)</label>
+              <input
+                v-model.number="form.fees"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              />
+            </div>
+
+            <!-- Summary -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
+              <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span>Total Cash:</span>
+                <span class="font-bold text-gray-900 dark:text-white">
+                  {{ formatCurrency(cashBalance) }}
+                  <span class="text-expense ml-1">- {{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -191,7 +271,7 @@ async function submit() {
           </button>
           <button
             class="px-6 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors flex items-center"
-            :disabled="!form.symbol || isSubmitting"
+            :disabled="!form.symbol || !form.quantity || form.price === null || isSubmitting"
             @click="submit"
           >
             <i

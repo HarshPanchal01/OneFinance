@@ -5,8 +5,10 @@ import { InvestmentHolding } from '@/types';
 import AmountDisplay from '@/components/AmountDisplay.vue';
 import AddHoldingModal from './components/AddHoldingModal.vue';
 import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
+import { useFormatter } from '@/composables/useFormatter';
 
 const store = useFinanceStore();
+const { getCurrencySymbol } = useFormatter();
 
 const investmentAccounts = computed(() => {
   return store.accounts.filter(account => {
@@ -73,6 +75,14 @@ async function removeHolding(id: number) {
     await store.removeInvestmentHolding(id);
     await store.fetchAccounts();
   }
+}
+
+function getAccountCashBalance(accountId: number) {
+  const account = store.accounts.find(a => a.id === accountId);
+  if (!account) return 0;
+  const accountHoldings = store.investmentHoldings.filter(h => h.accountId === accountId);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  return (account.balance || 0) - holdingsValue;
 }
 </script>
 
@@ -220,6 +230,26 @@ async function removeHolding(id: number) {
                       <i class="pi pi-trash" />
                     </button>
                   </div>
+                </td>
+              </tr>
+              <tr class="bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
+                <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                  {{ getCurrencySymbol() }}
+                </td>
+                <td class="px-4 py-3 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                  Uninvested Cash
+                </td>
+                <td class="px-4 py-3 text-right text-gray-400 dark:text-gray-600">
+                  ---
+                </td>
+                <td class="px-4 py-3 text-right text-gray-400 dark:text-gray-600">
+                  ---
+                </td>
+                <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
+                  <AmountDisplay :amount="getAccountCashBalance(account.id)" />
+                </td>
+                <td class="px-4 py-3 text-right text-gray-400 dark:text-gray-600">
+                  ---
                 </td>
               </tr>
               <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id).length === 0">

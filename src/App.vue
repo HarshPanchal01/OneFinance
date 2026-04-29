@@ -89,6 +89,15 @@ onMounted(async () => {
 
   await store.initialize();
 
+  // Auto-fetch investment prices on startup
+  await store.fetchInvestmentHoldings();
+  store.refreshInvestmentPrices();
+
+  // Refresh investment prices every 30 minutes
+  window.setInterval(() => {
+    store.refreshInvestmentPrices();
+  }, 30 * 60 * 1000);
+
   // Listen for background recurring transactions
   window.electronAPI.onRecurringProcessed(async () => {
     console.log("Background recurring transactions processed, refreshing...");
