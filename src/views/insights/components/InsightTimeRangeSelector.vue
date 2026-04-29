@@ -95,7 +95,7 @@ function onDatePickerHide() {
     />
     <select 
       :value="localValue"
-      class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[8rem] z-10 relative"
+      class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[6.5rem] z-10 relative"
       @change="onSelectChange"
     >
       <option value="thisMonth">

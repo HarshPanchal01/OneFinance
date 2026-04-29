@@ -1,7 +1,7 @@
 {
   "name": "onefinance",
   "productName": "OneFinance",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A local-first personal finance management cross-platform desktop application.",
   "author": {
     "name": "OneFinance Team",
@@ -42,7 +42,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@vitejs/plugin-vue": "^6.0.3",
     "@vue/compiler-sfc": "^3.5.26",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.5.0",
     "electron": "^39.8.5",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.2",
@@ -54,7 +54,7 @@
     "vite": "^7.3.2",
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5",
-    "vue": "^3.5.32",
+    "vue": "^3.5.33",
     "vue-tsc": "^3.2.7"
   },
   "overrides": {

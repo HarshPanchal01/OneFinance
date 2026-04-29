@@ -223,26 +223,27 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Cash Flow -->
       <div class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Cash Flow
-          </h3>
-          <!-- Custom Legend -->
-          <div class="flex flex-row gap-4">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-1.5 rounded-sm bg-income shrink-0" />
+        <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-income shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Income</span>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-1.5 rounded-sm bg-expense shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Expenses</span>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-expense shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Expenses</span>
             </div>
           </div>
 
-          <div>
+          <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center">
+            Cash Flow
+          </h3>
+
+          <div class="z-10">
             <select
               v-model="cashFlowOption"
-              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
             >
               <option value="YTD">
                 YTD
@@ -264,24 +265,25 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
       <!-- Spending Pacing -->
       <div class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Spending Pacing
-          </h3>
-          <!-- Custom Legend -->
-          <div class="flex flex-row gap-4">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-1.5 rounded-sm bg-primary-500 shrink-0" />
+        <div class="relative flex items-center justify-between mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="hidden xl:flex flex-row gap-4">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-primary-500 shrink-0" />
               <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Current</span>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-1.5 rounded-sm bg-amber-400 shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Comparison</span>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-amber-400 shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Comparison</span>
             </div>
           </div>
 
-          <!-- Date Pickers for Pacing -->
-          <div class="flex flex-wrap items-center gap-2">
+          <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center xl:text-left">
+            Spending Pacing
+          </h3>
+
+          <!-- Date Pickers for Pacing (Right) -->
+          <div class="flex items-center gap-1 sm:gap-2 z-10 justify-end">
             <!-- Target Month Picker -->            
             <div class="relative">                                       
               <DatePicker                       
@@ -296,15 +298,15 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
               />
                                                       
               <button 
-                class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
+                class="flex items-center gap-1 px-1.5 py-0.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
               >                                        
-                <span class="text-xs font-semibold text-primary-500 whitespace-nowrap">
-                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}                                 
+                <span class="text-[10px] font-semibold text-primary-500 whitespace-nowrap">
+                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Month' }}                                 
                 </span>                               
               </button>                                        
             </div>
 
-            <span class="text-gray-400 text-xs">vs</span>
+            <span class="text-gray-400 text-[10px]">vs</span>
 
             <!-- Comparison Picker -->
             <div class="relative">
@@ -319,10 +321,10 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
                 :panel-style="{ minWidth: '18rem' }"
               />
               <button
-                class="flex items-center gap-1.5 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
+                class="flex items-center gap-1 px-1.5 py-0.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
               >
-                <span class="text-xs font-semibold text-amber-500 whitespace-nowrap">
-                  {{ pacingDateB ? pacingDateB.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month' }}
+                <span class="text-[10px] font-semibold text-amber-500 whitespace-nowrap">
+                  {{ pacingDateB ? pacingDateB.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Month' }}
                 </span>
               </button>
             </div>
@@ -344,38 +346,48 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     <!-- Charts Row 2 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Expense Breakdown -->
-      <div class="card p-4 lg:col-span-1 flex flex-col">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
-            Expense Breakdown
-          </h3>
+      <div class="card p-4 lg:col-span-1 flex flex-col relative">
+        <div class="absolute top-4 right-4 z-20">
           <InsightTimeRangeSelector
             v-model:model-value="expenseBreakdownTimeRange"
             v-model:custom-range="expenseBreakdownCustomDate"
           />
         </div>
-        <div class="h-72">
+        <div class="flex-1">
           <ExpenseBreakdownChart
             :breakdown="expenseBreakdownData"
             :time-range="expenseBreakdownTimeRange"
             :custom-range="getCustomRangeObj(expenseBreakdownCustomDate)"
           />
         </div>
-        <div class="text-xs text-gray-400 mt-1 pl-1">
+        <div class="text-xs text-gray-400 mt-auto pt-4 pl-1">
           Based on {{ getTimeRangeLabel(expenseBreakdownTimeRange, getCustomRangeObj(expenseBreakdownCustomDate)) }}
         </div>
       </div>
 
       <!-- Net Worth Trend -->
       <div class="card p-4 lg:col-span-2 flex flex-col">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 min-h-[32px]">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+        <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-[#0ea5e9] shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Total</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm border-2 border-dashed border-[#22c55e] shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquid</span>
+            </div>
+          </div>
+
+          <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center">
             Net Worth Trend
           </h3>
-          <div>
+
+          <div class="z-10">
             <select
               v-model="netWorthOption"
-              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
             >
               <option value="YTD">
                 YTD
@@ -390,7 +402,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </select>
           </div>
         </div>
-        <div class="h-72">
+        <div class="h-64 xl:h-72">
           <NetWorthChart :option="netWorthOption" />
         </div>
       </div>

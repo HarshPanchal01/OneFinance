@@ -22,8 +22,8 @@ const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { formatCurrency, formatDate } = useFormatter();
 const isIncome = computed(() => props.transaction.type === "income");
-const isExpense = computed(() => props.transaction.type === "expense");
-const isTransfer = computed(() => props.transaction.type === "transfer");
+const isExpense = computed(() => props.transaction.type === "expense" || (props.transaction.type === "transfer" && props.transaction.isExpenseTransfer));
+const isTransfer = computed(() => props.transaction.type === "transfer" && !props.transaction.isExpenseTransfer);
 
 const accountName = computed(() => {
   if (!props.transaction.accountId) return null;
@@ -70,7 +70,7 @@ const transferToAccountName = computed(() => {
         >
           <i
             :class="['pi', isTransfer ? 'pi-sync' : (transaction.categoryIcon || 'pi-tag')]"
-            :style="{ color: isTransfer ? '#3b82f6' : (transaction.categoryColor || '#6b7280') }"
+            :style="{ color: isTransfer ? '#3b82f6' : (transaction.categoryColor || '#ef4444') }"
           />
         </div>
 
@@ -80,7 +80,7 @@ const transferToAccountName = computed(() => {
             {{ transaction.title }}
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 truncate">
-            <template v-if="isTransfer">
+            <template v-if="transaction.type === 'transfer'">
               <span>Transfer</span>
               <span class="mx-0.5 shrink-0">•</span>
               <button
@@ -96,6 +96,10 @@ const transferToAccountName = computed(() => {
               >
                 {{ transferToAccountName }}
               </button>
+              <template v-if="transaction.isExpenseTransfer">
+                <span class="mx-0.5 shrink-0">•</span>
+                <span class="truncate">{{ transaction.categoryName || "Uncategorized" }}</span>
+              </template>
             </template>
             <template v-else>
               <span class="truncate">{{ transaction.categoryName || "Uncategorized" }}</span>

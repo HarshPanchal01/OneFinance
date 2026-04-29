@@ -37,11 +37,19 @@ import { computed, ref, watch } from 'vue';
 
     const props = defineProps<Props>();
 
-    const accountType = computed(() =>
+    const accountTypeObj = computed(() =>
       props.accountTypeId != null
-        ? store.accountTypes.find((t) => t.id === props.accountTypeId)?.type ?? 'N/A'
-        : 'N/A'
+        ? store.accountTypes.find((t) => t.id === props.accountTypeId)
+        : null
     );
+
+    const accountType = computed(() => accountTypeObj.value?.type ?? 'N/A');
+    const accountClassification = computed(() => accountTypeObj.value?.classification ?? 'liquid');
+
+    const displayBalance = computed(() => {
+      const rawBalance = props.balance ?? props.startingBalance;
+      return accountClassification.value === 'liability' ? Math.abs(rawBalance) : rawBalance;
+    });
 
     watch(() => props.isHighlighted, (newVal) => {
       if (newVal && tileRef.value) {
@@ -60,18 +68,21 @@ import { computed, ref, watch } from 'vue';
     ]"
   >
     <div class="flex flex-col">
-      <p class="font-medium text-gray-900 dark:text-white">
+      <p 
+        class="font-semibold transition-colors text-gray-900 dark:text-white"
+      >
         {{ props.accountName }}
       </p>
-      <p class="text-sm text-gray-500 dark:text-gray-400">
-        {{ props.institutionName }} • Type: {{ accountType }} 
+      <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
+        <span>{{ props.institutionName }} • Type: {{ accountType }}</span>
+        
         <span
           v-if="props.isDefault"
-          class="ml-2 px-1.5 py-0.5 text-xs font-semibold text-white bg-primary-500 rounded"
+          class="px-1.5 py-0.5 text-xs font-semibold text-white bg-primary-500 rounded"
         >Default</span>
-      </p>
+      </div>
       <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
-        Balance: <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(props.balance ?? props.startingBalance) }}</span>
+        Balance: <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(displayBalance) }}</span>
       </p>
     </div>
 

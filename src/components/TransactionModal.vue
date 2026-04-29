@@ -46,6 +46,7 @@ const form = ref({
   accountId: null as number | null,
   transferAccountId: null as number | null,
   notes: "",
+  isExpenseTransfer: false,
 });
 
 // Get default date based on current period or today
@@ -80,11 +81,16 @@ watch(
           accountId: props.transaction.accountId,
           transferAccountId: props.transaction.transferAccountId || null,
           notes: props.transaction.notes || "",
+          isExpenseTransfer: !!props.transaction.isExpenseTransfer,
         };
       } else {
         // Create mode - use current period's month/year for date
-        // Find default account
-        const defaultAccount = store.accounts.find(a => a.isDefault);
+        // Find default account that is not an asset (since default type is expense)
+        const validAccounts = store.accounts.filter(a => {
+          const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
+          return typeObj?.classification !== 'asset';
+        });
+        const defaultAccount = validAccounts.find(a => a.isDefault);
         
         form.value = {
           title: "",
@@ -92,9 +98,10 @@ watch(
           date: getDefaultDate(),
           type: "expense",
           categoryId: null,
-          accountId: defaultAccount ? defaultAccount.id : (store.accounts[0]?.id),
+          accountId: defaultAccount ? defaultAccount.id : (validAccounts[0]?.id),
           transferAccountId: null,
           notes: "",
+          isExpenseTransfer: false,
         };
       }
     }
@@ -109,8 +116,30 @@ const modalTitle = computed(() =>
 
 // Filter categories by type (optional)
 const filteredCategories = computed(() => 
-  store.categories.filter(c => c.type === form.value.type || c.type === "both")
+  store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense'))
 );
+
+// Filter accounts by transaction type (Assets only allowed for transfers)
+const filteredAccounts = computed(() => {
+  if (form.value.type === 'transfer') {
+    return store.accounts;
+  }
+  return store.accounts.filter(a => {
+    const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
+    return typeObj?.classification !== 'asset';
+  });
+});
+
+function handleTypeChange(newType: "income" | "expense" | "transfer") {
+  form.value.type = newType;
+  if (newType !== 'transfer') {
+    form.value.isExpenseTransfer = false;
+    const isCurrentAccountValid = filteredAccounts.value.some(a => a.id === form.value.accountId);
+    if (!isCurrentAccountValid) {
+      form.value.accountId = filteredAccounts.value[0]?.id ?? null;
+    }
+  }
+}
 
 // Create another
 const createAnother = ref(false);
@@ -135,10 +164,11 @@ async function save() {
       amount: form.value.amount ?? 0,
       date: form.value.date,
       type: form.value.type,
-      categoryId: form.value.type === 'transfer' ? undefined : (form.value.categoryId ?? undefined),
+      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer) ? undefined : (form.value.categoryId ?? undefined),
       accountId: form.value.accountId!,
       transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? undefined) : undefined,
       notes: form.value.notes || undefined,
+      isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
     };
 
     if (isEditing.value && props.transaction) {
@@ -215,7 +245,7 @@ function close() {
                   ? 'bg-expense text-white'
                   : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
               ]"
-              @click="form.type = 'expense'"
+              @click="handleTypeChange('expense')"
             >
               <i class="pi pi-arrow-down mr-2" />
               Expense
@@ -227,7 +257,7 @@ function close() {
                   ? 'bg-income text-white'
                   : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
               ]"
-              @click="form.type = 'income'"
+              @click="handleTypeChange('income')"
             >
               <i class="pi pi-arrow-up mr-2" />
               Income
@@ -239,7 +269,7 @@ function close() {
                   ? 'bg-primary-500 text-white'
                   : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
               ]"
-              @click="form.type = 'transfer'"
+              @click="handleTypeChange('transfer')"
             >
               <i class="pi pi-sync mr-2" />
               Transfer
@@ -302,7 +332,7 @@ function close() {
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option
-                  v-for="account in store.accounts"
+                  v-for="account in filteredAccounts"
                   :key="account.id"
                   :value="account.id"
                 >
@@ -322,7 +352,7 @@ function close() {
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option
-                  v-for="account in store.accounts"
+                  v-for="account in filteredAccounts"
                   :key="account.id"
                   :value="account.id"
                   :disabled="account.id === form.accountId"
@@ -333,8 +363,25 @@ function close() {
             </div>
           </div>
 
+          <!-- Transfer Expense Toggle -->
+          <div
+            v-if="form.type === 'transfer'"
+            class="flex items-center space-x-2 pt-1 pb-1"
+          >
+            <input
+              id="isExpenseTransfer"
+              v-model="form.isExpenseTransfer"
+              type="checkbox"
+              class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+            />
+            <label
+              for="isExpenseTransfer"
+              class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >Log as Expense</label>
+          </div>
+
           <!-- Category -->
-          <div v-if="form.type !== 'transfer'">
+          <div v-if="form.type !== 'transfer' || form.isExpenseTransfer">
             <label
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
