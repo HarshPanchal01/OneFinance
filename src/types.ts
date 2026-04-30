@@ -44,7 +44,7 @@ export interface InvestmentHolding {
   lastUpdated: string | null;
 }
 
-export type InvestmentTransactionType = 'buy' | 'sell' | 'drip';
+export type InvestmentTransactionType = 'buy' | 'sell';
 
 export interface InvestmentTransaction {
   id: number;

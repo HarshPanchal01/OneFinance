@@ -180,7 +180,7 @@ function migrate1to2(db: any): void {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         holdingId INTEGER NOT NULL,
         date TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'drip')),
+        type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
         quantity REAL NOT NULL,
         price REAL NOT NULL,
         fees REAL DEFAULT 0,

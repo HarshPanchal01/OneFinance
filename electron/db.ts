@@ -352,7 +352,6 @@ function seedDefaultCategories(): void {
     { name: "Shopping", colorCode: "#ec4899", icon: "pi-shopping-bag", type: "expense" },
     { name: "Bills & Utilities", colorCode: "#eab308", icon: "pi-bolt", type: "expense" },
     { name: "Healthcare", colorCode: "#14b8a6", icon: "pi-heart", type: "expense" },
-    { name: "Dividend", colorCode: "#84cc16", icon: "pi-percentage", type: "income" },
     { name: "Other", colorCode: "#6b7280", icon: "pi-ellipsis-h", type: "both" },
   ];
 
@@ -1306,6 +1305,16 @@ export function getAccountInvestmentTransactions(accountId: number): InvestmentT
   `).all(accountId) as (InvestmentTransaction & { holdingSymbol: string })[];
 }
 
+export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
+  return db.prepare(`
+    SELECT t.*, c.name as categoryName, c.colorCode as categoryColor, c.icon as categoryIcon 
+    FROM transactions t 
+    LEFT JOIN categories c ON t.categoryId = c.id 
+    WHERE t.accountId = ? OR t.transferAccountId = ?
+    ORDER BY t.date DESC
+  `).all(accountId, accountId) as TransactionWithCategory[];
+}
+
 export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>): InvestmentTransaction {
   const insert = db.prepare(`
     INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees)
@@ -1325,7 +1334,7 @@ export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'i
   const holding = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(data.holdingId) as InvestmentHolding;
   let newQuantity = holding.quantity;
   
-  if (data.type === 'buy' || data.type === 'drip') {
+  if (data.type === 'buy') {
     newQuantity += data.quantity;
   } else if (data.type === 'sell') {
     newQuantity -= data.quantity;

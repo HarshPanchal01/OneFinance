@@ -30,6 +30,7 @@ const transactionType = ref<'buy' | 'sell' | null>(null);
 const showHistoryModal = ref(false);
 const historyHolding = ref<InvestmentHolding | null>(null);
 const historyAccountId = ref<number | null>(null);
+const historyIsCash = ref(false);
 
 const showAdjustCashModal = ref(false);
 const adjustCashAccountId = ref<number | null>(null);
@@ -70,12 +71,21 @@ function openTransactionModal(holding: InvestmentHolding, type: 'buy' | 'sell') 
 function openHistoryModal(holding: InvestmentHolding) {
   historyHolding.value = holding;
   historyAccountId.value = null;
+  historyIsCash.value = false;
   showHistoryModal.value = true;
 }
 
 function openAccountHistory(accountId: number) {
   historyHolding.value = null;
   historyAccountId.value = accountId;
+  historyIsCash.value = false;
+  showHistoryModal.value = true;
+}
+
+function openCashHistory(accountId: number) {
+  historyHolding.value = null;
+  historyAccountId.value = accountId;
+  historyIsCash.value = true;
   showHistoryModal.value = true;
 }
 
@@ -291,13 +301,34 @@ function getAccountCashBalance(accountId: number) {
                   <AmountDisplay :amount="getAccountCashBalance(account.id)" />
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <button 
-                    class="p-1.5 text-gray-400 hover:text-primary-500 transition-colors" 
-                    title="Adjust Cash Balance"
-                    @click="openAdjustCash(account.id, getAccountCashBalance(account.id))"
-                  >
-                    <i class="pi pi-pencil" />
-                  </button>
+                  <div class="flex items-center justify-end space-x-2">
+                    <div
+                      class="flex items-center space-x-2 shrink-0 opacity-0 pointer-events-none"
+                      aria-hidden="true"
+                    >
+                      <button class="px-2 py-1 text-xs font-semibold">
+                        Buy
+                      </button>
+                      <button class="px-2 py-1 text-xs font-semibold">
+                        Sell
+                      </button>
+                    </div>
+                    <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+                    <button 
+                      class="p-1 text-gray-400 hover:text-primary-500 transition-colors" 
+                      title="Cash History"
+                      @click="openCashHistory(account.id)"
+                    >
+                      <i class="pi pi-history" />
+                    </button>
+                    <button 
+                      class="p-1.5 text-gray-400 hover:text-primary-500 transition-colors" 
+                      title="Adjust Cash Balance"
+                      @click="openAdjustCash(account.id, getAccountCashBalance(account.id))"
+                    >
+                      <i class="pi pi-pencil" />
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id).length === 0">
@@ -345,6 +376,7 @@ function getAccountCashBalance(accountId: number) {
       v-if="showHistoryModal"
       :holding="historyHolding"
       :account-id="historyAccountId"
+      :is-cash="historyIsCash"
       @close="showHistoryModal = false"
     />
 

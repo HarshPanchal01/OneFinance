@@ -25,6 +25,9 @@ const electronAPI = {
   getAccountInvestmentTransactions: (accountId: number): Promise<InvestmentTransaction[]> =>
     ipcRenderer.invoke("db:getAccountInvestmentTransactions", accountId),
 
+  getAccountTransactions: (accountId: number): Promise<TransactionWithCategory[]> =>
+    ipcRenderer.invoke("db:getAccountTransactions", accountId),
+
   createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
     ipcRenderer.invoke("db:createInvestmentTransaction", data),
 

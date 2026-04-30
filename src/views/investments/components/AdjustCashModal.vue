@@ -15,7 +15,7 @@ const emit = defineEmits<{
 const store = useFinanceStore();
 
 const amount = ref<number | null>(null);
-const notes = ref("Dividend / Cash Adjustment");
+const notes = ref("Cash Adjustment");
 const isSubmitting = ref(false);
 
 async function submit() {

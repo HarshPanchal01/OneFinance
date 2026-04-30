@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { InvestmentHolding, InvestmentTransaction } from '@/types';
+import { InvestmentHolding } from '@/types';
 import { useFormatter } from '@/composables/useFormatter';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
   accountId?: number | null;
+  isCash?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -14,13 +15,15 @@ const emit = defineEmits<{
 
 const { formatDate, formatCurrency } = useFormatter();
 
-const transactions = ref<(InvestmentTransaction & { holdingSymbol?: string })[]>([]);
+const transactions = ref<any[]>([]);
 const isLoading = ref(true);
 
 onMounted(async () => {
   try {
     if (props.holding) {
       transactions.value = await window.electronAPI.getInvestmentTransactions(props.holding.id);
+    } else if (props.isCash && props.accountId) {
+      transactions.value = await window.electronAPI.getAccountTransactions(props.accountId);
     } else if (props.accountId) {
       transactions.value = await window.electronAPI.getAccountInvestmentTransactions(props.accountId);
     }
@@ -46,7 +49,15 @@ onMounted(async () => {
               Activity History
             </h3>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-              {{ holding ? `Transaction ledger for ${holding.symbol}` : 'All trades for this account' }}
+              <template v-if="holding">
+                Transaction ledger for {{ holding.symbol }}
+              </template>
+              <template v-else-if="isCash">
+                Cash adjustments and transfers
+              </template>
+              <template v-else>
+                All trades for this account
+              </template>
             </p>
           </div>
           <button
@@ -68,8 +79,73 @@ onMounted(async () => {
             v-else-if="transactions.length === 0"
             class="p-8 text-center text-gray-500"
           >
-            No trades found.
+            No records found.
           </div>
+
+          <!-- Cash Mode Table -->
+          <table
+            v-else-if="isCash"
+            class="w-full text-sm text-left"
+          >
+            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/50 dark:bg-gray-800/50 sticky top-0 z-10">
+              <tr>
+                <th class="px-6 py-3 font-semibold">
+                  Date
+                </th>
+                <th class="px-6 py-3 font-semibold">
+                  Type
+                </th>
+                <th class="px-6 py-3 font-semibold">
+                  Description
+                </th>
+                <th class="px-6 py-3 font-semibold text-right">
+                  Amount
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+              <tr
+                v-for="tx in transactions"
+                :key="tx.id"
+                class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                <td class="px-6 py-4 text-gray-900 dark:text-white whitespace-nowrap">
+                  {{ formatDate(tx.date) }}
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    :class="[
+                      'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
+                      tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
+                      'bg-income-light text-income dark:bg-income/20'
+                    ]"
+                  >
+                    {{ tx.type }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                  <p class="font-bold">
+                    {{ tx.title }}
+                  </p>
+                  <p
+                    v-if="tx.notes"
+                    class="text-xs italic"
+                  >
+                    {{ tx.notes }}
+                  </p>
+                </td>
+                <td
+                  class="px-6 py-4 text-right font-bold whitespace-nowrap"
+                  :class="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId) ? 'text-expense' : 'text-income'"
+                >
+                  <span v-if="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId)">-</span><span v-else>+</span>
+                  {{ formatCurrency(tx.amount) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Trades Mode Table (Default) -->
           <table
             v-else
             class="w-full text-sm text-left"
@@ -121,8 +197,7 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
-                      tx.type === 'buy' ? 'bg-expense-light text-expense dark:bg-expense/20' : 
-                      (tx.type === 'sell' ? 'bg-income-light text-income dark:bg-income/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30')
+                      tx.type === 'buy' ? 'bg-expense-light text-expense dark:bg-expense/20' : 'bg-income-light text-income dark:bg-income/20'
                     ]"
                   >
                     {{ tx.type }}
