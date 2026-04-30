@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { toIsoDateString, getExpenseBreakdownForRange } from "@/utils";
+import { toIsoDateString, getExpenseBreakdownForRange, type ImportData } from "@/utils";
 import type {
   Category,
   Account,
@@ -954,17 +954,7 @@ export const useFinanceStore = defineStore("finance", () => {
   // SETTINGS ACTIONS
   // ==================================
 
-  async function importDatabaseData(data: {
-    accounts?: Account[],
-    transactions?: TransactionWithCategory[],
-    categories?: Category[],
-    accountTypes?: AccountType[],
-    ledgerYears?: number[],
-    recurringTransactions?: RecurringTransaction[],
-    investmentHoldings?: InvestmentHolding[],
-    investmentTransactions?: InvestmentTransaction[],
-    investmentHistory?: InvestmentHistory[]
-  }, skipDuplicates: boolean, isReplace: boolean = false): Promise<boolean> {
+  async function importDatabaseData(data: ImportData, skipDuplicates: boolean = false, isReplace: boolean = false): Promise<boolean> {
 
     const importAccounts = data.accounts!;
     const importTransactions = data.transactions!;

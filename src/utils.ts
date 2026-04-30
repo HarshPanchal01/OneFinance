@@ -43,20 +43,22 @@ export function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
 }
 
+export interface ImportData {
+  databaseVersion?: number;
+  accounts?: Account[];
+  transactions?: TransactionWithCategory[];
+  categories?: Category[];
+  accountTypes?: AccountType[];
+  ledgerYears?: number[];
+  recurringTransactions?: RecurringTransaction[];
+  investmentHoldings?: any[];
+  investmentTransactions?: any[];
+  investmentHistory?: any[];
+  investmentAdjustments?: any[];
+}
+
 export function verifyImportData(
-  data: {
-    databaseVersion?: number;
-    accounts?: Account[];
-    transactions?: TransactionWithCategory[];
-    categories?: Category[];
-    accountTypes?: AccountType[];
-    ledgerYears?: number[];
-    recurringTransactions?: RecurringTransaction[];
-    investmentHoldings?: any[];
-    investmentTransactions?: any[];
-    investmentHistory?: any[];
-    investmentAdjustments?: any[];
-  },
+  data: ImportData,
   currentDatabaseVersion: number
 ): { success: boolean; reason?: string } {
   try {

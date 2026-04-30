@@ -116,9 +116,9 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
+                      tx.type === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' :
                       tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
-                      (tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
-                      'bg-income-light text-income dark:bg-income/20')
+                      'bg-income-light text-income dark:bg-income/20'
                     ]"
                   >
                     {{ tx.recordType === 'adjustment' ? 'adjustment' : tx.type }}
@@ -136,9 +136,17 @@ onMounted(async () => {
                   </p>
                 </td>
                 <td
-                  class="px-6 py-4 text-right font-bold whitespace-nowrap text-gray-900 dark:text-white"
+                  class="px-6 py-4 text-right font-bold whitespace-nowrap"
+                  :class="[
+                    tx.recordType === 'trade' ? 'text-gray-900 dark:text-white' : 
+                    (tx.amount < 0 ? 'text-expense' : 'text-income')
+                  ]"
                 >
-                  {{ formatCurrency(tx.amount) }}
+                  <template v-if="tx.recordType !== 'trade'">
+                    <span v-if="tx.amount < 0">-</span>
+                    <span v-else>+</span>
+                  </template>
+                  {{ formatCurrency(Math.abs(tx.amount)) }}
                 </td>
               </tr>
             </tbody>
@@ -197,6 +205,7 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
+                      tx.type === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' :
                       tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
                       tx.recordType === 'cash' ? 'bg-gray-100 text-gray-500 dark:bg-gray-700/50' :
                       (tx.type === 'buy' ? 'bg-income-light text-income dark:bg-income/20' : 'bg-expense-light text-expense dark:bg-expense/20')
@@ -215,9 +224,17 @@ onMounted(async () => {
                   {{ tx.fees ? formatCurrency(tx.fees) : '---' }}
                 </td>
                 <td
-                  class="px-4 py-4 text-right font-bold whitespace-nowrap text-gray-900 dark:text-white"
+                  class="px-4 py-4 text-right font-bold whitespace-nowrap"
+                  :class="[
+                    tx.recordType === 'trade' ? 'text-gray-900 dark:text-white' : 
+                    (tx.amount < 0 ? 'text-expense' : 'text-income')
+                  ]"
                 >
-                  {{ formatCurrency(tx.amount) }}
+                  <template v-if="tx.recordType !== 'trade'">
+                    <span v-if="tx.amount < 0">-</span>
+                    <span v-else>+</span>
+                  </template>
+                  {{ formatCurrency(Math.abs(tx.amount)) }}
                 </td>
               </tr>
             </tbody>

@@ -1364,12 +1364,15 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
-      t.amount as amount
+      CASE 
+        WHEN t.accountId = ? THEN -t.amount -- Outflow from this account
+        ELSE t.amount -- Inflow to this account (transferAccountId)
+      END as amount
     FROM transactions t
     WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
 
     ORDER BY date DESC
-  `).all(accountId, accountId, accountId, accountId) as any[];
+  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
 }
 
 export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
@@ -1474,13 +1477,16 @@ export function getCombinedCashHistory(accountId: number): any[] {
       t.date,
       t.type,
       t.title,
-      t.amount,
+      CASE 
+        WHEN t.accountId = ? THEN -t.amount -- Outflow
+        ELSE t.amount -- Inflow
+      END as amount,
       t.accountId
     FROM transactions t
     WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
 
     ORDER BY date DESC
-  `).all(accountId, accountId, accountId) as any[];
+  `).all(accountId, accountId, accountId, accountId) as any[];
 }
 // Export the database instance for advanced operations if needed
 export default db;
