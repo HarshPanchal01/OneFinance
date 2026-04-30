@@ -125,13 +125,21 @@ function migrate1to2(db: any): void {
     }
   }
 
-  // Add isExpenseTransfer
+  // Add isExpenseTransfer and isIncomeTransfer
   try {
     db.exec("ALTER TABLE transactions ADD COLUMN isExpenseTransfer BOOLEAN DEFAULT 0");
   } catch (e) {
     const error = e as any;
     if (!error?.message?.includes('duplicate column name')) {
       console.error('[Migration] Migration error adding isExpenseTransfer to transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE transactions ADD COLUMN isIncomeTransfer BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding isIncomeTransfer to transactions:', error);
     }
   }
 
@@ -141,6 +149,14 @@ function migrate1to2(db: any): void {
     const error = e as any;
     if (!error?.message?.includes('duplicate column name')) {
       console.error('[Migration] Migration error adding isExpenseTransfer to recurring_transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN isIncomeTransfer BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding isIncomeTransfer to recurring_transactions:', error);
     }
   }
 

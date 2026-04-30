@@ -5,6 +5,8 @@ import { InvestmentHolding } from '@/types';
 import AmountDisplay from '@/components/AmountDisplay.vue';
 import AddHoldingModal from './components/AddHoldingModal.vue';
 import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
+import TradeHistoryModal from './components/TradeHistoryModal.vue';
+import AdjustCashModal from './components/AdjustCashModal.vue';
 import { useFormatter } from '@/composables/useFormatter';
 
 const store = useFinanceStore();
@@ -24,6 +26,14 @@ const isRefreshing = ref(false);
 const showTransactionModal = ref(false);
 const selectedHolding = ref<InvestmentHolding | null>(null);
 const transactionType = ref<'buy' | 'sell' | null>(null);
+
+const showHistoryModal = ref(false);
+const historyHolding = ref<InvestmentHolding | null>(null);
+const historyAccountId = ref<number | null>(null);
+
+const showAdjustCashModal = ref(false);
+const adjustCashAccountId = ref<number | null>(null);
+const adjustCashCurrentValue = ref(0);
 
 onMounted(async () => {
   await store.fetchAccounts();
@@ -55,6 +65,24 @@ function openTransactionModal(holding: InvestmentHolding, type: 'buy' | 'sell') 
   selectedHolding.value = holding;
   transactionType.value = type;
   showTransactionModal.value = true;
+}
+
+function openHistoryModal(holding: InvestmentHolding) {
+  historyHolding.value = holding;
+  historyAccountId.value = null;
+  showHistoryModal.value = true;
+}
+
+function openAccountHistory(accountId: number) {
+  historyHolding.value = null;
+  historyAccountId.value = accountId;
+  showHistoryModal.value = true;
+}
+
+function openAdjustCash(accountId: number, currentCash: number) {
+  adjustCashAccountId.value = accountId;
+  adjustCashCurrentValue.value = currentCash;
+  showAdjustCashModal.value = true;
 }
 
 async function handleTransactionSaved() {
@@ -106,8 +134,6 @@ function getAccountCashBalance(accountId: number) {
           <i :class="['pi pi-refresh mr-2', { 'animate-spin': isRefreshing }]" />
           Refresh Prices
         </button>
-        <!-- For adding a new account, we could redirect to the accounts view or handle it here -->
-        <!-- Since we wanted them separate, let's add a button here too -->
       </div>
     </header>
 
@@ -132,21 +158,30 @@ function getAccountCashBalance(accountId: number) {
       >
         <!-- Account Header -->
         <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
-          <div>
-            <div class="flex items-center space-x-2">
-              <h3 class="font-bold text-gray-900 dark:text-white">
-                {{ account.accountName }}
-              </h3>
-              <span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium">
-                {{ getAccountTypeLabel(account.accountTypeId) }}
-              </span>
+          <div class="flex items-center space-x-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="font-bold text-gray-900 dark:text-white">
+                  {{ account.accountName }}
+                </h3>
+                <span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium">
+                  {{ getAccountTypeLabel(account.accountTypeId) }}
+                </span>
+              </div>
+              <p
+                v-if="account.institutionName"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ account.institutionName }}
+              </p>
             </div>
-            <p
-              v-if="account.institutionName"
-              class="text-xs text-gray-500 dark:text-gray-400"
+            <button 
+              class="p-2 text-gray-400 hover:text-primary-500 transition-colors" 
+              title="Account Activity"
+              @click="openAccountHistory(account.id)"
             >
-              {{ account.institutionName }}
-            </p>
+              <i class="pi pi-history" />
+            </button>
           </div>
           <div class="text-right">
             <AmountDisplay
@@ -223,6 +258,13 @@ function getAccountCashBalance(accountId: number) {
                     </button>
                     <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
                     <button 
+                      class="p-1 text-gray-400 hover:text-primary-500 transition-colors" 
+                      title="Trade History"
+                      @click="openHistoryModal(holding)"
+                    >
+                      <i class="pi pi-history" />
+                    </button>
+                    <button 
                       class="p-1 text-gray-400 hover:text-red-500 transition-colors" 
                       title="Remove Holding"
                       @click="removeHolding(holding.id)"
@@ -248,8 +290,14 @@ function getAccountCashBalance(accountId: number) {
                 <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
                   <AmountDisplay :amount="getAccountCashBalance(account.id)" />
                 </td>
-                <td class="px-4 py-3 text-right text-gray-400 dark:text-gray-600">
-                  ---
+                <td class="px-4 py-3 text-right">
+                  <button 
+                    class="p-1.5 text-gray-400 hover:text-primary-500 transition-colors" 
+                    title="Adjust Cash Balance"
+                    @click="openAdjustCash(account.id, getAccountCashBalance(account.id))"
+                  >
+                    <i class="pi pi-pencil" />
+                  </button>
                 </td>
               </tr>
               <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id).length === 0">
@@ -291,6 +339,21 @@ function getAccountCashBalance(accountId: number) {
       :type="transactionType"
       @close="showTransactionModal = false"
       @saved="handleTransactionSaved"
+    />
+
+    <TradeHistoryModal
+      v-if="showHistoryModal"
+      :holding="historyHolding"
+      :account-id="historyAccountId"
+      @close="showHistoryModal = false"
+    />
+
+    <AdjustCashModal
+      v-if="showAdjustCashModal"
+      :account-id="adjustCashAccountId!"
+      :current-cash="adjustCashCurrentValue"
+      @close="showAdjustCashModal = false"
+      @saved="() => { showAdjustCashModal = false; store.fetchAccounts(); }"
     />
   </div>
 </template>

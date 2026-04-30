@@ -68,27 +68,6 @@ async function submit() {
       price: form.price,
       fees: form.fees || 0
     });
-    
-    // We also need to add a transaction to the actual account to subtract/add cash
-    // For buy: negative cash flow. For sell: positive cash flow.
-    const totalAmount = (form.quantity * form.price) + (props.type === 'buy' ? (form.fees || 0) : -(form.fees || 0));
-    
-    const accountId = props.holding.accountId;
-    
-    // In OneFinance, transactions usually require a category. For buy/sell of investments,
-    // they act as transfers to/from the investment holding, but since holdings aren't accounts in `transactions` table,
-    // we use a standard 'expense' or 'income' to reflect the cash leaving/entering the investment account's cash balance.
-    // However, the user is directly buying/selling inside the investment account. 
-    // Usually, the cash balance is part of the account. So we will log an income/expense transaction to the account.
-    
-    await store.addTransaction({
-        title: `${props.type === 'buy' ? 'Bought' : 'Sold'} ${form.quantity} ${props.holding.symbol}`,
-        amount: totalAmount,
-        date: isoDate,
-        type: props.type === 'buy' ? 'expense' : 'income',
-        accountId: accountId,
-        notes: `Price: ${form.price}, Fees: ${form.fees || 0}`
-    });
 
     emit('saved');
   } catch (error) {

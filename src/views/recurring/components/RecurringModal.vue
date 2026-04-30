@@ -45,6 +45,7 @@ const form = ref({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })(),
   isExpenseTransfer: false,
+  isIncomeTransfer: false,
 });
 
 const isEditing = computed(() => !!props.recurring);
@@ -52,7 +53,7 @@ const modalTitle = computed(() => isEditing.value ? "Edit Schedule" : "New Sched
 
 // Filter categories by type
 const filteredCategories = computed(() => 
-  store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense'))
+  store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense') || (form.value.type === 'transfer' && form.value.isIncomeTransfer && c.type === 'income'))
 );
 
 // Filter accounts by transaction type (Assets only allowed for transfers)
@@ -62,15 +63,28 @@ const filteredAccounts = computed(() => {
   }
   return store.accounts.filter(a => {
     const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
-    return typeObj?.classification !== 'asset';
+    return typeObj?.classification !== 'asset' && typeObj?.classification !== 'investment';
   });
 });
+
+function handleExpenseToggle() {
+  if (form.value.isExpenseTransfer) {
+    form.value.isIncomeTransfer = false;
+  }
+}
+
+function handleIncomeToggle() {
+  if (form.value.isIncomeTransfer) {
+    form.value.isExpenseTransfer = false;
+  }
+}
 
 function handleTypeChange(newType: "income" | "expense" | "transfer") {
   form.value.type = newType;
   if (newType !== 'transfer') {
     form.value.categoryId = null;
     form.value.isExpenseTransfer = false;
+    form.value.isIncomeTransfer = false;
     const isCurrentAccountValid = filteredAccounts.value.some(a => a.id === form.value.accountId);
     if (!isCurrentAccountValid) {
       form.value.accountId = filteredAccounts.value[0]?.id ?? null;
@@ -93,14 +107,15 @@ watch(
           frequency: props.recurring.frequency,
           startDate: props.recurring.startDate,
           isExpenseTransfer: !!props.recurring.isExpenseTransfer,
+          isIncomeTransfer: !!props.recurring.isIncomeTransfer,
         };
       } else {
         const validAccounts = store.accounts.filter(a => {
           const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
-          return typeObj?.classification !== 'asset';
+          return typeObj?.classification !== 'asset' && typeObj?.classification !== 'investment';
         });
         const defaultAccount = validAccounts.find(a => a.isDefault);
-        
+
         const d = new Date();
         form.value = {
           title: "",
@@ -112,6 +127,7 @@ watch(
           frequency: "monthly",
           startDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
           isExpenseTransfer: false,
+          isIncomeTransfer: false,
         };
       }
     }
@@ -153,7 +169,7 @@ async function save() {
       title: form.value.title,
       amount: form.value.amount ?? 0,
       type: form.value.type,
-      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer) ? null : (form.value.categoryId ?? null),
+      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer && !form.value.isIncomeTransfer) ? null : (form.value.categoryId ?? null),
       accountId: form.value.accountId!,
       transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? null) : null,
       frequency: form.value.frequency,
@@ -161,6 +177,7 @@ async function save() {
       nextRunDate: nextRunDate,
       isActive: isEditing.value && props.recurring ? props.recurring.isActive : true,
       isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
+      isIncomeTransfer: form.value.type === 'transfer' ? form.value.isIncomeTransfer : false,
     };
 
     if (isEditing.value && props.recurring) {
@@ -381,22 +398,39 @@ function close() {
           <!-- Transfer Expense Toggle -->
           <div
             v-if="form.type === 'transfer'"
-            class="flex items-center space-x-2 pt-1 pb-1"
+            class="flex items-center space-x-6 pt-1 pb-1"
           >
-            <input
-              id="isExpenseTransferRecurring"
-              v-model="form.isExpenseTransfer"
-              type="checkbox"
-              class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
-            />
-            <label
-              for="isExpenseTransferRecurring"
-              class="text-sm font-medium text-gray-700 dark:text-gray-300"
-            >Log as Expense</label>
+            <div class="flex items-center space-x-2">
+              <input
+                id="isExpenseTransferRecurring"
+                v-model="form.isExpenseTransfer"
+                type="checkbox"
+                class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+                @change="handleExpenseToggle"
+              />
+              <label
+                for="isExpenseTransferRecurring"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >Log as Expense</label>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <input
+                id="isIncomeTransferRecurring"
+                v-model="form.isIncomeTransfer"
+                type="checkbox"
+                class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+                @change="handleIncomeToggle"
+              />
+              <label
+                for="isIncomeTransferRecurring"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >Log as Income</label>
+            </div>
           </div>
 
           <!-- Category -->
-          <div v-if="form.type !== 'transfer' || form.isExpenseTransfer">
+          <div v-if="form.type !== 'transfer' || form.isExpenseTransfer || form.isIncomeTransfer">
             <label
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >

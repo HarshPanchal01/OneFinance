@@ -63,7 +63,7 @@ export const useFinanceStore = defineStore("finance", () => {
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
   const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
-  const netWorthTrends = ref<{ month: number, year: number, balance: number, liquidBalance: number }[]>([]);
+  const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
 
   // Investment State
   const investmentHoldings = ref<InvestmentHolding[]>([]);
@@ -1191,6 +1191,7 @@ export const useFinanceStore = defineStore("finance", () => {
             recurringId: transaction.recurringId ?? undefined,
             notes: transaction.notes || undefined,
             isExpenseTransfer: transaction.isExpenseTransfer,
+            isIncomeTransfer: transaction.isIncomeTransfer,
           });
           console.log(`Inserting transaction ${transaction.title} completed`);
       }

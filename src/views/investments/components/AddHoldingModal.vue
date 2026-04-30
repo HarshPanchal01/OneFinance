@@ -103,17 +103,6 @@ async function submit() {
         price: form.price,
         fees: form.fees || 0
       });
-
-      const totalAmount = (form.quantity * form.price) + (form.fees || 0);
-      
-      await store.addTransaction({
-          title: `Bought ${form.quantity} ${form.symbol}`,
-          amount: totalAmount,
-          date: isoDate,
-          type: 'expense',
-          accountId: props.accountId,
-          notes: `Price: ${form.price}, Fees: ${form.fees || 0}`
-      });
     }
 
     emit('added');

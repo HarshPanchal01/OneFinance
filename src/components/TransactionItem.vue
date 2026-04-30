@@ -21,9 +21,9 @@ const emit = defineEmits<{
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { formatCurrency, formatDate } = useFormatter();
-const isIncome = computed(() => props.transaction.type === "income");
 const isExpense = computed(() => props.transaction.type === "expense" || (props.transaction.type === "transfer" && props.transaction.isExpenseTransfer));
-const isTransfer = computed(() => props.transaction.type === "transfer" && !props.transaction.isExpenseTransfer);
+const isIncome = computed(() => props.transaction.type === "income" || (props.transaction.type === "transfer" && props.transaction.isIncomeTransfer));
+const isTransfer = computed(() => props.transaction.type === "transfer" && !props.transaction.isExpenseTransfer && !props.transaction.isIncomeTransfer);
 
 const accountName = computed(() => {
   if (!props.transaction.accountId) return null;
@@ -70,7 +70,7 @@ const transferToAccountName = computed(() => {
         >
           <i
             :class="['pi', isTransfer ? 'pi-sync' : (transaction.categoryIcon || 'pi-tag')]"
-            :style="{ color: isTransfer ? '#3b82f6' : (transaction.categoryColor || '#ef4444') }"
+            :style="{ color: isTransfer ? '#3b82f6' : (transaction.categoryColor || (isIncome ? '#22c55e' : '#ef4444')) }"
           />
         </div>
 
@@ -96,7 +96,7 @@ const transferToAccountName = computed(() => {
               >
                 {{ transferToAccountName }}
               </button>
-              <template v-if="transaction.isExpenseTransfer">
+              <template v-if="transaction.isExpenseTransfer || transaction.isIncomeTransfer">
                 <span class="mx-0.5 shrink-0">•</span>
                 <span class="truncate">{{ transaction.categoryName || "Uncategorized" }}</span>
               </template>

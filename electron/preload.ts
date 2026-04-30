@@ -22,8 +22,14 @@ const electronAPI = {
   getInvestmentTransactions: (holdingId: number): Promise<InvestmentTransaction[]> =>
     ipcRenderer.invoke("db:getInvestmentTransactions", holdingId),
 
+  getAccountInvestmentTransactions: (accountId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getAccountInvestmentTransactions", accountId),
+
   createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
     ipcRenderer.invoke("db:createInvestmentTransaction", data),
+
+  adjustAccountCash: (accountId: number, amount: number, notes: string): Promise<any> =>
+    ipcRenderer.invoke("db:adjustAccountCash", accountId, amount, notes),
 
   getInvestmentHistory: (accountId: number): Promise<InvestmentHistory[]> =>
     ipcRenderer.invoke("db:getInvestmentHistory", accountId),
@@ -179,7 +185,7 @@ const electronAPI = {
   getTotalMonthSpend: (year: number, month: number): Promise<number> =>
     ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
 
-  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number, liquidBalance: number }[]> =>
+  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
     ipcRenderer.invoke("db:getNetWorthTrend"),
 
   getDatabaseVersion: (): Promise<number> =>

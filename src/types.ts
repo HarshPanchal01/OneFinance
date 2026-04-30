@@ -78,6 +78,7 @@ export interface RecurringTransaction {
   nextRunDate: string;
   isActive: boolean;
   isExpenseTransfer?: boolean;
+  isIncomeTransfer?: boolean;
 }
 
 export interface Transaction {
@@ -93,6 +94,7 @@ export interface Transaction {
   transferAccountId?: number | null;
   recurringId?: number | null;
   isExpenseTransfer?: boolean;
+  isIncomeTransfer?: boolean;
 }
 
 export interface TransactionWithCategory extends Transaction {
@@ -106,15 +108,16 @@ export interface CreateTransactionInput {
   amount: number;
   date: string;
   type: "income" | "expense" | "transfer";
-  notes?: string
-  categoryId?: number
-  accountId: number
-  transferAccountId?: number
-  recurringId?: number
+  notes?: string;
+  categoryId?: number | null;
+  accountId: number;
+  transferAccountId?: number | null;
+  recurringId?: number | null;
   isExpenseTransfer?: boolean;
-}
+  isIncomeTransfer?: boolean;
+  }
 
-export interface PeriodSummary {
+  export interface PeriodSummary {
   totalIncome: number;
   totalExpenses: number;
   balance: number;
