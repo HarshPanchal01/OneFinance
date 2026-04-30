@@ -52,6 +52,10 @@ export function verifyImportData(
     accountTypes?: AccountType[];
     ledgerYears?: number[];
     recurringTransactions?: RecurringTransaction[];
+    investmentHoldings?: any[];
+    investmentTransactions?: any[];
+    investmentHistory?: any[];
+    investmentAdjustments?: any[];
   },
   currentDatabaseVersion: number
 ): { success: boolean; reason?: string } {
@@ -63,6 +67,10 @@ export function verifyImportData(
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
     const recurringTransactions = data.recurringTransactions;
+    const investmentHoldings = data.investmentHoldings;
+    const investmentTransactions = data.investmentTransactions;
+    const investmentHistory = data.investmentHistory;
+    const investmentAdjustments = data.investmentAdjustments;
 
     if (dbVersion === undefined) {
       console.log("Import data is missing databaseVersion (v1.x export)");
@@ -79,7 +87,7 @@ export function verifyImportData(
       return { success: false, reason: `The backup file is from an older version of OneFinance (v${dbVersion}). Please update the older app and re-export your data.` };
     }
 
-    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined) {
+    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined || investmentHoldings == undefined || investmentTransactions == undefined || investmentHistory == undefined || investmentAdjustments == undefined) {
       return { success: false, reason: "The selected file is not a valid OneFinance export file." };
     }
 

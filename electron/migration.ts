@@ -197,7 +197,21 @@ function migrate1to2(db: any): void {
         FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
       )
     `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS investment_adjustments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        accountId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+        notes TEXT,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+      )
+    `);
+
   } catch (e) {
     console.error('[Migration] Migration error creating investment tables:', e);
   }
 }
+

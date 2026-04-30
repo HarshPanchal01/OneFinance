@@ -85,9 +85,10 @@ export function useDataManagement() {
     const databaseVersion = toRaw(store.databaseVersion);
     const investmentHoldingsValue = toRaw(store.investmentHoldings);
     
-    // We need to fetch all investment transactions and history for a complete export
+    // We need to fetch all investment transactions, history and adjustments for a complete export
     let investmentTransactionsValue: any[] = [];
     let investmentHistoryValue: any[] = [];
+    let investmentAdjustmentsValue: any[] = [];
     
     for (const holding of store.investmentHoldings) {
         const txs = await window.electronAPI.getInvestmentTransactions(holding.id);
@@ -102,6 +103,9 @@ export function useDataManagement() {
     for (const acc of investmentAccounts) {
         const hist = await window.electronAPI.getInvestmentHistory(acc.id);
         investmentHistoryValue = investmentHistoryValue.concat(hist);
+
+        const adj = await window.electronAPI.getInvestmentAdjustments(acc.id);
+        investmentAdjustmentsValue = investmentAdjustmentsValue.concat(adj);
     }
 
     const data = {
@@ -115,6 +119,7 @@ export function useDataManagement() {
       investmentHoldings: investmentHoldingsValue,
       investmentTransactions: investmentTransactionsValue,
       investmentHistory: investmentHistoryValue,
+      investmentAdjustments: investmentAdjustmentsValue,
     };
 
     const timestamp = new Date().toDateString();

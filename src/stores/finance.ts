@@ -334,6 +334,7 @@ export const useFinanceStore = defineStore("finance", () => {
     const accountsRaw = await window.electronAPI.getAccounts();
     const transactionsRaw = await window.electronAPI.getTransactions();
     const holdingsRaw = await window.electronAPI.getInvestmentHoldings();
+    const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
 
     accountsRaw.forEach(account => {
       // Find transactions where this account is either the source or the destination
@@ -349,11 +350,19 @@ export const useFinanceStore = defineStore("finance", () => {
         return sum;
       }, 0);
 
+      // Add investment adjustments
+      const accountAdjustments = adjustmentsRaw.filter(a => a.accountId === account.id);
+      const adjustmentSum = accountAdjustments.reduce((sum, a) => {
+        if (a.type === 'income') return sum + a.amount;
+        if (a.type === 'expense') return sum - a.amount;
+        return sum;
+      }, 0);
+
       // Add investment holdings value
       const accountHoldings = holdingsRaw.filter(h => h.accountId === account.id);
       const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
 
-      account.balance = account.startingBalance + transactionSum + holdingsValue;
+      account.balance = account.startingBalance + transactionSum + adjustmentSum + holdingsValue;
     });
 
     accounts.value = accountsRaw;
@@ -1289,6 +1298,31 @@ export const useFinanceStore = defineStore("finance", () => {
         );
       }
 
+      const importInvestmentAdjustments = data.investmentAdjustments || [];
+      for (const adj of importInvestmentAdjustments) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(adj.accountId);
+          const existing = (await window.electronAPI.getInvestmentAdjustments(mappedAccountId)).find(a => 
+            a.date === adj.date && a.amount === adj.amount && a.type === adj.type && a.notes === adj.notes
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment adjustment`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(adj.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for investment adjustment id: " + adj.id);
+        }
+
+        await window.electronAPI.adjustAccountCash(
+          mappedAccountId,
+          adj.type === 'expense' ? -adj.amount : adj.amount,
+          adj.notes
+        );
+      }
+
     }
    catch (error) {
       console.log(error);
@@ -1306,6 +1340,9 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes.value = [];
     ledgerMonths.value = [];
     ledgerYears.value = [];
+    investmentHoldings.value = [];
+    investmentTransactions.value = [];
+    investmentHistory.value = [];
   }
 
   // ============================================

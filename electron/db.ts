@@ -223,6 +223,19 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Investment Cash Adjustments - Private ledger for investment account cash adjustments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      notes TEXT,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
   // Seed default categories if none exist
   const categoryCount = db
     .prepare("SELECT COUNT(*) as count FROM categories")
@@ -413,6 +426,10 @@ export function deleteAllDataFromTables(): void{
   const tables = [
     "transactions",
     "recurring_transactions",
+    "investment_transactions",
+    "investment_holdings",
+    "investment_history",
+    "investment_adjustments",
     "accounts",
     "accountType",
     "categories",
@@ -1324,6 +1341,21 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
     UNION ALL
 
     SELECT 
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      ia.amount as amount
+    FROM investment_adjustments ia
+    WHERE ia.accountId = ?
+
+    UNION ALL
+
+    SELECT 
       'cash' as recordType,
       t.id,
       t.date,
@@ -1332,18 +1364,12 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
-      CASE 
-        WHEN t.type = 'income' THEN t.amount
-        WHEN t.type = 'expense' THEN t.amount
-        WHEN t.type = 'transfer' AND t.accountId = ? THEN t.amount
-        WHEN t.type = 'transfer' AND t.transferAccountId = ? THEN t.amount
-        ELSE t.amount
-      END as amount
+      t.amount as amount
     FROM transactions t
-    WHERE t.accountId = ? OR t.transferAccountId = ?
+    WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
 
     ORDER BY date DESC
-  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
+  `).all(accountId, accountId, accountId, accountId) as any[];
 }
 
 export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
@@ -1361,7 +1387,7 @@ export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'i
     INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
-  
+
   const result = insert.run(
     data.holdingId,
     data.date,
@@ -1370,19 +1396,19 @@ export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'i
     data.price,
     data.fees
   );
-  
+
   // Update the holding quantity automatically
   const holding = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(data.holdingId) as InvestmentHolding;
   let newQuantity = holding.quantity;
-  
+
   if (data.type === 'buy') {
     newQuantity += data.quantity;
   } else if (data.type === 'sell') {
     newQuantity -= data.quantity;
   }
-  
+
   db.prepare("UPDATE investment_holdings SET quantity = ? WHERE id = ?").run(newQuantity, data.holdingId);
-  
+
   return db.prepare("SELECT * FROM investment_transactions WHERE id = ?").get(result.lastInsertRowid) as InvestmentTransaction;
 }
 
@@ -1395,31 +1421,66 @@ export function createInvestmentHistoryEntry(accountId: number, totalValue: numb
     INSERT INTO investment_history (accountId, totalValue, date)
     VALUES (?, ?, ?)
   `);
-  
+
   const result = insert.run(accountId, totalValue, date);
   return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(result.lastInsertRowid) as InvestmentHistory;
 }
 
-export function adjustAccountCash(accountId: number, amount: number, notes: string): TransactionWithCategory {
+export function adjustAccountCash(accountId: number, amount: number, notes: string): any {
   const today = new Date().toISOString().split('T')[0];
   const type = amount >= 0 ? 'income' : 'expense';
-  
+
   const stmt = db.prepare(`
-    INSERT INTO transactions (title, amount, date, type, notes, accountId)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_adjustments (accountId, date, amount, type, notes)
+    VALUES (?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
-    "Cash Adjustment",
-    Math.abs(amount),
+    accountId,
     today,
+    Math.abs(amount),
     type,
-    notes,
-    accountId
+    notes
   );
 
-  return getTransactionById(result.lastInsertRowid as number)!;
+  return db.prepare("SELECT * FROM investment_adjustments WHERE id = ?").get(result.lastInsertRowid);
 }
 
+export function getInvestmentAdjustments(accountId?: number): any[] {
+  if (accountId) {
+    return db.prepare("SELECT * FROM investment_adjustments WHERE accountId = ?").all(accountId);
+  }
+  return db.prepare("SELECT * FROM investment_adjustments").all();
+}
+
+export function getCombinedCashHistory(accountId: number): any[] {
+  return db.prepare(`
+    SELECT 
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as title,
+      ia.amount,
+      NULL as accountId
+    FROM investment_adjustments ia
+    WHERE ia.accountId = ?
+
+    UNION ALL
+
+    SELECT 
+      'transfer' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title,
+      t.amount,
+      t.accountId
+    FROM transactions t
+    WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
+
+    ORDER BY date DESC
+  `).all(accountId, accountId, accountId) as any[];
+}
 // Export the database instance for advanced operations if needed
 export default db;

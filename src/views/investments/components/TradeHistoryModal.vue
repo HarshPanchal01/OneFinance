@@ -23,7 +23,7 @@ onMounted(async () => {
     if (props.holding) {
       transactions.value = await window.electronAPI.getInvestmentTransactions(props.holding.id);
     } else if (props.isCash && props.accountId) {
-      transactions.value = await window.electronAPI.getAccountTransactions(props.accountId);
+      transactions.value = await window.electronAPI.getCombinedCashHistory(props.accountId);
     } else if (props.accountId) {
       transactions.value = await window.electronAPI.getCombinedInvestmentHistory(props.accountId);
     }
@@ -116,11 +116,12 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
-                      tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
-                      'bg-income-light text-income dark:bg-income/20'
+                      tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                      (tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
+                      'bg-income-light text-income dark:bg-income/20')
                     ]"
                   >
-                    {{ tx.type }}
+                    {{ tx.recordType === 'adjustment' ? 'adjustment' : tx.type }}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
@@ -135,10 +136,8 @@ onMounted(async () => {
                   </p>
                 </td>
                 <td
-                  class="px-6 py-4 text-right font-bold whitespace-nowrap"
-                  :class="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'text-expense' : 'text-income'"
+                  class="px-6 py-4 text-right font-bold whitespace-nowrap text-gray-900 dark:text-white"
                 >
-                  <span v-if="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId)">-</span><span v-else>+</span>
                   {{ formatCurrency(tx.amount) }}
                 </td>
               </tr>
@@ -190,7 +189,7 @@ onMounted(async () => {
                 <td
                   v-if="!holding"
                   class="px-4 py-4 font-bold"
-                  :class="tx.recordType === 'cash' ? 'text-gray-500 dark:text-gray-400 font-medium' : 'text-primary-600 dark:text-primary-400'"
+                  :class="tx.recordType === 'cash' || tx.recordType === 'adjustment' ? 'text-gray-500 dark:text-gray-400 font-medium' : 'text-primary-600 dark:text-primary-400'"
                 >
                   {{ tx.asset || tx.holdingSymbol }}
                 </td>
@@ -198,11 +197,12 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
+                      tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
                       tx.recordType === 'cash' ? 'bg-gray-100 text-gray-500 dark:bg-gray-700/50' :
                       (tx.type === 'buy' ? 'bg-income-light text-income dark:bg-income/20' : 'bg-expense-light text-expense dark:bg-expense/20')
                     ]"
                   >
-                    {{ tx.type }}
+                    {{ tx.recordType === 'adjustment' ? 'adjustment' : tx.type }}
                   </span>
                 </td>
                 <td class="px-4 py-4 text-right font-medium text-gray-900 dark:text-white">
