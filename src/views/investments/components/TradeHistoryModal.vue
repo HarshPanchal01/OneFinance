@@ -25,7 +25,7 @@ onMounted(async () => {
     } else if (props.isCash && props.accountId) {
       transactions.value = await window.electronAPI.getAccountTransactions(props.accountId);
     } else if (props.accountId) {
-      transactions.value = await window.electronAPI.getAccountInvestmentTransactions(props.accountId);
+      transactions.value = await window.electronAPI.getCombinedInvestmentHistory(props.accountId);
     }
   } catch (e) {
     console.error("Failed to fetch investment transactions", e);
@@ -42,7 +42,7 @@ onMounted(async () => {
         class="absolute inset-0 bg-black/50"
         @click="emit('close')"
       />
-      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
           <div>
             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -116,7 +116,7 @@ onMounted(async () => {
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
-                      tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
+                      tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'bg-expense-light text-expense dark:bg-expense/20' : 
                       'bg-income-light text-income dark:bg-income/20'
                     ]"
                   >
@@ -136,9 +136,9 @@ onMounted(async () => {
                 </td>
                 <td
                   class="px-6 py-4 text-right font-bold whitespace-nowrap"
-                  :class="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId) ? 'text-expense' : 'text-income'"
+                  :class="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId) ? 'text-expense' : 'text-income'"
                 >
-                  <span v-if="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === accountId)">-</span><span v-else>+</span>
+                  <span v-if="tx.type === 'expense' || (tx.type === 'transfer' && tx.accountId === props.accountId)">-</span><span v-else>+</span>
                   {{ formatCurrency(tx.amount) }}
                 </td>
               </tr>
@@ -152,28 +152,28 @@ onMounted(async () => {
           >
             <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/50 dark:bg-gray-800/50 sticky top-0 z-10">
               <tr>
-                <th class="px-6 py-3 font-semibold">
+                <th class="px-4 py-3 font-semibold">
                   Date
                 </th>
                 <th
                   v-if="!holding"
-                  class="px-6 py-3 font-semibold"
+                  class="px-4 py-3 font-semibold"
                 >
                   Asset
                 </th>
-                <th class="px-6 py-3 font-semibold">
+                <th class="px-4 py-3 font-semibold">
                   Type
                 </th>
-                <th class="px-6 py-3 font-semibold text-right">
+                <th class="px-4 py-3 font-semibold text-right">
                   Quantity
                 </th>
-                <th class="px-6 py-3 font-semibold text-right">
+                <th class="px-4 py-3 font-semibold text-right">
                   Price
                 </th>
-                <th class="px-6 py-3 font-semibold text-right">
+                <th class="px-4 py-3 font-semibold text-right">
                   Fees
                 </th>
-                <th class="px-6 py-3 font-semibold text-right">
+                <th class="px-4 py-3 font-semibold text-right">
                   Total
                 </th>
               </tr>
@@ -184,40 +184,40 @@ onMounted(async () => {
                 :key="tx.id"
                 class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
               >
-                <td class="px-6 py-4 text-gray-900 dark:text-white whitespace-nowrap">
+                <td class="px-4 py-4 text-gray-900 dark:text-white whitespace-nowrap">
                   {{ formatDate(tx.date) }}
                 </td>
                 <td
                   v-if="!holding"
-                  class="px-6 py-4 font-bold text-primary-600 dark:text-primary-400"
+                  class="px-4 py-4 font-bold"
+                  :class="tx.recordType === 'cash' ? 'text-gray-500 dark:text-gray-400 font-medium' : 'text-primary-600 dark:text-primary-400'"
                 >
-                  {{ tx.holdingSymbol }}
+                  {{ tx.asset || tx.holdingSymbol }}
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 py-4">
                   <span
                     :class="[
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
-                      tx.type === 'buy' ? 'bg-expense-light text-expense dark:bg-expense/20' : 'bg-income-light text-income dark:bg-income/20'
+                      tx.recordType === 'cash' ? 'bg-gray-100 text-gray-500 dark:bg-gray-700/50' :
+                      (tx.type === 'buy' ? 'bg-income-light text-income dark:bg-income/20' : 'bg-expense-light text-expense dark:bg-expense/20')
                     ]"
                   >
                     {{ tx.type }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">
-                  {{ tx.quantity }}
+                <td class="px-4 py-4 text-right font-medium text-gray-900 dark:text-white">
+                  {{ tx.quantity || '---' }}
                 </td>
-                <td class="px-6 py-4 text-right text-gray-600 dark:text-gray-300">
-                  {{ formatCurrency(tx.price) }}
+                <td class="px-4 py-4 text-right text-gray-600 dark:text-gray-300">
+                  {{ tx.price ? formatCurrency(tx.price) : '---' }}
                 </td>
-                <td class="px-6 py-4 text-right text-gray-500 dark:text-gray-400">
-                  {{ formatCurrency(tx.fees) }}
+                <td class="px-4 py-4 text-right text-gray-500 dark:text-gray-400">
+                  {{ tx.fees ? formatCurrency(tx.fees) : '---' }}
                 </td>
                 <td
-                  class="px-6 py-4 text-right font-bold whitespace-nowrap"
-                  :class="tx.type === 'buy' ? 'text-expense' : 'text-income'"
+                  class="px-4 py-4 text-right font-bold whitespace-nowrap text-gray-900 dark:text-white"
                 >
-                  <span v-if="tx.type === 'buy'">-</span><span v-else>+</span>
-                  {{ formatCurrency((tx.quantity * tx.price) + (tx.type === 'buy' ? tx.fees : -tx.fees)) }}
+                  {{ formatCurrency(tx.amount) }}
                 </td>
               </tr>
             </tbody>

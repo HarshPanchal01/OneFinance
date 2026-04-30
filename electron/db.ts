@@ -1305,6 +1305,47 @@ export function getAccountInvestmentTransactions(accountId: number): InvestmentT
   `).all(accountId) as (InvestmentTransaction & { holdingSymbol: string })[];
 }
 
+export function getCombinedInvestmentHistory(accountId: number): any[] {
+  return db.prepare(`
+    SELECT 
+      'trade' as recordType,
+      it.id,
+      it.date,
+      it.type,
+      ih.symbol as asset,
+      it.quantity,
+      it.price,
+      it.fees,
+      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+    FROM investment_transactions it
+    JOIN investment_holdings ih ON it.holdingId = ih.id
+    WHERE ih.accountId = ?
+
+    UNION ALL
+
+    SELECT 
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      CASE 
+        WHEN t.type = 'income' THEN t.amount
+        WHEN t.type = 'expense' THEN t.amount
+        WHEN t.type = 'transfer' AND t.accountId = ? THEN t.amount
+        WHEN t.type = 'transfer' AND t.transferAccountId = ? THEN t.amount
+        ELSE t.amount
+      END as amount
+    FROM transactions t
+    WHERE t.accountId = ? OR t.transferAccountId = ?
+
+    ORDER BY date DESC
+  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
+}
+
 export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
   return db.prepare(`
     SELECT t.*, c.name as categoryName, c.colorCode as categoryColor, c.icon as categoryIcon 

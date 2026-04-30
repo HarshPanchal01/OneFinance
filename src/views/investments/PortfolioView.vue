@@ -186,21 +186,22 @@ function getAccountCashBalance(accountId: number) {
               </p>
             </div>
             <button 
-              class="p-2 text-gray-400 hover:text-primary-500 transition-colors" 
-              title="Account Activity"
+              class="px-4 py-2 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 text-xs font-bold rounded-lg transition-colors border border-primary-200 dark:border-primary-800 shrink-0" 
               @click="openAccountHistory(account.id)"
             >
-              <i class="pi pi-history" />
+              Total Holdings History
             </button>
           </div>
-          <div class="text-right">
-            <AmountDisplay
-              :amount="account.balance || 0"
-              class="text-lg font-bold text-gray-900 dark:text-white"
-            />
-            <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-              Total Value
-            </p>
+          <div class="flex items-center space-x-6">
+            <div class="text-right">
+              <AmountDisplay
+                :amount="account.balance || 0"
+                class="text-lg font-bold text-gray-900 dark:text-white"
+              />
+              <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                Total Value
+              </p>
+            </div>
           </div>
         </div>
 
@@ -302,17 +303,18 @@ function getAccountCashBalance(accountId: number) {
                 </td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end space-x-2">
-                    <div
-                      class="flex items-center space-x-2 shrink-0 opacity-0 pointer-events-none"
-                      aria-hidden="true"
+                    <button 
+                      class="px-2 py-1 text-xs font-semibold invisible"
+                      disabled
                     >
-                      <button class="px-2 py-1 text-xs font-semibold">
-                        Buy
-                      </button>
-                      <button class="px-2 py-1 text-xs font-semibold">
-                        Sell
-                      </button>
-                    </div>
+                      Buy
+                    </button>
+                    <button 
+                      class="px-2 py-1 text-xs font-semibold invisible"
+                      disabled
+                    >
+                      Sell
+                    </button>
                     <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
                     <button 
                       class="p-1 text-gray-400 hover:text-primary-500 transition-colors" 
@@ -322,7 +324,7 @@ function getAccountCashBalance(accountId: number) {
                       <i class="pi pi-history" />
                     </button>
                     <button 
-                      class="p-1.5 text-gray-400 hover:text-primary-500 transition-colors" 
+                      class="p-1 text-gray-400 hover:text-primary-500 transition-colors" 
                       title="Adjust Cash Balance"
                       @click="openAdjustCash(account.id, getAccountCashBalance(account.id))"
                     >
