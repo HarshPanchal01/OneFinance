@@ -4,6 +4,7 @@ import { useFinanceStore } from '@/stores/finance';
 import DatePicker from 'primevue/datepicker';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
+import { useSettingsStore } from '@/stores/settings';
 
 const props = defineProps<{
   accountId: number | null;
@@ -16,6 +17,7 @@ const emit = defineEmits<{
 
 const store = useFinanceStore();
 const { formatCurrency } = useFormatter();
+const settingsStore = useSettingsStore();
 
 const cashBalance = computed(() => {
   if (!props.accountId) return 0;
@@ -232,8 +234,8 @@ async function submit() {
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                 <span>Total Cash:</span>
                 <span class="font-bold text-gray-900 dark:text-white">
-                  {{ formatCurrency(cashBalance) }}
-                  <span class="text-expense ml-1">- {{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span>
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(cashBalance) }}</span>
+                  <span class="text-expense ml-1">- <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span></span>
                 </span>
               </div>
             </div>

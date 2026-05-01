@@ -5,6 +5,7 @@ import { InvestmentHolding } from '@/types';
 import DatePicker from 'primevue/datepicker';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
+import { useSettingsStore } from '@/stores/settings';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -18,6 +19,7 @@ const emit = defineEmits<{
 
 const store = useFinanceStore();
 const { formatCurrency } = useFormatter();
+const settingsStore = useSettingsStore();
 
 const cashBalance = computed(() => {
   if (!props.holding) return 0;
@@ -143,13 +145,13 @@ async function submit() {
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                 <span>Total Cash:</span>
                 <span class="font-bold text-gray-900 dark:text-white">
-                  {{ formatCurrency(cashBalance) }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(cashBalance) }}</span>
                   <span
                     :class="type === 'buy' ? 'text-expense' : 'text-income'"
                     class="ml-1"
                   >
                     <span v-if="type==='buy'">-</span><span v-else>+</span>
-                    {{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}</span>
                   </span>
                 </span>
               </div>

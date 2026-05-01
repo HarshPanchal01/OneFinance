@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { InvestmentHolding } from '@/types';
 import { useFormatter } from '@/composables/useFormatter';
+import { useSettingsStore } from '@/stores/settings';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 }>();
 
 const { formatDate, formatCurrency } = useFormatter();
+const settingsStore = useSettingsStore();
 
 const transactions = ref<any[]>([]);
 const isLoading = ref(true);
@@ -146,7 +148,7 @@ onMounted(async () => {
                     <span v-if="tx.amount < 0">-</span>
                     <span v-else>+</span>
                   </template>
-                  {{ formatCurrency(Math.abs(tx.amount)) }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(Math.abs(tx.amount)) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -215,13 +217,13 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="px-4 py-4 text-right font-medium text-gray-900 dark:text-white">
-                  {{ tx.quantity || '---' }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.quantity }">{{ tx.quantity || '---' }}</span>
                 </td>
                 <td class="px-4 py-4 text-right text-gray-600 dark:text-gray-300">
-                  {{ tx.price ? formatCurrency(tx.price) : '---' }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.price }">{{ tx.price ? formatCurrency(tx.price) : '---' }}</span>
                 </td>
                 <td class="px-4 py-4 text-right text-gray-500 dark:text-gray-400">
-                  {{ tx.fees ? formatCurrency(tx.fees) : '---' }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.fees }">{{ tx.fees ? formatCurrency(tx.fees) : '---' }}</span>
                 </td>
                 <td
                   class="px-4 py-4 text-right font-bold whitespace-nowrap"
@@ -234,7 +236,7 @@ onMounted(async () => {
                     <span v-if="tx.amount < 0">-</span>
                     <span v-else>+</span>
                   </template>
-                  {{ formatCurrency(Math.abs(tx.amount)) }}
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(Math.abs(tx.amount)) }}</span>
                 </td>
               </tr>
             </tbody>

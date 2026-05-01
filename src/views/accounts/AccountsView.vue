@@ -368,7 +368,3 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
     <ErrorModal ref="errorModal" />
   </div>
 </template>
-e>
->
-e>
->

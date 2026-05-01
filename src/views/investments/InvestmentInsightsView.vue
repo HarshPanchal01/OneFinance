@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import { useSettingsStore } from '@/stores/settings';
+import { useFormatter } from '@/composables/useFormatter';
 import AssetAllocationChart from './components/charts/AssetAllocationChart.vue';
 import PortfolioHistoryChart from './components/charts/PortfolioHistoryChart.vue';
-import AmountDisplay from '@/components/AmountDisplay.vue';
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
 onMounted(async () => {
   await store.fetchAccounts();
@@ -58,19 +61,23 @@ const totalCashInInvestments = computed(() => {
           <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
             Holdings Value
           </p>
-          <AmountDisplay
-            :amount="totalPortfolioValue"
+          <span
             class="text-3xl font-black text-gray-900 dark:text-white"
-          />
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalPortfolioValue) }}
+          </span>
         </div>
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
           <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
             Available Cash
           </p>
-          <AmountDisplay
-            :amount="totalCashInInvestments"
+          <span
             class="text-3xl font-black text-gray-900 dark:text-white"
-          />
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalCashInInvestments) }}
+          </span>
         </div>
       </div>
 

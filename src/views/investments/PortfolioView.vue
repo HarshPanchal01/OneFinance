@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import { useSettingsStore } from '@/stores/settings';
 import { InvestmentHolding } from '@/types';
-import AmountDisplay from '@/components/AmountDisplay.vue';
 import AddHoldingModal from './components/AddHoldingModal.vue';
 import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
 import TradeHistoryModal from './components/TradeHistoryModal.vue';
@@ -10,7 +10,8 @@ import AdjustCashModal from './components/AdjustCashModal.vue';
 import { useFormatter } from '@/composables/useFormatter';
 
 const store = useFinanceStore();
-const { getCurrencySymbol } = useFormatter();
+const settingsStore = useSettingsStore();
+const { getCurrencySymbol, formatCurrency } = useFormatter();
 
 const investmentAccounts = computed(() => {
   return store.accounts.filter(account => {
@@ -153,10 +154,12 @@ function getAccountCashBalance(accountId: number) {
       </div>
       <div class="flex items-center space-x-6">
         <div class="text-right">
-          <AmountDisplay
-            :amount="totalPortfolioValue"
+          <span
             class="text-2xl font-bold text-gray-900 dark:text-white"
-          />
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalPortfolioValue) }}
+          </span>
           <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
             Total Investments Value
           </p>
@@ -226,10 +229,12 @@ function getAccountCashBalance(accountId: number) {
           </div>
           <div class="flex items-center space-x-6">
             <div class="text-right">
-              <AmountDisplay
-                :amount="account.balance || 0"
+              <span
                 class="text-lg font-bold text-gray-900 dark:text-white"
-              />
+                :class="{ 'privacy-blur': settingsStore.privacyMode }"
+              >
+                {{ formatCurrency(account.balance || 0) }}
+              </span>
               <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
                 Total Value
               </p>
@@ -276,13 +281,13 @@ function getAccountCashBalance(accountId: number) {
                     {{ holding.name || '---' }}
                   </td>
                   <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                    {{ holding.quantity }}
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ holding.quantity }}</span>
                   </td>
                   <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                    <AmountDisplay :amount="holding.lastPrice || 0" />
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(holding.lastPrice || 0) }}</span>
                   </td>
                   <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
-                    <AmountDisplay :amount="holding.quantity * (holding.lastPrice || 0)" />
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(holding.quantity * (holding.lastPrice || 0)) }}</span>
                   </td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end space-x-2">
@@ -332,7 +337,7 @@ function getAccountCashBalance(accountId: number) {
                     ---
                   </td>
                   <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
-                    <AmountDisplay :amount="getAccountCashBalance(account.id)" />
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(getAccountCashBalance(account.id)) }}</span>
                   </td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end space-x-2">
