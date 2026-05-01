@@ -54,7 +54,7 @@ const filteredTransactions = computed(() => {
 // Summary for filtered transactions
 const filteredSummary = computed(() => {
   const income = filteredTransactions.value
-    .filter((t) => t.type === "income")
+    .filter((t) => t.type === "income" || (t.type === "transfer" && Boolean(t.isIncomeTransfer)))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const expenses = filteredTransactions.value

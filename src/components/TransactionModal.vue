@@ -180,11 +180,12 @@ async function save() {
       amount: form.value.amount ?? 0,
       date: form.value.date,
       type: form.value.type,
-      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer) ? undefined : (form.value.categoryId ?? undefined),
+      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer && !form.value.isIncomeTransfer) ? undefined : (form.value.categoryId ?? undefined),
       accountId: form.value.accountId!,
       transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? undefined) : undefined,
       notes: form.value.notes || undefined,
       isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
+      isIncomeTransfer: form.value.type === 'transfer' ? form.value.isIncomeTransfer : false,
     };
 
     if (isEditing.value && props.transaction) {

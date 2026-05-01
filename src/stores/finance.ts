@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { toIsoDateString, getExpenseBreakdownForRange, type ImportData } from "@/utils";
+import { toIsoDateString, getExpenseBreakdownForRange, getIncomeBreakdownForRange, type ImportData } from "@/utils";
 import type {
   Category,
   Account,
@@ -62,6 +62,7 @@ export const useFinanceStore = defineStore("finance", () => {
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
   const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
+  const dashboardIncomeBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
 
@@ -82,11 +83,11 @@ export const useFinanceStore = defineStore("finance", () => {
   const hasCurrentPeriod = computed(() => currentLedgerMonth.value !== null);
 
   const incomeTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "income")
+    transactions.value.filter((t) => t.type === "income" || (t.type === "transfer" && Boolean(t.isIncomeTransfer)))
   );
 
   const expenseTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "expense")
+    transactions.value.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)))
   );
 
   const transferTransactions = computed(() =>
@@ -178,7 +179,7 @@ export const useFinanceStore = defineStore("finance", () => {
     // expenseBreakdown
 
     const allTransactions = transactions.value;
-    const transactionsByIncome = allTransactions.filter((t) => t.type === "income");
+    const transactionsByIncome = allTransactions.filter((t) => t.type === "income" || (t.type === "transfer" && Boolean(t.isIncomeTransfer)));
     const transactionsByExpense = allTransactions.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)));
 
     const transactionsIncomeSum = transactionsByIncome.reduce((sum, t) => sum + t.amount, 0);
@@ -335,6 +336,7 @@ export const useFinanceStore = defineStore("finance", () => {
     const transactionsRaw = await window.electronAPI.getTransactions();
     const holdingsRaw = await window.electronAPI.getInvestmentHoldings();
     const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
+    const investmentTransactionsRaw = await window.electronAPI.getAllInvestmentTransactions();
 
     accountsRaw.forEach(account => {
       // Find transactions where this account is either the source or the destination
@@ -358,11 +360,22 @@ export const useFinanceStore = defineStore("finance", () => {
         return sum;
       }, 0);
 
-      // Add investment holdings value
+      // Add investment trades (cash impact of buys/sells)
       const accountHoldings = holdingsRaw.filter(h => h.accountId === account.id);
+      const accountHoldingIds = accountHoldings.map(h => h.id);
+      const accountInvestmentTransactions = investmentTransactionsRaw.filter(it => accountHoldingIds.includes(it.holdingId));
+      
+      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => {
+        if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
+        if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
+        if (it.type === 'drip') return sum - it.fees;
+        return sum;
+      }, 0);
+
+      // Add investment holdings current market value
       const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
 
-      account.balance = account.startingBalance + transactionSum + adjustmentSum + holdingsValue;
+      account.balance = account.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
     });
 
     accounts.value = accountsRaw;
@@ -543,11 +556,11 @@ export const useFinanceStore = defineStore("finance", () => {
     
     const results = await window.electronAPI.searchTransactions({
       fromDate: toIsoDateString(thirtyDaysAgo),
-      toDate: toIsoDateString(now),
-      type: 'expense'
+      toDate: toIsoDateString(now)
     });
     
     dashboardBreakdown.value = getExpenseBreakdownForRange('last30Days', results);
+    dashboardIncomeBreakdown.value = getIncomeBreakdownForRange('last30Days', results);
   }
 
   async function addTransaction(transaction: CreateTransactionInput
@@ -573,6 +586,10 @@ export const useFinanceStore = defineStore("finance", () => {
         // Refresh summary
         fetchPeriodSummarySync();
     }
+
+    // Refresh trends
+    const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+    await fetchMonthlyTrends(yearToRefresh);
 
     return newTransaction;
   }
@@ -602,9 +619,22 @@ export const useFinanceStore = defineStore("finance", () => {
              transactions.value[index] = updated;
         }
       }
+
+      // Refresh search results if active
+      if (isSearching.value) {
+        const sIndex = searchResults.value.findIndex((t) => t.id === id);
+        if (sIndex !== -1) {
+          searchResults.value[sIndex] = updated;
+        }
+      }
+
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
+
+      // Refresh trends
+      const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+      await fetchMonthlyTrends(yearToRefresh);
     }
     return updated;
   }
@@ -674,19 +704,22 @@ export const useFinanceStore = defineStore("finance", () => {
         await fetchRecentTransactions(5);
         await fetchDashboardBreakdown();
         await fetchPeriodSummarySync();
-      }
-      return success;
-    } catch (e) {
-      console.error("Error in bulkEditCategory:", e);
-      return false;
-    }
-  }
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
+        }
+        return success;
+        } catch (e) {
+        console.error("Error in bulkEditCategory:", e);
+        return false;
+        }
+        }
 
-  async function bulkEditAccount(ids: number[], accountId: number) {
-    try {
-      const safeIds = Array.from(ids);
-      const success = await window.electronAPI.updateTransactionsAccount(safeIds, accountId);
-      if (success) {
+        async function bulkEditAccount(ids: number[], accountId: number) {
+        try {
+        const safeIds = Array.from(ids);
+        const success = await window.electronAPI.updateTransactionsAccount(safeIds, accountId);
+        if (success) {
         // Re-fetch transactions
         if (currentLedgerMonth.value) {
           await fetchTransactions(toRaw(currentLedgerMonth.value));
@@ -699,11 +732,13 @@ export const useFinanceStore = defineStore("finance", () => {
         await fetchRecentTransactions(5);
         await fetchDashboardBreakdown();
         await fetchPeriodSummarySync();
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
         // Re-fetch accounts to update balances
         await fetchAccounts();
-      }
-      return success;
-    } catch (e) {
+        }
+        return success;    } catch (e) {
       console.error("Error in bulkEditAccount:", e);
       return false;
     }
@@ -1359,6 +1394,7 @@ export const useFinanceStore = defineStore("finance", () => {
     incomeBreakdown,
     expenseBreakdown,
     dashboardBreakdown,
+    dashboardIncomeBreakdown,
     monthlyTrends,
     netWorthTrends,
     investmentHoldings,

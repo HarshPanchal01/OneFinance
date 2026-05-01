@@ -265,7 +265,7 @@ export function getMetricsForRange(range: string, transactions: TransactionWithC
     return tDate >= startDate && tDate <= endDate;
   });
 
-  const income = filtered.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const income = filtered.filter(t => t.type === 'income' || (t.type === 'transfer' && Boolean(t.isIncomeTransfer))).reduce((sum, t) => sum + t.amount, 0);
   const expense = filtered.filter(t => t.type === 'expense' || (t.type === 'transfer' && Boolean(t.isExpenseTransfer))).reduce((sum, t) => sum + t.amount, 0);
 
   return { income, expense, days: daysDivisor };
@@ -294,6 +294,39 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
         categoryId: t.categoryId,
         categoryName: t.categoryName || 'Uncategorized',
         categoryColor: t.categoryColor || '#9ca3af',
+        categoryIcon: t.categoryIcon || 'pi-tag',
+        total: t.amount,
+        count: 1
+      });
+    }
+  }
+
+  return Array.from(breakdownMap.values()).sort((a, b) => b.total - a.total);
+}
+
+export function getIncomeBreakdownForRange(range: string, transactions: TransactionWithCategory[], customRange?: DateRange): CategoryBreakdown[] {
+  const { startDate, endDate } = getDateRange(range, transactions, customRange);
+
+  const filtered = transactions.filter(t => {
+    if (t.type !== 'income' && !(t.type === 'transfer' && Boolean(t.isIncomeTransfer))) return false;
+    const [y, m, d] = t.date.split('-').map(Number);
+    const tDate = new Date(y, m - 1, d);
+    return tDate >= startDate && tDate <= endDate;
+  });
+
+  const breakdownMap = new Map<number, CategoryBreakdown>();
+
+  for (const t of filtered) {
+    const catId = t.categoryId || 0;
+    const entry = breakdownMap.get(catId);
+    if (entry) {
+      entry.total += t.amount;
+      entry.count += 1;
+    } else {
+      breakdownMap.set(catId, {
+        categoryId: t.categoryId,
+        categoryName: t.categoryName || 'Uncategorized',
+        categoryColor: t.categoryColor || '#22c55e',
         categoryIcon: t.categoryIcon || 'pi-tag',
         total: t.amount,
         count: 1

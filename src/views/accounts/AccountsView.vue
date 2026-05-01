@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, watch, computed } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import { useSettingsStore } from '@/stores/settings';
+import { useFormatter } from '@/composables/useFormatter';
 import AccountListView from './components/AccountListView.vue';
 import { Account, AccountClassification } from '@/types';
 import ErrorModal from '@/components/ErrorModal.vue';
@@ -16,6 +18,12 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
+
+const totalNetWorth = computed(() => {
+  return store.accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
+});
 
 const accountsTypeArray = store.accountTypes.filter(() => true);
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
@@ -24,6 +32,7 @@ const openDialog = ref(false);
 const showDeleteModal = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const highlightedId = ref<number | null>(null);
+const expandedSections = ref<Set<string>>(new Set());
 
 const isEdit = ref(false);
 let accountEditId = 0;
@@ -33,9 +42,31 @@ const state = reactive({
   accountTypeArray: accountsTypeArray
 });
 
+function toggleSection(section: string) {
+  const newSet = new Set(expandedSections.value);
+  if (newSet.has(section)) {
+    newSet.delete(section);
+  } else {
+    newSet.add(section);
+  }
+  expandedSections.value = newSet;
+}
+
 function highlightAccount(id?: number | null) {
   if (id) {
     highlightedId.value = id;
+    
+    // Find the account and its classification to expand the section
+    const account = store.accounts.find(a => a.id === id);
+    if (account) {
+      const typeObj = store.accountTypes.find(t => t.id === account.accountTypeId);
+      const classification = typeObj?.classification || 'liquid';
+      
+      const newSet = new Set(expandedSections.value);
+      newSet.add(classification);
+      expandedSections.value = newSet;
+    }
+
     // Clear highlight after animation
     window.setTimeout(() => {
       highlightedId.value = null;
@@ -164,30 +195,49 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-4 h-14 bg-gray-100 dark:bg-gray-900 border-b border-transparent dark:border-gray-800 shrink-0">
+  <div class="flex flex-col h-full overflow-hidden">
+    <header class="flex items-center justify-between mb-6 shrink-0">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           Accounts
-        </h2>
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Manage your accounts and track net worth.
+        </p>
       </div>
-      <button
-        class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
-        @click="openDialog = true"
-      >
-        <i class="pi pi-plus mr-2" />
-        New Account
-      </button>
+      <div class="flex items-center space-x-6">
+        <div class="text-right">
+          <span
+            class="text-2xl font-bold text-gray-900 dark:text-white"
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalNetWorth) }}
+          </span>
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Total Net Worth
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button
+            class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
+            @click="openDialog = true"
+          >
+            <i class="pi pi-plus mr-2" />
+            New Account
+          </button>
+        </div>
+      </div>
     </header>
 
-    <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-2 pb-4">
+    <div class="flex-1 overflow-y-auto min-h-0 space-y-6 pb-6">
       <AccountListView
         :account-array="state.accountArray"
         :highlighted-id="highlightedId"
+        :expanded-sections="expandedSections"
         @edit="editAccount"
         @delete="deleteAccount"
         @view-transactions="viewTransactions"
+        @toggle-section="toggleSection"
       />
 
       <div

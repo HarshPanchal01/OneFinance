@@ -368,22 +368,9 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
       <!-- Net Worth Trend -->
       <div class="card p-4 lg:col-span-2 flex flex-col">
         <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
-          <!-- Custom Legend (Left) -->
-          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-[#0ea5e9] shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Total</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm border-2 border-dashed border-[#22c55e] shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquid</span>
-            </div>
-          </div>
-
           <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center">
             Net Worth Trend
           </h3>
-
           <div class="z-10">
             <select
               v-model="netWorthOption"

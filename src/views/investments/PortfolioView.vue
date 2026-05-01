@@ -262,25 +262,25 @@ function getAccountCashBalance(accountId: number) {
         <div v-show="expandedAccounts.has(account.id)">
           <!-- Holdings Table -->
           <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
+            <table class="w-full text-sm text-left table-fixed">
               <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/30 dark:bg-gray-800/30">
                 <tr>
-                  <th class="px-4 py-2 font-semibold">
+                  <th class="px-4 py-3 font-semibold w-[15%]">
                     Symbol
                   </th>
-                  <th class="px-4 py-2 font-semibold">
+                  <th class="px-4 py-3 font-semibold w-[30%]">
                     Name
                   </th>
-                  <th class="px-4 py-2 font-semibold text-right">
+                  <th class="px-4 py-3 font-semibold text-right w-[10%]">
                     Quantity
                   </th>
-                  <th class="px-4 py-2 font-semibold text-right">
+                  <th class="px-4 py-3 font-semibold text-right w-[15%]">
                     Price
                   </th>
-                  <th class="px-4 py-2 font-semibold text-right">
+                  <th class="px-4 py-3 font-semibold text-right w-[15%]">
                     Market Value
                   </th>
-                  <th class="px-4 py-2 font-semibold text-right">
+                  <th class="px-4 py-3 font-semibold text-right w-[15%]">
                     Actions
                   </th>
                 </tr>
@@ -291,10 +291,10 @@ function getAccountCashBalance(accountId: number) {
                   :key="holding.id"
                   class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
                 >
-                  <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                  <td class="px-4 py-3 font-bold text-gray-900 dark:text-white truncate">
                     {{ holding.symbol }}
                   </td>
-                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400 truncate">
                     {{ holding.name || '---' }}
                   </td>
                   <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
@@ -309,14 +309,14 @@ function getAccountCashBalance(accountId: number) {
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end space-x-2">
                       <button 
-                        class="px-2 py-1 text-xs font-semibold bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
+                        class="px-2 py-1 text-[10px] font-bold bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
                         title="Buy Asset"
                         @click="openTransactionModal(holding, 'buy')"
                       >
                         Buy
                       </button>
                       <button 
-                        class="px-2 py-1 text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
+                        class="px-2 py-1 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
                         title="Sell Asset"
                         @click="openTransactionModal(holding, 'sell')"
                       >
