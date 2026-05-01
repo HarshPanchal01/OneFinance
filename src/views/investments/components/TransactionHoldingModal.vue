@@ -4,6 +4,7 @@ import { useFinanceStore } from '@/stores/finance';
 import { InvestmentHolding } from '@/types';
 import DatePicker from 'primevue/datepicker';
 import { useFormatter } from '@/composables/useFormatter';
+import AmountInput from '@/components/AmountInput.vue';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -109,13 +110,9 @@ async function submit() {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
-              <input
-                v-model.number="form.quantity"
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0.00"
-                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              <AmountInput
+                v-model="form.quantity"
+                :show-currency="false"
               />
               <p
                 v-if="type === 'sell'"
@@ -127,25 +124,17 @@ async function submit() {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per Share</label>
-              <input
-                v-model.number="form.price"
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0.00"
-                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              <AmountInput
+                v-model="form.price"
+                :show-currency="true"
               />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fees (Optional)</label>
-              <input
-                v-model.number="form.fees"
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0.00"
-                class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+              <AmountInput
+                v-model="form.fees"
+                :show-currency="true"
               />
             </div>
 

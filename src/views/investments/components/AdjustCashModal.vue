@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import AmountInput from '@/components/AmountInput.vue';
 
 const props = defineProps<{
   accountId: number;
@@ -45,7 +46,7 @@ async function submit() {
         class="absolute inset-0 bg-black/50"
         @click="emit('close')"
       />
-      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-gray-100 dark:border-gray-700">
           <h3 class="text-xl font-bold text-gray-900 dark:text-white">
             Adjust Cash Balance
@@ -55,15 +56,13 @@ async function submit() {
           </p>
         </div>
 
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 overflow-y-auto">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Cash Total</label>
-            <input
-              v-model.number="amount"
-              type="number"
-              step="any"
+            <AmountInput
+              v-model="amount"
+              :show-currency="true"
               :placeholder="currentCash.toFixed(2)"
-              class="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>
 
