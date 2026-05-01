@@ -59,6 +59,7 @@ import {
   getInvestmentTransactions,
   getAccountInvestmentTransactions,
   getCombinedInvestmentHistory,
+  getAllCombinedInvestmentHistory,
   getInvestmentAdjustments,
   getCombinedCashHistory,
   getAccountTransactions,
@@ -299,6 +300,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:getCombinedInvestmentHistory", async (_event, accountId: number) => {
     return getCombinedInvestmentHistory(accountId);
+  });
+
+  ipcMain.handle("db:getAllCombinedInvestmentHistory", async () => {
+    return getAllCombinedInvestmentHistory();
   });
 
   ipcMain.handle("db:getInvestmentAdjustments", async (_event, accountId?: number) => {

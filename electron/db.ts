@@ -1375,6 +1375,73 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
   `).all(accountId, accountId, accountId, accountId, accountId) as any[];
 }
 
+export function getAllCombinedInvestmentHistory(): any[] {
+  return db.prepare(`
+    SELECT 
+      'trade' as recordType,
+      it.id,
+      it.date,
+      it.type,
+      ih.symbol as asset,
+      it.quantity,
+      it.price,
+      it.fees,
+      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+    FROM investment_transactions it
+    JOIN investment_holdings ih ON it.holdingId = ih.id
+
+    UNION ALL
+
+    SELECT 
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      ia.amount as amount
+    FROM investment_adjustments ia
+
+    UNION ALL
+
+    SELECT 
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      -t.amount as amount
+    FROM transactions t
+    JOIN accounts a ON t.accountId = a.id
+    JOIN accountType at ON a.accountTypeId = at.id
+    WHERE t.type = 'transfer' AND at.classification = 'investment'
+
+    UNION ALL
+
+    SELECT 
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      t.amount as amount
+    FROM transactions t
+    JOIN accounts a ON t.transferAccountId = a.id
+    JOIN accountType at ON a.accountTypeId = at.id
+    WHERE t.type = 'transfer' AND at.classification = 'investment'
+
+    ORDER BY date DESC
+  `).all() as any[];
+}
+
 export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
   return db.prepare(`
     SELECT t.*, c.name as categoryName, c.colorCode as categoryColor, c.icon as categoryIcon 

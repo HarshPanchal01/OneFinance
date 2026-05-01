@@ -28,6 +28,8 @@ onMounted(async () => {
       transactions.value = await window.electronAPI.getCombinedCashHistory(props.accountId);
     } else if (props.accountId) {
       transactions.value = await window.electronAPI.getCombinedInvestmentHistory(props.accountId);
+    } else {
+      transactions.value = await window.electronAPI.getAllCombinedInvestmentHistory();
     }
   } catch (e) {
     console.error("Failed to fetch investment transactions", e);
@@ -57,8 +59,11 @@ onMounted(async () => {
               <template v-else-if="isCash">
                 Cash adjustments and transfers
               </template>
-              <template v-else>
+              <template v-else-if="accountId">
                 All trades for this account
+              </template>
+              <template v-else>
+                All trades across all investment accounts
               </template>
             </p>
           </div>
@@ -89,7 +94,7 @@ onMounted(async () => {
             v-else-if="isCash"
             class="w-full text-sm text-left"
           >
-            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/50 dark:bg-gray-800/50 sticky top-0 z-10">
+            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th class="px-6 py-3 font-semibold">
                   Date
@@ -159,7 +164,7 @@ onMounted(async () => {
             v-else
             class="w-full text-sm text-left"
           >
-            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/50 dark:bg-gray-800/50 sticky top-0 z-10">
+            <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th class="px-4 py-3 font-semibold">
                   Date

@@ -26,6 +26,8 @@ const electronAPI = {
     ipcRenderer.invoke("db:getAccountInvestmentTransactions", accountId),
   getCombinedInvestmentHistory: (accountId: number): Promise<any[]> =>
     ipcRenderer.invoke("db:getCombinedInvestmentHistory", accountId),
+  getAllCombinedInvestmentHistory: (): Promise<any[]> =>
+    ipcRenderer.invoke("db:getAllCombinedInvestmentHistory"),
   getInvestmentAdjustments: (accountId?: number): Promise<any[]> =>
     ipcRenderer.invoke("db:getInvestmentAdjustments", accountId),
   getCombinedCashHistory: (accountId: number): Promise<any[]> =>
