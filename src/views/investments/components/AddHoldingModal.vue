@@ -42,6 +42,7 @@ const form = reactive({
   date: new Date() as any,
   price: null as number | null,
   fees: 0 as number | null,
+  affectCash: true
 });
 
 let searchTimeout: any = null;
@@ -114,6 +115,13 @@ async function submit() {
         price: form.price,
         fees: form.fees || 0
       });
+
+      if (!form.affectCash) {
+        // Offset the cash subtracted by the buy transaction
+        const totalCost = (form.quantity * form.price) + (form.fees || 0);
+        await window.electronAPI.adjustAccountCash(props.accountId, totalCost, "Historical Book Value Addition");
+        await store.fetchAccounts();
+      }
     }
 
     emit('added');
@@ -237,8 +245,26 @@ async function submit() {
               />
             </div>
 
+            <div class="flex items-center space-x-2 mt-2">
+              <input
+                id="affectCash"
+                v-model="form.affectCash"
+                type="checkbox"
+                class="w-4 h-4 text-primary-500 bg-white border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label
+                for="affectCash"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+              >
+                Affect account cash balance
+              </label>
+            </div>
+
             <!-- Summary -->
-            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
+            <div
+              v-if="form.affectCash"
+              class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600"
+            >
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                 <div class="flex items-center space-x-1">
                   <span>Total Cash:</span>
