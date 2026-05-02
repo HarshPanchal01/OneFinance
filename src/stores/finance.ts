@@ -66,6 +66,10 @@ export const useFinanceStore = defineStore("finance", () => {
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
 
+  // UI State
+  const expandedAccountSections = ref<Set<string>>(new Set());
+  const expandedInvestmentAccounts = ref<Set<number>>(new Set());
+
   // Investment State
   const investmentHoldings = ref<InvestmentHolding[]>([]);
   const investmentTransactions = ref<InvestmentTransaction[]>([]);
@@ -1397,6 +1401,8 @@ export const useFinanceStore = defineStore("finance", () => {
     dashboardIncomeBreakdown,
     monthlyTrends,
     netWorthTrends,
+    expandedAccountSections,
+    expandedInvestmentAccounts,
     investmentHoldings,
     investmentTransactions,
     investmentHistory,

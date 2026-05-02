@@ -32,7 +32,10 @@ const openDialog = ref(false);
 const showDeleteModal = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const highlightedId = ref<number | null>(null);
-const expandedSections = ref<Set<string>>(new Set());
+const expandedSections = computed({
+  get: () => store.expandedAccountSections,
+  set: (val) => { store.expandedAccountSections = val; }
+});
 
 const isEdit = ref(false);
 let accountEditId = 0;

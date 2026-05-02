@@ -24,7 +24,10 @@ const totalPortfolioValue = computed(() => {
   return investmentAccounts.value.reduce((sum, account) => sum + (account.balance || 0), 0);
 });
 
-const expandedAccounts = ref<Set<number>>(new Set());
+const expandedAccounts = computed({
+  get: () => store.expandedInvestmentAccounts,
+  set: (val) => { store.expandedInvestmentAccounts = val; }
+});
 
 function toggleAccount(accountId: number) {
   const newSet = new Set(expandedAccounts.value);
