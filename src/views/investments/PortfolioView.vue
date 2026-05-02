@@ -66,10 +66,12 @@ onMounted(async () => {
 });
 
 async function refreshPrices() {
+  if (store.refreshCooldown > 0) return;
   isRefreshing.value = true;
   await store.refreshInvestmentPrices();
   await store.fetchAccounts(); // Refresh balances
   isRefreshing.value = false;
+  store.startRefreshCooldown();
 }
 
 function openAddHolding(accountId: number) {
@@ -194,12 +196,12 @@ function getAccountCashBalance(accountId: number) {
         </div>
         <div class="flex items-center space-x-3">
           <button
-            class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors disabled:opacity-50"
-            :disabled="isRefreshing"
+            class="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors disabled:opacity-50"
+            :disabled="isRefreshing || store.refreshCooldown > 0"
             @click="refreshPrices"
           >
             <i :class="['pi pi-refresh mr-2', { 'animate-spin': isRefreshing }]" />
-            Refresh Prices
+            {{ store.refreshCooldown > 0 ? `Refresh (${store.refreshCooldown}s)` : 'Refresh Prices' }}
           </button>
         </div>
       </div>

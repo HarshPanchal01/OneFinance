@@ -55,20 +55,13 @@ const yearToDelete = ref<number | null>(null);
 // Navigation items
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: "pi-home" },
-  { 
-    id: "accounts-parent", 
-    label: "Accounts", 
-    icon: "pi-wallet",
-    children: [
-      { id: "accounts", label: "General" },
-      { id: "investments", label: "Investments" },
-    ]
-  },
+  { id: "accounts", label: "Accounts", icon: "pi-wallet" },
+  { id: "investments", label: "Investments", icon: "pi-briefcase" },
   { id: "transactions", label: "Transactions", icon: "pi-list" },
   { id: "recurring", label: "Schedules", icon: "pi-sync" },
-  { 
-    id: "insights-parent", 
-    label: "Insights", 
+  {
+    id: "insights-parent",
+    label: "Insights",
     icon: "pi-chart-line",
     children: [
       { id: "insights", label: "Spending Trends" },
@@ -78,7 +71,6 @@ const navItems = [
   { id: "categories", label: "Labels", icon: "pi-tags" },
   { id: "settings", label: "Settings", icon: "pi-cog" },
 ];
-
 // Build the tree structure
 interface YearNode {
   year: number;

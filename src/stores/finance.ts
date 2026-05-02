@@ -75,6 +75,20 @@ export const useFinanceStore = defineStore("finance", () => {
   const investmentTransactions = ref<InvestmentTransaction[]>([]);
   const investmentHistory = ref<InvestmentHistory[]>([]);
 
+  const refreshCooldown = ref(0);
+  let cooldownInterval: number | undefined;
+
+  function startRefreshCooldown(seconds: number = 10) {
+    if (cooldownInterval) window.clearInterval(cooldownInterval);
+    refreshCooldown.value = seconds;
+    cooldownInterval = window.setInterval(() => {
+      refreshCooldown.value--;
+      if (refreshCooldown.value <= 0) {
+        window.clearInterval(cooldownInterval);
+      }
+    }, 1000);
+  }
+
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load
   const isChangingPeriod = ref(false); // Period changes (doesn't hide UI)
@@ -1406,6 +1420,8 @@ export const useFinanceStore = defineStore("finance", () => {
     investmentHoldings,
     investmentTransactions,
     investmentHistory,
+    refreshCooldown,
+    startRefreshCooldown,
     isLoading,
     isChangingPeriod,
     error,

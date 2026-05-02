@@ -133,7 +133,11 @@ function handleKeydown(e: KeyboardEvent) {
               break;
             case "i":
               e.preventDefault();
-              currentView.value = "insights";
+              if (e.shiftKey) {
+                currentView.value = "investments";
+              } else {
+                currentView.value = "insights";
+              }
               break;
             case "l":
               e.preventDefault();
