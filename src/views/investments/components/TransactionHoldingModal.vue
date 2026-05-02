@@ -6,6 +6,7 @@ import DatePicker from 'primevue/datepicker';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
 import { useSettingsStore } from '@/stores/settings';
+import ErrorModal from '@/components/ErrorModal.vue';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -20,6 +21,8 @@ const emit = defineEmits<{
 const store = useFinanceStore();
 const { formatCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
+
+const errorModal = ref<InstanceType<typeof ErrorModal>>();
 
 const cashBalance = computed(() => {
   if (!props.holding) return 0;
@@ -55,7 +58,13 @@ async function submit() {
   if (!props.holding || !props.type || !form.quantity || form.price === null) return;
   
   if (props.type === 'sell' && form.quantity > props.holding.quantity) {
-      alert("You cannot sell more shares than you own.");
+      if (errorModal.value) {
+        await errorModal.value.openConfirmation({
+          title: 'Invalid Quantity',
+          message: 'You cannot sell more shares than you own.',
+          confirmText: 'Ok'
+        });
+      }
       return;
   }
 
@@ -118,7 +127,7 @@ async function submit() {
               />
               <p
                 v-if="type === 'sell'"
-                class="text-[10px] text-gray-500 mt-1 italic"
+                class="text-sm text-gray-500 mt-1 italic"
               >
                 Max available: {{ holding?.quantity }}
               </p>
@@ -185,5 +194,6 @@ async function submit() {
         </div>
       </div>
     </div>
+    <ErrorModal ref="errorModal" />
   </Teleport>
 </template>
