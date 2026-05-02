@@ -302,7 +302,7 @@ function getAccountCashBalance(accountId: number) {
               </thead>
               <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 <tr
-                  v-for="holding in store.investmentHoldings.filter(h => h.accountId === account.id)"
+                  v-for="holding in store.investmentHoldings.filter(h => h.accountId === account.id && h.quantity > 0)"
                   :key="holding.id"
                   class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
                 >
@@ -403,7 +403,7 @@ function getAccountCashBalance(accountId: number) {
                     </div>
                   </td>
                 </tr>
-                <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id).length === 0">
+                <tr v-if="store.investmentHoldings.filter(h => h.accountId === account.id && h.quantity > 0).length === 0">
                   <td
                     colspan="6"
                     class="px-4 py-8 text-center text-gray-400 dark:text-gray-500 italic"
