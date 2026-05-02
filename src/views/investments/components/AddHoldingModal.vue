@@ -265,7 +265,7 @@ async function submit() {
             Cancel
           </button>
           <button
-            class="px-6 py-2 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 border border-primary-200 dark:border-primary-800 disabled:opacity-50 font-bold rounded-lg transition-colors flex items-center"
+            class="px-6 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 disabled:opacity-50 font-medium rounded-lg transition-colors flex items-center"
             :disabled="!form.symbol || !form.quantity || form.price === null || isSubmitting"
             @click="submit"
           >

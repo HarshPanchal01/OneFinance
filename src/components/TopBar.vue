@@ -528,7 +528,7 @@ onUnmounted(() => {
               />
             </div>
             <button
-              class="w-1/2 mx-auto py-1.5 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 border border-primary-200 dark:border-primary-800 text-sm font-medium rounded transition-colors"
+              class="w-1/2 mx-auto py-1.5 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-sm font-medium rounded transition-colors"
               @click="applyAmountFilter"
             >
               Apply
