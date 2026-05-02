@@ -159,13 +159,12 @@ function getAccountCashBalance(accountId: number) {
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
             Investments
           </h1>
-          <button 
-            class="inline-flex items-center px-3 py-1 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 text-xs font-bold rounded-lg transition-colors border border-primary-200 dark:border-primary-800 shrink-0" 
+          <button
+            class="inline-flex items-center px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
             @click="openGlobalHistory"
           >
             Total Holdings History
-          </button>
-        </div>
+          </button>        </div>
         <p class="text-gray-500 dark:text-gray-400 mt-1">
           Manage your portfolios and track holdings.
         </p>
@@ -232,13 +231,12 @@ function getAccountCashBalance(accountId: number) {
                 <span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium">
                   {{ getAccountTypeLabel(account.accountTypeId) }}
                 </span>
-                <button 
-                  class="px-3 py-1 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 text-xs font-bold rounded-lg transition-colors border border-primary-200 dark:border-primary-800 shrink-0" 
-                  @click.stop="openAccountHistory(account.id)"
+                <button
+                 class="px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
+                 @click.stop="openAccountHistory(account.id)"
                 >
-                  Holdings History
-                </button>
-              </div>
+                 Holdings History
+                </button>              </div>
               <p
                 v-if="account.institutionName"
                 class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"
