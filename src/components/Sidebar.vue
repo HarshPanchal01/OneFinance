@@ -433,7 +433,7 @@ async function requestDeleteYear() {
               Cancel
             </button>
             <button
-              class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+              class="px-4 py-2 bg-primary-50 dark:bg-primary-900/10 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg transition-colors"
               @click="addYear"
             >
               Add Year
