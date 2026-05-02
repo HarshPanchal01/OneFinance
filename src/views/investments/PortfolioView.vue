@@ -7,11 +7,14 @@ import AddHoldingModal from './components/AddHoldingModal.vue';
 import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
 import TradeHistoryModal from './components/TradeHistoryModal.vue';
 import AdjustCashModal from './components/AdjustCashModal.vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import { useFormatter } from '@/composables/useFormatter';
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { getCurrencySymbol, formatCurrency } = useFormatter();
+
+const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 
 const investmentAccounts = computed(() => {
   return store.accounts.filter(account => {
@@ -136,7 +139,14 @@ function getAccountTypeLabel(typeId: number) {
 }
 
 async function removeHolding(id: number) {
-  if (confirm("Are you sure you want to remove this asset?")) {
+  if (!confirmModal.value) return;
+  const confirmed = await confirmModal.value.openConfirmation({
+    title: 'Remove Asset',
+    message: 'Are you sure you want to remove this asset?',
+    confirmText: 'Remove'
+  });
+  
+  if (confirmed) {
     await store.removeInvestmentHolding(id);
     await store.fetchAccounts();
   }
@@ -164,7 +174,8 @@ function getAccountCashBalance(accountId: number) {
             @click="openGlobalHistory"
           >
             Total Holdings History
-          </button>        </div>
+          </button>
+        </div>
         <p class="text-gray-500 dark:text-gray-400 mt-1">
           Manage your portfolios and track holdings.
         </p>
@@ -232,11 +243,12 @@ function getAccountCashBalance(accountId: number) {
                   {{ getAccountTypeLabel(account.accountTypeId) }}
                 </span>
                 <button
-                 class="px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
-                 @click.stop="openAccountHistory(account.id)"
+                  class="px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
+                  @click.stop="openAccountHistory(account.id)"
                 >
-                 Holdings History
-                </button>              </div>
+                  Holdings History
+                </button>
+              </div>
               <p
                 v-if="account.institutionName"
                 class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"
@@ -446,5 +458,7 @@ function getAccountCashBalance(accountId: number) {
       @close="showAdjustCashModal = false"
       @saved="() => { showAdjustCashModal = false; store.fetchAccounts(); }"
     />
+
+    <ConfirmationModal ref="confirmModal" />
   </div>
 </template>
