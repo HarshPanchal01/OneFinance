@@ -143,16 +143,21 @@ async function submit() {
             <!-- Summary -->
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span>Total Cash:</span>
-                <span class="font-bold text-gray-900 dark:text-white">
-                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(cashBalance) }}</span>
+                <div class="flex items-center space-x-1">
+                  <span>Total Cash:</span>
                   <span
-                    :class="type === 'buy' ? 'text-expense' : 'text-income'"
-                    class="ml-1"
+                    class="font-bold text-gray-900 dark:text-white"
+                    :class="{ 'privacy-blur': settingsStore.privacyMode }"
                   >
-                    <span v-if="type==='buy'">-</span><span v-else>+</span>
-                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}</span>
+                    {{ formatCurrency(cashBalance) }}
                   </span>
+                </div>
+                <span
+                  class="font-bold"
+                  :class="type === 'buy' ? 'text-expense' : 'text-income'"
+                >
+                  <span v-if="type==='buy'">-</span><span v-else>+</span>
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}</span>
                 </span>
               </div>
             </div>

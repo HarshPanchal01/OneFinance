@@ -48,19 +48,26 @@ let searchTimeout: any = null;
 watch(searchQuery, (newQuery) => {
   if (searchTimeout) window.clearTimeout(searchTimeout);
   
-  if (newQuery.length < 2) {
+  if (newQuery === form.symbol || newQuery.length < 2) {
     searchResults.value = [];
     return;
   }
   
   searchTimeout = window.setTimeout(async () => {
+    const queryForThisSearch = newQuery;
     isSearching.value = true;
     try {
-      searchResults.value = await window.electronAPI.searchSymbols(newQuery);
+      const results = await window.electronAPI.searchSymbols(queryForThisSearch);
+      // Only update if the user hasn't typed something else or already selected this symbol
+      if (searchQuery.value === queryForThisSearch && queryForThisSearch !== form.symbol) {
+        searchResults.value = results;
+      }
     } catch (error) {
       console.error("Search error:", error);
     } finally {
-      isSearching.value = false;
+      if (searchQuery.value === queryForThisSearch) {
+        isSearching.value = false;
+      }
     }
   }, 300);
 });
@@ -70,6 +77,7 @@ async function selectSymbol(result: any) {
   form.name = result.name;
   searchQuery.value = result.symbol;
   searchResults.value = [];
+  
   try {
     const quote = await window.electronAPI.getQuote(result.symbol);
     if (quote && quote.price) {
@@ -165,7 +173,7 @@ async function submit() {
                   v-for="result in searchResults"
                   :key="result.symbol"
                   class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between transition-colors border-b last:border-0 border-gray-100 dark:border-gray-700"
-                  @click="selectSymbol(result)"
+                  @mousedown.prevent="selectSymbol(result)"
                 >
                   <div class="min-w-0">
                     <p class="font-bold text-gray-900 dark:text-white">
@@ -232,10 +240,17 @@ async function submit() {
             <!-- Summary -->
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg mt-4 border border-gray-100 dark:border-gray-600">
               <div class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span>Total Cash:</span>
-                <span class="font-bold text-gray-900 dark:text-white">
-                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(cashBalance) }}</span>
-                  <span class="text-expense ml-1">- <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span></span>
+                <div class="flex items-center space-x-1">
+                  <span>Total Cash:</span>
+                  <span
+                    class="font-bold text-gray-900 dark:text-white"
+                    :class="{ 'privacy-blur': settingsStore.privacyMode }"
+                  >
+                    {{ formatCurrency(cashBalance) }}
+                  </span>
+                </div>
+                <span class="font-bold text-expense">
+                  - <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span>
                 </span>
               </div>
             </div>
