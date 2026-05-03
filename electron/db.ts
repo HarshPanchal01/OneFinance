@@ -1371,8 +1371,16 @@ export function deleteInvestmentHolding(id: number): boolean {
   return result.changes > 0;
 }
 
-export function getInvestmentTransactions(holdingId: number): InvestmentTransaction[] {
-  return db.prepare("SELECT * FROM investment_transactions WHERE holdingId = ? ORDER BY date DESC").all(holdingId) as InvestmentTransaction[];
+export function getInvestmentTransactions(holdingId: number): any[] {
+  return db.prepare(`
+    SELECT 
+      *,
+      'trade' as recordType,
+      ((quantity * price) + (CASE WHEN type = 'buy' THEN fees ELSE -fees END)) as amount
+    FROM investment_transactions 
+    WHERE holdingId = ? 
+    ORDER BY date DESC
+  `).all(holdingId) as any[];
 }
 
 export function getAllInvestmentTransactions(): InvestmentTransaction[] {
