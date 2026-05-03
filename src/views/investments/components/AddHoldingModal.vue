@@ -96,15 +96,20 @@ async function submit() {
   try {
     const isoDate = new Date(form.date.getTime() - form.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 
-    // Create holding with 0 quantity initially, the transaction will update it
-    const holding = await store.addInvestmentHolding({
-      accountId: props.accountId,
-      symbol: form.symbol,
-      name: form.name,
-      quantity: 0,
-      lastPrice: form.price,
-      lastUpdated: new Date().toISOString()
-    });
+    // Check if the holding already exists in this account
+    let holding = store.investmentHoldings.find(h => h.accountId === props.accountId && h.symbol === form.symbol);
+
+    if (!holding) {
+      // Create holding with 0 quantity initially, the transaction will update it
+      holding = await store.addInvestmentHolding({
+        accountId: props.accountId,
+        symbol: form.symbol,
+        name: form.name,
+        quantity: 0,
+        lastPrice: form.price,
+        lastUpdated: new Date().toISOString()
+      });
+    }
     
     if (holding) {
       await store.addInvestmentTransaction({
