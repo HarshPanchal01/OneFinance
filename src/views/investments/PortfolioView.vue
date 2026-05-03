@@ -171,12 +171,6 @@ function getAccountCashBalance(accountId: number) {
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
             Investments
           </h1>
-          <button
-            class="inline-flex items-center px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
-            @click="openGlobalHistory"
-          >
-            Total Holdings History
-          </button>
         </div>
         <p class="text-gray-500 dark:text-gray-400 mt-1">
           Manage your portfolios and track holdings.
@@ -195,6 +189,12 @@ function getAccountCashBalance(accountId: number) {
           </p>
         </div>
         <div class="flex items-center space-x-3">
+          <button
+            class="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors disabled:opacity-50"
+            @click="openGlobalHistory"
+          >
+            Activity History
+          </button>
           <button
             class="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors disabled:opacity-50"
             :disabled="isRefreshing || store.refreshCooldown > 0"
@@ -244,12 +244,6 @@ function getAccountCashBalance(accountId: number) {
                 <span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium">
                   {{ getAccountTypeLabel(account.accountTypeId) }}
                 </span>
-                <button
-                  class="px-3 py-1 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-xs font-medium rounded-lg transition-colors shrink-0"
-                  @click.stop="openAccountHistory(account.id)"
-                >
-                  Holdings History
-                </button>
               </div>
               <p
                 v-if="account.institutionName"
@@ -259,7 +253,7 @@ function getAccountCashBalance(accountId: number) {
               </p>
             </div>
           </div>
-          <div class="flex items-center space-x-6">
+          <div class="flex items-center space-x-4">
             <div class="text-right">
               <span
                 class="text-lg font-bold text-gray-900 dark:text-white"
@@ -271,6 +265,13 @@ function getAccountCashBalance(accountId: number) {
                 Current Value
               </p>
             </div>
+            <button
+              class="p-2 text-gray-400 hover:text-primary-500 transition-colors"
+              title="Account History"
+              @click.stop="openAccountHistory(account.id)"
+            >
+              <i class="pi pi-history text-xl" />
+            </button>
           </div>
         </div>
 

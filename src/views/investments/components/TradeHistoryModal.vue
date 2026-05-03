@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { InvestmentHolding } from '@/types';
 import { useFormatter } from '@/composables/useFormatter';
 import { useSettingsStore } from '@/stores/settings';
+import { useFinanceStore } from '@/stores/finance';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -16,6 +17,15 @@ const emit = defineEmits<{
 
 const { formatDate, formatCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
+const store = useFinanceStore();
+
+const accountName = computed(() => {
+  if (props.accountId) {
+    const acc = store.accounts.find(a => a.id === props.accountId);
+    return acc ? acc.accountName : '';
+  }
+  return '';
+});
 
 const transactions = ref<any[]>([]);
 const isLoading = ref(true);
@@ -60,7 +70,7 @@ onMounted(async () => {
                 Cash adjustments and transfers
               </template>
               <template v-else-if="accountId">
-                All trades for this account
+                All trades for {{ accountName }}
               </template>
               <template v-else>
                 All trades across all investment accounts
