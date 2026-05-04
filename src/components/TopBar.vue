@@ -23,7 +23,7 @@ const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);
 const typeFilter = ref<'all' | 'income' | 'expense' | 'transfer'>('all');
-const sortOrder = ref<'desc' | 'asc'>('desc');
+const sortOrder = ref<'desc' | 'asc' | 'amount-desc' | 'amount-asc'>('desc');
 
 // Label Picker State
 const showLabelPicker = ref(false);
@@ -97,7 +97,7 @@ function selectType(type: 'all' | 'income' | 'expense' | 'transfer') {
   showTypePicker.value = false;
 }
 
-function selectSort(order: 'desc' | 'asc') {
+function selectSort(order: 'desc' | 'asc' | 'amount-desc' | 'amount-asc') {
   sortOrder.value = order;
   handleSearch();
   showSortPicker.value = false;
@@ -606,7 +606,9 @@ onUnmounted(() => {
             <i
               class="pi"
               :class="[
-                sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt',
+                sortOrder === 'desc' ? 'pi-sort-amount-down' : 
+                sortOrder === 'asc' ? 'pi-sort-amount-up-alt' :
+                sortOrder === 'amount-desc' ? 'pi-sort-numeric-down-alt' : 'pi-sort-numeric-up',
                 sortOrder !== 'desc' ? 'text-primary-500' : ''
               ]"
             />
@@ -619,7 +621,7 @@ onUnmounted(() => {
           <!-- Sort Picker Dropdown -->
           <div
             v-if="showSortPicker"
-            class="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
+            class="absolute top-full left-0 mt-2 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
             @click.stop
           >
             <button
@@ -635,6 +637,21 @@ onUnmounted(() => {
               @click="selectSort('asc')"
             >
               Oldest First
+            </button>
+            <div class="h-px bg-gray-100 dark:bg-gray-700 my-1" />
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'amount-desc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('amount-desc')"
+            >
+              Highest Amount
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'amount-asc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('amount-asc')"
+            >
+              Lowest Amount
             </button>
           </div>
         </div>

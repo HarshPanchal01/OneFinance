@@ -803,8 +803,15 @@ export function searchTransactions(
     params.push(searchTerm, searchTerm, searchTerm);
   }
 
-  const validSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
-  sql += ` ORDER BY t.date ${validSortOrder}, t.id DESC`;
+  // Add sorting
+  if (sortOrder === 'amount-desc') {
+    sql += " ORDER BY t.amount DESC, t.date DESC";
+  } else if (sortOrder === 'amount-asc') {
+    sql += " ORDER BY t.amount ASC, t.date DESC";
+  } else {
+    const validSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    sql += ` ORDER BY t.date ${validSortOrder}, t.id DESC`;
+  }
 
   if (limit) {
     sql += " LIMIT ?";

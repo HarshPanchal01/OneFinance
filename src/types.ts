@@ -156,5 +156,5 @@ export interface SearchOptions {
   minAmount?: number | null;
   maxAmount?: number | null;
   type?: "income" | "expense" | "transfer" | null;
-  sortOrder?: 'desc' | 'asc';
+  sortOrder?: 'desc' | 'asc' | 'amount-desc' | 'amount-asc';
 }
