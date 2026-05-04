@@ -19,6 +19,8 @@ const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 const settingsStore = useSettingsStore();
 
+const isDev = import.meta.env.DEV;
+
 const {
   openDbLocation: _openDbLocation,
   deleteDatabase: _deleteDatabase,
@@ -263,7 +265,10 @@ async function importData() {
       </div>
 
       <!-- Developer Options -->
-      <div class="card p-6 border-2 border-dashed border-expense/30">
+      <div
+        v-if="isDev"
+        class="card p-6 border-2 border-dashed border-expense/30"
+      >
         <h3
           class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center"
         >
