@@ -177,17 +177,6 @@ function getAccountCashBalance(accountId: number) {
         </p>
       </div>
       <div class="flex items-center space-x-6">
-        <div class="text-right">
-          <span
-            class="text-2xl font-bold text-gray-900 dark:text-white"
-            :class="{ 'privacy-blur': settingsStore.privacyMode }"
-          >
-            {{ formatCurrency(totalPortfolioValue) }}
-          </span>
-          <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-            Current Investments Value
-          </p>
-        </div>
         <div class="flex items-center space-x-3">
           <button
             class="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors disabled:opacity-50"
@@ -203,6 +192,17 @@ function getAccountCashBalance(accountId: number) {
             <i :class="['pi pi-refresh mr-2', { 'animate-spin': isRefreshing }]" />
             {{ store.refreshCooldown > 0 ? `Refresh (${store.refreshCooldown}s)` : 'Refresh Prices' }}
           </button>
+        </div>
+        <div class="text-right">
+          <span
+            class="text-2xl font-bold text-gray-900 dark:text-white"
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalPortfolioValue) }}
+          </span>
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Current Investments Value
+          </p>
         </div>
       </div>
     </header>
