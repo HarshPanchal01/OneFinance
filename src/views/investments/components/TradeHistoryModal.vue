@@ -9,6 +9,7 @@ const props = defineProps<{
   holding: InvestmentHolding | null;
   accountId?: number | null;
   isCash?: boolean;
+  initialAssetFilter?: string;
 }>();
 
 const emit = defineEmits<{
@@ -184,6 +185,11 @@ const filteredTransactions = computed(() => {
 
 onMounted(async () => {
   window.addEventListener('click', handleClickOutside);
+  
+  if (props.initialAssetFilter) {
+    selectedAssets.value = [props.initialAssetFilter];
+  }
+
   try {
     if (props.holding) {
       transactions.value = await window.electronAPI.getInvestmentTransactions(props.holding.id);

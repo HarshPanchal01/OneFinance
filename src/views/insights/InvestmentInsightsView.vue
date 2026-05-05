@@ -4,15 +4,32 @@ import { useFinanceStore } from '@/stores/finance';
 import { useFormatter } from '@/composables/useFormatter';
 import AssetAllocationChart from './components/charts/AssetAllocationChart.vue';
 import PortfolioHistoryChart from './components/charts/PortfolioHistoryChart.vue';
+import MarketVsBookList from './components/MarketVsBookList.vue';
+import NetContributionsChart from './components/charts/NetContributionsChart.vue';
 import InsightMetricCard from '@/views/insights/components/InsightMetricCard.vue';
+import TradeHistoryModal from '@/views/investments/components/TradeHistoryModal.vue';
 import { getDateRange, toIsoDateString, getCustomRangeObj, getTimeRangeLabel } from '@/utils';
+import type { InvestmentTransaction } from '@/types';
 
 const store = useFinanceStore();
 const { formatCurrency } = useFormatter();
 
+const showHistoryModal = ref(false);
+const modalHistoryAccountId = ref<number | null>(null);
+const historyInitialAssetFilter = ref<string | undefined>(undefined);
+
+function handleOpenHistory(symbol: string, accountId: string) {
+  historyInitialAssetFilter.value = symbol;
+  modalHistoryAccountId.value = accountId === 'all' ? null : Number(accountId);
+  showHistoryModal.value = true;
+}
+
 const globalHistory = ref<{ date: string, totalValue: number }[]>([]);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const globalAdjustments = ref<any[]>([]);
+const globalInvestmentTransactions = ref<InvestmentTransaction[]>([]);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rawHistories = ref<any[]>([]);
 
 async function fetchGlobalHistory() {
   const investmentAccounts = store.accounts.filter(a => {
@@ -26,6 +43,8 @@ async function fetchGlobalHistory() {
       histories.push(...h);
   }
   
+  rawHistories.value = histories;
+
   // Group by date to compute global history safely
   const dateMap = new Map<string, number>();
   for (const h of histories) {
@@ -46,6 +65,8 @@ onMounted(async () => {
 
   // Fetch adjustments for net contributions
   globalAdjustments.value = await window.electronAPI.getInvestmentAdjustments();
+  // Fetch transactions for book value calculation
+  globalInvestmentTransactions.value = await window.electronAPI.getAllInvestmentTransactions();
 });
 
 const isRefreshing = ref(false);
@@ -117,6 +138,37 @@ function getNetContributions(startDate: Date, endDate: Date) {
     
     return net;
 }
+
+// Chart Filters
+const bookValueAccountId = ref<string>('all');
+const allocationAccountId = ref<string>('all');
+const contributionsAccountId = ref<string>('all');
+const contributionsOption = ref<string>('YTD');
+const historyAccountId = ref<string>('all');
+const historyOption = ref<string>('YTD');
+
+// Helper for years
+const availableYears = computed(() => {
+    const years = new Set(store.ledgerYears);
+    globalHistory.value.forEach(h => {
+        years.add(parseInt(h.date.substring(0, 4)));
+    });
+    return Array.from(years).sort((a, b) => b - a);
+});
+
+const computedHistoryData = computed(() => {
+    if (historyAccountId.value === 'all') {
+        return globalHistory.value;
+    }
+    const accId = parseInt(historyAccountId.value);
+    const dateMap = new Map<string, number>();
+    for (const h of rawHistories.value.filter(x => x.accountId === accId)) {
+        dateMap.set(h.date, (dateMap.get(h.date) || 0) + h.totalValue);
+    }
+    return Array.from(dateMap.entries())
+        .map(([date, totalValue]) => ({ date, totalValue }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+});
 
 // Stats State
 const returnTimeRange = ref<string>('thisMonth');
@@ -249,32 +301,187 @@ const contributionsData = computed(() => {
       </InsightMetricCard>
     </div>
 
-    <!-- Charts Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Asset Allocation -->
-      <div class="card p-4 lg:col-span-1 flex flex-col relative min-h-[350px]">
-        <div class="relative flex items-center justify-center mb-4 min-h-[32px] shrink-0">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base text-center">
-            Asset Allocation
+    <!-- Charts Row 1 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-4">
+      <!-- Market vs Book Value -->
+      <div class="card p-4 lg:col-span-2 flex flex-col h-[350px]">
+        <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none">
+            Book Value of Assets
           </h3>
+          <div class="z-10 flex gap-2">
+            <select
+              v-model="bookValueAccountId"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+            >
+              <option value="all">
+                All
+              </option>
+              <option
+                v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.accountName }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="flex-1 relative min-h-0">
-          <AssetAllocationChart />
+          <MarketVsBookList
+            :account-id="bookValueAccountId"
+            :transactions="globalInvestmentTransactions"
+            @open-history="handleOpenHistory"
+          />
+        </div>
+      </div>
+
+      <!-- Portfolio Allocation -->
+      <div class="card p-4 lg:col-span-1 flex flex-col relative h-[350px]">
+        <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
+            Portfolio Allocation
+          </h3>
+          <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
+            Allocation
+          </h3>
+          <div class="z-10 flex gap-2">
+            <select
+              v-model="allocationAccountId"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+            >
+              <option value="all">
+                All
+              </option>
+              <option
+                v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.accountName }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="flex-1 relative min-h-0">
+          <AssetAllocationChart :account-id="allocationAccountId" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Net Contributions History -->
+      <div class="card p-4 flex flex-col h-[350px]">
+        <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
+            Net Contributions History
+          </h3>
+          <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
+            Net Contributions
+          </h3>
+          <div class="z-10 flex gap-2">
+            <select
+              v-model="contributionsAccountId"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+            >
+              <option value="all">
+                All
+              </option>
+              <option
+                v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.accountName }}
+              </option>
+            </select>
+            <select
+              v-model="contributionsOption"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer"
+            >
+              <option value="YTD">
+                YTD
+              </option>
+              <option
+                v-for="year in availableYears"
+                :key="year"
+                :value="year.toString()"
+              >
+                {{ year }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="flex-1 relative min-h-0">
+          <NetContributionsChart
+            :account-id="contributionsAccountId"
+            :option="contributionsOption"
+            :adjustments="globalAdjustments"
+          />
         </div>
       </div>
 
       <!-- Portfolio Value History -->
-      <div class="card p-4 lg:col-span-2 flex flex-col min-h-[350px]">
-        <div class="relative flex items-center justify-center mb-4 min-h-[32px] shrink-0">
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base text-center">
+      <div class="card p-4 flex flex-col h-[350px]">
+        <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
             Portfolio Value History
           </h3>
+          <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
+            Portfolio Value
+          </h3>
+          <div class="z-10 flex gap-2">
+            <select
+              v-model="historyAccountId"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+            >
+              <option value="all">
+                All
+              </option>
+              <option
+                v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.accountName }}
+              </option>
+            </select>
+            <select
+              v-model="historyOption"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer"
+            >
+              <option value="YTD">
+                YTD
+              </option>
+              <option
+                v-for="year in availableYears"
+                :key="year"
+                :value="year.toString()"
+              >
+                {{ year }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="flex-1 relative min-h-0">
-          <PortfolioHistoryChart />
+          <PortfolioHistoryChart
+            :history="computedHistoryData"
+            :option="historyOption"
+          />
         </div>
       </div>
     </div>
+
+    <!-- Modals -->
+    <TradeHistoryModal
+      v-if="showHistoryModal"
+      :holding="null"
+      :account-id="modalHistoryAccountId"
+      :is-cash="false"
+      :initial-asset-filter="historyInitialAssetFilter"
+      @close="showHistoryModal = false"
+    />
   </div>
 </template>
 

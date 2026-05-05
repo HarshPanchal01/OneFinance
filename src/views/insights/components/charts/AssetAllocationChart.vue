@@ -3,10 +3,17 @@ import { computed } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
 
+const props = defineProps<{
+  accountId: string;
+}>();
+
 const store = useFinanceStore();
 
 const topAssets = computed(() => {
-  const holdings = store.investmentHoldings;
+  const holdings = store.investmentHoldings.filter(h => 
+    props.accountId === 'all' || h.accountId === parseInt(props.accountId)
+  );
+
   const allocationMap = new Map<string, number>();
   
   holdings.forEach(h => {
@@ -60,30 +67,48 @@ const chartOptions = {
 </script>
 
 <template>
-  <div class="flex flex-col items-center h-full min-h-0">
-    <div class="w-full flex-1 relative min-h-0">
-      <AppChart
-        type="doughnut"
-        :data="chartData"
-        :options="chartOptions"
-        height="100%"
-      />
+  <div class="flex flex-col xl:flex-row h-full w-full items-start xl:justify-between gap-6 pt-2">
+    <!-- Left Column: Total Text + Chart -->
+    <div class="flex flex-col items-center justify-start gap-4 shrink-0 w-full xl:w-auto mt-2">
+      <!-- Chart -->
+      <div class="w-44 h-44 xl:w-52 xl:h-52">
+        <div
+          v-if="chartData.labels.length === 0"
+          class="h-full w-full flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-900/50 rounded-full border border-dashed border-gray-200 dark:border-gray-700"
+        >
+          <i class="pi pi-chart-pie text-2xl text-gray-300 dark:text-gray-600 mb-1" />
+        </div>
+        <AppChart
+          v-else
+          type="doughnut"
+          :data="chartData"
+          :options="chartOptions"
+          height="100%"
+        />
+      </div>
     </div>
-    
-    <div class="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 w-full max-h-32 overflow-y-auto pr-2 shrink-0">
+
+    <!-- Custom Legend (Right Side - Hidden on small screens) -->
+    <div class="hidden xl:grid grid-cols-2 gap-x-6 gap-y-3 overflow-y-auto h-full pr-2 pb-2 w-full content-start">
       <div
         v-for="(asset, index) in topAssets"
         :key="asset.label"
-        class="flex items-center justify-between"
+        class="flex items-center gap-2 bg-gray-50/30 dark:bg-gray-800/30 rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
-        <div class="flex items-center min-w-0">
-          <div 
-            class="w-2 h-2 rounded-full mr-2 shrink-0" 
-            :style="{ backgroundColor: chartData.datasets[0].backgroundColor[index] }" 
-          />
-          <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{{ asset.label }}</span>
+        <div
+          class="w-3 h-3 rounded-full flex shrink-0 shadow-sm"
+          :style="{ backgroundColor: chartData.datasets[0].backgroundColor[index] }"
+        />
+        <div class="flex flex-col min-w-0 flex-1">
+          <div class="flex justify-between items-baseline gap-2">
+            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">
+              {{ asset.label }}
+            </span>
+            <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium shrink-0">
+              {{ asset.percentage.toFixed(1) }}%
+            </span>
+          </div>
         </div>
-        <span class="text-[10px] text-gray-500 shrink-0 ml-2">{{ asset.percentage.toFixed(1) }}%</span>
       </div>
     </div>
   </div>
