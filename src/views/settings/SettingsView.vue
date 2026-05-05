@@ -34,7 +34,7 @@ const shortcuts = [
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
   { keys: ["Ctrl", "S"], description: "Go to Schedules" },
-  { keys: ["Ctrl", "I"], description: "Go to Insights" },
+  { keys: ["Ctrl", "I"], description: "Go to Spending Insights" },
   { keys: ["Ctrl", "L"], description: "Go to Labels" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },

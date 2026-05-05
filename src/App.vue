@@ -14,10 +14,10 @@ import TransactionsView from "@/views/TransactionsView.vue";
 import CategoriesView from "@/views/labels/LabelsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
-import InsightsView from "@/views/insights/InsightsView.vue";
+import SpendingInsightsView from "@/views/insights/SpendingInsightsView.vue";
 import RecurringView from "@/views/recurring/RecurringView.vue";
 import PortfolioView from "@/views/investments/PortfolioView.vue";
-import InvestmentInsightsView from "@/views/investments/InvestmentInsightsView.vue";
+import InvestmentInsightsView from "@/views/insights/InvestmentInsightsView.vue";
   
 const store = useFinanceStore();
 
@@ -219,7 +219,7 @@ function handleKeydown(e: KeyboardEvent) {
             :highlight-account-id="activeAccountId"
             @request-view-transactions="handleRequestViewTransactions"
           />
-          <InsightsView v-else-if="currentView === 'insights'" />
+          <SpendingInsightsView v-else-if="currentView === 'insights'" />
           <PortfolioView v-else-if="currentView === 'investments'" />
           <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
           <RecurringView 
