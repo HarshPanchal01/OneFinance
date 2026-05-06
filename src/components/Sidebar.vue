@@ -64,8 +64,8 @@ const navItems = [
     label: "Insights",
     icon: "pi-chart-line",
     children: [
-      { id: "insights", label: "General Insights" },
-      { id: "investment-insights", label: "Portfolio Insights" },
+      { id: "insights", label: "General", icon: "pi-chart-bar" },
+      { id: "investment-insights", label: "Portfolio", icon: "pi-chart-pie" },
     ]
   },
   { id: "categories", label: "Labels", icon: "pi-tags" },
@@ -273,6 +273,10 @@ async function requestDeleteYear() {
                 ]"
                 @click="handleNavClick(child.id)"
               >
+                <i
+                  v-if="'icon' in child"
+                  :class="['pi mr-3 text-base', child.icon]"
+                />
                 {{ child.label }}
               </button>
             </div>
