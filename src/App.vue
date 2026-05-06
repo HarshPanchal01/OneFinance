@@ -156,7 +156,18 @@ function handleKeydown(e: KeyboardEvent) {
               } else {
                 currentView.value = "recurring";
               }
-              break;    }
+              break;
+            case "p":
+              e.preventDefault();
+              if (e.shiftKey) {
+                // Toggle privacy mode
+                const settingsStore = useSettingsStore();
+                settingsStore.togglePrivacyMode();
+              } else {
+                currentView.value = "investment-insights";
+              }
+              break;    
+    }
   }
 }
 </script>

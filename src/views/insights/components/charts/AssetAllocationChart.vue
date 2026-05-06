@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 import AppChart from "@/components/AppChart.vue";
@@ -16,6 +16,8 @@ const emit = defineEmits<{
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { formatCurrency } = useFormatter();
+
+const isCenterHovered = ref(false);
 
 const topAssets = computed(() => {
   const holdings = store.investmentHoldings.filter(h => 
@@ -128,7 +130,17 @@ const chartOptions = {
           <span
             class="text-base xl:text-xl font-bold text-gray-800 dark:text-white"
             :class="{ 'privacy-blur': settingsStore.privacyMode }"
+            :style="settingsStore.privacyMode && isCenterHovered ? { filter: 'blur(0px)' } : {}"
           >{{ formatCurrency(totalValue) }}</span>
+        </div>
+
+        <!-- Invisible Hover Target for Total -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+          <div 
+            class="w-24 h-12 pointer-events-auto cursor-default"
+            @mouseenter="isCenterHovered = true"
+            @mouseleave="isCenterHovered = false"
+          />
         </div>
 
         <div

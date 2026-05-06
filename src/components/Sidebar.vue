@@ -64,8 +64,8 @@ const navItems = [
     label: "Insights",
     icon: "pi-chart-line",
     children: [
-      { id: "insights", label: "Spending Trends" },
-      { id: "investment-insights", label: "Investment Performance" },
+      { id: "insights", label: "General Insights" },
+      { id: "investment-insights", label: "Portfolio Insights" },
     ]
   },
   { id: "categories", label: "Labels", icon: "pi-tags" },

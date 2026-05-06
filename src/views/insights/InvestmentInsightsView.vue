@@ -233,7 +233,7 @@ const contributionsData = computed(() => {
       <div>
         <div class="flex items-center space-x-3">
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-            Investment Performance
+            Portfolio Insights
           </h1>
         </div>
         <p class="text-gray-500 dark:text-gray-400 mt-1">

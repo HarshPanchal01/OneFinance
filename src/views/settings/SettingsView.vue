@@ -34,12 +34,14 @@ const shortcuts = [
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
   { keys: ["Ctrl", "S"], description: "Go to Schedules" },
-  { keys: ["Ctrl", "I"], description: "Go to Spending Insights" },
+  { keys: ["Ctrl", "I"], description: "Go to General Insights" },
+  { keys: ["Ctrl", "P"], description: "Go to Portfolio Insights" },
   { keys: ["Ctrl", "L"], description: "Go to Labels" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
-  { keys: ["/"], description: "Go to Search Bar" },
+  { keys: ["Ctrl", "Shift", "P"], description: "Toggle Privacy Mode" },
+  { keys: ["/"], description: "Go to Search Bar (While on Transactions Page)" },
 ];
 
 // Load DB path and platform logo on mount

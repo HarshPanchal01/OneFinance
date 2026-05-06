@@ -156,7 +156,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
       <div>
         <div class="flex items-center space-x-3">
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-            Spending Insights
+            General Insights
           </h1>
         </div>
         <p class="text-gray-500 dark:text-gray-400 mt-1">
