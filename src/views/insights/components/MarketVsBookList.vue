@@ -186,13 +186,19 @@ watch(() => props.highlightedSymbol, async (newSymbol) => {
               <div class="flex flex-col items-end">
                 <span 
                   class="font-semibold text-sm"
-                  :class="asset.percent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                  :class="[
+                    asset.percent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+                    { 'privacy-blur': settingsStore.privacyMode }
+                  ]"
                 >
                   {{ asset.change >= 0 ? '+' : '' }}{{ formatCurrency(asset.change) }}
                 </span>
                 <span 
                   class="text-[10px] font-medium"
-                  :class="asset.percent >= 0 ? 'text-green-600/80 dark:text-green-400/80' : 'text-red-600/80 dark:text-red-400/80'"
+                  :class="[
+                    asset.percent >= 0 ? 'text-green-600/80 dark:text-green-400/80' : 'text-red-600/80 dark:text-red-400/80',
+                    { 'privacy-blur': settingsStore.privacyMode }
+                  ]"
                 >
                   {{ asset.percent >= 0 ? '+' : '' }}{{ asset.percent.toFixed(2) }}%
                 </span>
@@ -208,7 +214,7 @@ watch(() => props.highlightedSymbol, async (newSymbol) => {
 <style scoped>
 @keyframes highlight-fade {
   0%, 100% { background-color: transparent; }
-  50% { @apply bg-primary-100/50 dark:bg-primary-900/40; }
+  50% { background-color: rgba(79, 157, 221, 0.4); }
 }
 
 .highlight-blink {

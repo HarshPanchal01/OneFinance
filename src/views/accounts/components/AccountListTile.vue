@@ -112,7 +112,7 @@ import { computed, ref, watch } from 'vue';
 <style scoped>
 @keyframes highlight-fade {
   0%, 100% { background-color: transparent; }
-  50% { @apply bg-primary-100/50 dark:bg-primary-900/40; }
+  50% { background-color: rgba(79, 157, 221, 0.4); }
 }
 
 .highlight-blink {
