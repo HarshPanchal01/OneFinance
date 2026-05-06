@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useFormatter } from "@/composables/useFormatter";
 import { useSettingsStore } from "@/stores/settings";
@@ -8,6 +8,7 @@ import type { InvestmentTransaction } from "@/types";
 const props = defineProps<{
   accountId: string;
   transactions: InvestmentTransaction[];
+  highlightedSymbol?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +18,8 @@ const emit = defineEmits<{
 const store = useFinanceStore();
 const { formatCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
+
+const rowRefs = ref<Record<string, HTMLElement>>({});
 
 const sortedHoldings = computed(() => {
   const holdings = store.investmentHoldings.filter(h => 
@@ -89,6 +92,12 @@ const sortedHoldings = computed(() => {
     .sort((a, b) => b.marketValue - a.marketValue);
 });
 
+watch(() => props.highlightedSymbol, (newSymbol) => {
+  if (newSymbol && rowRefs.value[newSymbol]) {
+    rowRefs.value[newSymbol].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+
 </script>
 
 <template>
@@ -137,7 +146,9 @@ const sortedHoldings = computed(() => {
           <tr
             v-for="asset in sortedHoldings"
             :key="asset.symbol"
-            class="group"
+            :ref="(el) => { if (el) rowRefs[asset.symbol] = el as HTMLElement }"
+            class="group transition-colors"
+            :class="{ 'bg-primary-50 dark:bg-primary-900/20 highlight-blink': asset.symbol === highlightedSymbol }"
           >
             <td class="px-4 py-3">
               <div class="flex flex-col">
@@ -190,3 +201,14 @@ const sortedHoldings = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes highlight-fade {
+  0%, 100% { background-color: transparent; }
+  50% { @apply bg-primary-100/50 dark:bg-primary-900/40; }
+}
+
+.highlight-blink {
+  animation: highlight-fade 1s ease-in-out 3;
+}
+</style>

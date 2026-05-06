@@ -64,7 +64,7 @@ import { computed, ref, watch } from 'vue';
     ref="tileRef"
     class="grid grid-cols-[1fr_200px_150px_200px_120px] items-center px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
     :class="[
-      isHighlighted ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+      isHighlighted ? 'highlight-blink' : ''
     ]"
   >
     <div class="font-bold text-gray-900 dark:text-white flex items-center min-w-0">
@@ -108,3 +108,14 @@ import { computed, ref, watch } from 'vue';
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes highlight-fade {
+  0%, 100% { background-color: transparent; }
+  50% { @apply bg-primary-100/50 dark:bg-primary-900/40; }
+}
+
+.highlight-blink {
+  animation: highlight-fade 1s ease-in-out 3;
+}
+</style>

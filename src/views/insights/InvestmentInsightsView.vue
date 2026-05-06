@@ -139,6 +139,15 @@ function getNetContributions(startDate: Date, endDate: Date) {
     return net;
 }
 
+function handleHighlightAsset(symbol: string, accountId: string) {
+  bookValueAccountId.value = accountId;
+  highlightedSymbol.value = symbol;
+  
+  window.setTimeout(() => {
+    highlightedSymbol.value = null;
+  }, 2000);
+}
+
 // Chart Filters
 const bookValueAccountId = ref<string>('all');
 const allocationAccountId = ref<string>('all');
@@ -146,6 +155,8 @@ const contributionsAccountId = ref<string>('all');
 const contributionsOption = ref<string>('YTD');
 const historyAccountId = ref<string>('all');
 const historyOption = ref<string>('YTD');
+
+const highlightedSymbol = ref<string | null>(null);
 
 // Helper for years
 const availableYears = computed(() => {
@@ -302,9 +313,9 @@ const contributionsData = computed(() => {
     </div>
 
     <!-- Charts Row 1 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6 mt-4">
       <!-- Market vs Book Value -->
-      <div class="card p-4 lg:col-span-2 flex flex-col h-[350px]">
+      <div class="card p-4 lg:col-span-2 xl:col-span-3 flex flex-col h-[350px]">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
           <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none">
             Book Value of Assets
@@ -312,7 +323,7 @@ const contributionsData = computed(() => {
           <div class="z-10 flex gap-2">
             <select
               v-model="bookValueAccountId"
-              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[120px] truncate"
             >
               <option value="all">
                 All
@@ -331,6 +342,7 @@ const contributionsData = computed(() => {
           <MarketVsBookList
             :account-id="bookValueAccountId"
             :transactions="globalInvestmentTransactions"
+            :highlighted-symbol="highlightedSymbol"
             @open-history="handleOpenHistory"
           />
         </div>
@@ -338,33 +350,28 @@ const contributionsData = computed(() => {
 
       <!-- Portfolio Allocation -->
       <div class="card p-4 lg:col-span-1 flex flex-col relative h-[350px]">
-        <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
-          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
-            Portfolio Allocation
-          </h3>
-          <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
-            Allocation
-          </h3>
-          <div class="z-10 flex gap-2">
-            <select
-              v-model="allocationAccountId"
-              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+        <div class="absolute top-4 right-4 z-20 flex gap-2">
+          <select
+            v-model="allocationAccountId"
+            class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+          >
+            <option value="all">
+              All
+            </option>
+            <option
+              v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
+              :key="acc.id"
+              :value="acc.id.toString()"
             >
-              <option value="all">
-                All
-              </option>
-              <option
-                v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
-                :key="acc.id"
-                :value="acc.id.toString()"
-              >
-                {{ acc.accountName }}
-              </option>
-            </select>
-          </div>
+              {{ acc.accountName }}
+            </option>
+          </select>
         </div>
         <div class="flex-1 relative min-h-0">
-          <AssetAllocationChart :account-id="allocationAccountId" />
+          <AssetAllocationChart
+            :account-id="allocationAccountId"
+            @highlight-asset="handleHighlightAsset"
+          />
         </div>
       </div>
     </div>
