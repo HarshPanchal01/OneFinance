@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, nextTick } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useFormatter } from "@/composables/useFormatter";
 import { useSettingsStore } from "@/stores/settings";
@@ -92,9 +92,12 @@ const sortedHoldings = computed(() => {
     .sort((a, b) => b.marketValue - a.marketValue);
 });
 
-watch(() => props.highlightedSymbol, (newSymbol) => {
-  if (newSymbol && rowRefs.value[newSymbol]) {
-    rowRefs.value[newSymbol].scrollIntoView({ behavior: 'smooth', block: 'center' });
+watch(() => props.highlightedSymbol, async (newSymbol) => {
+  if (newSymbol) {
+    await nextTick();
+    if (rowRefs.value[newSymbol]) {
+      rowRefs.value[newSymbol].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }
 });
 

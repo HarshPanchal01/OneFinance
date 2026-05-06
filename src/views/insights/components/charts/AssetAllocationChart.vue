@@ -61,18 +61,27 @@ const totalValue = computed(() => {
 });
 
 const chartData = computed(() => {
-  const bgColors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316', '#3b82f6', '#9ca3af'];
+  const bgColors = [
+    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+    '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#3b82f6',
+    '#fbbf24', '#2dd4bf', '#a855f7', '#fb7185', '#fb923c',
+    '#4ade80', '#60a5fa', '#818cf8', '#c084fc', '#9ca3af'
+  ];
+  
+  // Assign colors, cycling through if we exceed the palette size
+  const colors = topAssets.value.map((_, i) => bgColors[i % bgColors.length]);
+
   return {
     labels: topAssets.value.map(a => a.label),
     datasets: [
       {
         data: topAssets.value.map(a => a.value),
-        backgroundColor: bgColors,
-        hoverBackgroundColor: bgColors.map(c => c + '99'),
-        borderColor: bgColors,
-        hoverBorderColor: bgColors,
+        backgroundColor: colors,
+        hoverBackgroundColor: colors.map(c => c + 'CC'), // Slightly more solid hover
+        borderColor: colors,
+        hoverBorderColor: colors,
         borderWidth: 2,
-        hoverOffset: 4,
+        hoverOffset: 6,
       },
     ],
   };
@@ -114,7 +123,7 @@ const chartOptions = {
       <!-- Chart -->
       <div class="relative w-52 h-52 xl:w-60 xl:h-60">
         <!-- Total Text (Inside Donut) -->
-        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
           <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight mb-0.5">Total</span>
           <span
             class="text-base xl:text-xl font-bold text-gray-800 dark:text-white"
