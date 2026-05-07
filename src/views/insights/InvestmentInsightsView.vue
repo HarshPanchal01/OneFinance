@@ -326,7 +326,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[120px] truncate"
             >
               <option value="all">
-                All
+                Combined
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
@@ -393,7 +393,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
             >
               <option value="all">
-                All
+                Combined
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
@@ -409,6 +409,9 @@ const contributionsData = computed(() => {
             >
               <option value="YTD">
                 YTD
+              </option>
+              <option value="all">
+                All Time
               </option>
               <option
                 v-for="year in availableYears"
@@ -444,7 +447,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
             >
               <option value="all">
-                All
+                Combined
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
