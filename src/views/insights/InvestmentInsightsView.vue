@@ -128,14 +128,6 @@ function getNetContributions(startDate: Date, endDate: Date) {
         }
     }
     
-    // Adjustments
-    for (const adj of globalAdjustments.value) {
-        if (adj.date >= startIso && adj.date <= endIso) {
-            if (adj.type === 'income') net += adj.amount;
-            else if (adj.type === 'expense') net -= adj.amount;
-        }
-    }
-    
     return net;
 }
 
@@ -146,6 +138,23 @@ function handleHighlightAsset(symbol: string, accountId: string) {
   window.setTimeout(() => {
     highlightedSymbol.value = null;
   }, 2000);
+}
+
+function handleContributionsDrillDown(data: { range: { fromDate: string, toDate: string }, type: 'deposit' | 'withdrawal' }) {
+    const filter: any = {
+        fromDate: data.range.fromDate,
+        toDate: data.range.toDate,
+        type: 'transfer' as const
+    };
+    
+    if (contributionsAccountId.value !== 'all') {
+        filter.accountIds = [parseInt(contributionsAccountId.value)];
+    } else {
+        filter.accountIds = Array.from(investmentAccountIds.value);
+    }
+    
+    store.setTransactionFilter(filter);
+    store.searchTransactions(filter);
 }
 
 // Chart Filters
@@ -326,7 +335,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[120px] truncate"
             >
               <option value="all">
-                Combined
+                All Accounts
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
@@ -356,7 +365,7 @@ const contributionsData = computed(() => {
             class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
           >
             <option value="all">
-              All
+              All Accounts
             </option>
             <option
               v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
@@ -381,8 +390,20 @@ const contributionsData = computed(() => {
       <!-- Net Contributions History -->
       <div class="card p-4 flex flex-col h-[350px]">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-income shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Deposits</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-expense shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Withdrawals</span>
+            </div>
+          </div>
+
           <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
-            Net Contributions History
+            Net Contributions
           </h3>
           <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
             Net Contributions
@@ -393,7 +414,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
             >
               <option value="all">
-                Combined
+                All Accounts
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"
@@ -427,7 +448,7 @@ const contributionsData = computed(() => {
           <NetContributionsChart
             :account-id="contributionsAccountId"
             :option="contributionsOption"
-            :adjustments="globalAdjustments"
+            @drill-down="handleContributionsDrillDown"
           />
         </div>
       </div>
@@ -436,7 +457,7 @@ const contributionsData = computed(() => {
       <div class="card p-4 flex flex-col h-[350px]">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
           <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
-            Portfolio Value History
+            Portfolio Value
           </h3>
           <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
             Portfolio Value
@@ -447,7 +468,7 @@ const contributionsData = computed(() => {
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
             >
               <option value="all">
-                Combined
+                All Accounts
               </option>
               <option
                 v-for="acc in store.accounts.filter(a => isInvestment(a.id))"

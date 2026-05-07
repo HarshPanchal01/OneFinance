@@ -17,7 +17,7 @@ const chartData = computed(() => {
     startDate = "0000-00-00";
     endDate = "9999-12-31";
   } else if (props.option === "YTD") {
-    startDate = toIsoDateString(new Date(now.getFullYear(), 0, 1));
+    startDate = toIsoDateString(new Date(now.getFullYear(), now.getMonth() - 11, 1));
     endDate = toIsoDateString(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   } else {
     const year = parseInt(props.option);
