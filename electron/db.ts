@@ -2,7 +2,10 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import { migrateDatabase } from "./migration";
+
+export const databaseVersion = 2.0;
 
 // Use createRequire for native module (better-sqlite3)
 const require = createRequire(import.meta.url);
@@ -58,6 +61,45 @@ export const db = new Proxy({} as ReturnType<typeof Database>, {
  * Creates all tables if they don't exist
  */
 export function initializeDatabase(): void {
+  let currentDbVersion = databaseVersion;
+
+  try {
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='version'").get();
+    if (tableCheck) {
+      const versionRow = db.prepare("SELECT version FROM version LIMIT 1").get() as { version: number } | undefined;
+      currentDbVersion = versionRow?.version || 1.0;
+    } else {
+      const accountsCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get();
+      if (accountsCheck) {
+        currentDbVersion = 1.0;
+      } else {
+        currentDbVersion = databaseVersion;
+      }
+    }
+  } catch (e) {
+    console.error("[DB] Error checking version:", e);
+    currentDbVersion = 1.0;
+  }
+
+  if (currentDbVersion < databaseVersion) {
+    migrateDatabase(db, currentDbVersion, databaseVersion);
+  }
+
+  // Ensure version table exists for fresh installs or after migrations
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS version (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version REAL NOT NULL
+    )
+  `);
+  
+  const versionCount = db.prepare("SELECT COUNT(*) as count FROM version").get() as { count: number };
+  if (versionCount.count === 0) {
+    db.prepare("INSERT INTO version (version) VALUES (?)").run(databaseVersion);
+  } else {
+    db.prepare("UPDATE version SET version = ?").run(databaseVersion);
+  }
+
   // Ledger Years - Primary key is the year itself
   db.exec(`
     CREATE TABLE IF NOT EXISTS ledger_years (
@@ -76,23 +118,12 @@ export function initializeDatabase(): void {
     )
   `);
   
-  // comment out later when we have the migration strategy in place
-  try {
-    db.exec("ALTER TABLE categories ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
-    // Update known default income categories during migration for existing users
-    db.exec("UPDATE categories SET type = 'income' WHERE name = 'Salary'");
-    db.exec("UPDATE categories SET type = 'both' WHERE name = 'Other'");
-  } catch (e: any) {
-    if (!e.message.includes('duplicate column name')) {
-      console.error('Migration error:', e);
-    }
-  }
-
   // Account Type
   db.exec(`
     CREATE TABLE IF NOT EXISTS accountType (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL
+      type TEXT NOT NULL,
+      classification TEXT NOT NULL DEFAULT 'liquid' CHECK(classification IN ('liquid', 'asset', 'liability', 'investment'))
     )
   `);
 
@@ -109,6 +140,28 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Recurring Transactions - Templates for automated cash flows
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      amount REAL NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
+      categoryId INTEGER,
+      accountId INTEGER NOT NULL,
+      transferAccountId INTEGER,
+      frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'bi-weekly', 'monthly', 'yearly')),
+      startDate TEXT NOT NULL,
+      nextRunDate TEXT NOT NULL,
+      isActive BOOLEAN NOT NULL DEFAULT 1,
+      isExpenseTransfer BOOLEAN DEFAULT 0,
+      isIncomeTransfer BOOLEAN DEFAULT 0,
+      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
   // Transactions - The main data
   db.exec(`
     CREATE TABLE IF NOT EXISTS transactions (
@@ -116,11 +169,69 @@ export function initializeDatabase(): void {
       title TEXT NOT NULL,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transfer')),
       notes TEXT,
       categoryId INTEGER,
       accountId INTEGER NOT NULL,
+      transferAccountId INTEGER,
+      recurringId INTEGER,
+      isExpenseTransfer BOOLEAN DEFAULT 0,
+      isIncomeTransfer BOOLEAN DEFAULT 0,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (recurringId) REFERENCES recurring_transactions(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Investment Holdings - Track individual assets within an investment account
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_holdings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      symbol TEXT NOT NULL,
+      name TEXT,
+      quantity REAL NOT NULL,
+      lastPrice REAL,
+      lastUpdated TEXT,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment Transactions - Track buys, sells, and drips
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      holdingId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'drip')),
+      quantity REAL NOT NULL,
+      price REAL NOT NULL,
+      fees REAL DEFAULT 0,
+      FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment History - Track total account value over time
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      totalValue REAL NOT NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment Cash Adjustments - Private ledger for investment account cash adjustments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      notes TEXT,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -148,7 +259,99 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
   `);
 
+  processRecurringTransactions();
+
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
+}
+
+/**
+ * Calculates the next occurrence date based on frequency
+ */
+function calculateNextDate(currentDateStr: string, frequency: string): string {
+  const parts = currentDateStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  
+  const nextDate = new Date(year, month, day);
+
+  if (frequency === 'weekly') {
+    nextDate.setDate(nextDate.getDate() + 7);
+  } else if (frequency === 'bi-weekly') {
+    nextDate.setDate(nextDate.getDate() + 14);
+  } else if (frequency === 'monthly') {
+    const targetMonth = nextDate.getMonth() + 1;
+    nextDate.setMonth(targetMonth);
+    // Handle end-of-month snap (e.g. Jan 31 -> Feb 28)
+    if (nextDate.getMonth() !== targetMonth % 12) {
+      nextDate.setDate(0);
+    }
+  } else if (frequency === 'yearly') {
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+  }
+
+  return nextDate.getFullYear() + '-' + 
+         String(nextDate.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(nextDate.getDate()).padStart(2, '0');
+}
+
+/**
+ * Processes any due recurring transactions and generates transactions
+ * @returns boolean - true if any transactions were generated, false otherwise
+ */
+export function processRecurringTransactions(): boolean {
+  try {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const dueRecurrings = db.prepare(`
+      SELECT * FROM recurring_transactions 
+      WHERE isActive = 1 AND nextRunDate <= ?
+    `).all(todayStr) as RecurringTransaction[];
+
+    if (dueRecurrings.length === 0) return false;
+
+    db.exec('BEGIN TRANSACTION');
+
+    const insertTx = db.prepare(`
+      INSERT INTO transactions (title, amount, date, type, categoryId, accountId, transferAccountId, recurringId, isExpenseTransfer, isIncomeTransfer)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateRecurring = db.prepare(`
+      UPDATE recurring_transactions SET nextRunDate = ? WHERE id = ?
+    `);
+
+    for (const rec of dueRecurrings) {
+      let currentDateStr = rec.nextRunDate;
+
+      while (currentDateStr <= todayStr) {
+        insertTx.run(
+          rec.title,
+          rec.amount,
+          currentDateStr,
+          rec.type,
+          rec.categoryId,
+          rec.accountId,
+          rec.transferAccountId,
+          rec.id,
+          rec.isExpenseTransfer ? 1 : 0,
+          rec.isIncomeTransfer ? 1 : 0
+        );
+        currentDateStr = calculateNextDate(currentDateStr, rec.frequency);
+      }
+
+      updateRecurring.run(currentDateStr, rec.id);
+    }
+
+    db.exec('COMMIT');
+    console.log(`[DB] Processed ${dueRecurrings.length} recurring transactions.`);
+    return true;
+  } catch (e) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('[DB] Error processing recurring transactions:', e);
+    return false;
+  }
 }
 
 /**
@@ -178,9 +381,19 @@ function seedDefaultCategories(): void {
 function seedDefaultAccountData(): void{
   
   const defaultAccountTypes = [
-    {type: "Cash"},
-    {type: "Chequing"},
-    {type: "Savings"},
+    {type: "Cash", classification: "liquid"},
+    {type: "Chequing", classification: "liquid"},
+    {type: "Savings", classification: "liquid"},
+    {type: "Credit Card", classification: "liability"},
+    {type: "Loan", classification: "liability"},
+    {type: "Mortgage", classification: "liability"},
+    {type: "Vehicle", classification: "asset"},
+    {type: "House", classification: "asset"},
+    {type: "Investment", classification: "investment"},
+    {type: "TFSA", classification: "investment"},
+    {type: "RRSP", classification: "investment"},
+    {type: "FHSA", classification: "investment"},
+    {type: "Crypto", classification: "investment"},
   ];
 
   const defaultAccounts = [
@@ -188,22 +401,24 @@ function seedDefaultAccountData(): void{
   ];
 
   const insertAccountType = db.prepare(
-    "INSERT INTO accountType (type) VALUES (?)"
+    "INSERT INTO accountType (type, classification) VALUES (?, ?)"
   );
 
   let result = null;
+  let savingsId = 0;
   for (const accType of defaultAccountTypes){
-    result = insertAccountType.run(accType.type);
+    result = insertAccountType.run(accType.type, accType.classification);
+    if (accType.type === "Savings") {
+      savingsId = Number(result.lastInsertRowid);
+    }
   }
-
-  const id = result?.lastInsertRowid ?? 0; 
 
   const insertAccount = db.prepare(
     "INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)"
   );
 
   for (const acc of defaultAccounts){
-    insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, id, Number(acc.isDefault));
+    insertAccount.run(acc.accountName, acc.institutionName, acc.startingBalance, savingsId, Number(acc.isDefault));
   }
   console.log("Account Data Seeded")
 }
@@ -211,6 +426,11 @@ function seedDefaultAccountData(): void{
 export function deleteAllDataFromTables(): void{
   const tables = [
     "transactions",
+    "recurring_transactions",
+    "investment_transactions",
+    "investment_holdings",
+    "investment_history",
+    "investment_adjustments",
     "accounts",
     "accountType",
     "categories",
@@ -308,8 +528,8 @@ export function insertAccount(account: Account): number | null{
 export function insertAccountType(accountType: AccountType): number | null {
   try {
     const result = db
-      .prepare("INSERT INTO accountType (type) VALUES (?)")
-      .run(accountType.type);
+      .prepare("INSERT INTO accountType (type, classification) VALUES (?, ?)")
+      .run(accountType.type, accountType.classification || 'liquid');
 
     return Number(result.lastInsertRowid);
   } catch {
@@ -359,9 +579,9 @@ export function editAccount(account: Account): void {
 
 export function editAccountType(accountType: AccountType): AccountType | undefined {
   const stmt = db.prepare(
-    "UPDATE accountType SET type = ? WHERE id = ?"
+    "UPDATE accountType SET type = ?, classification = ? WHERE id = ?"
   );
-  stmt.run(accountType.type, accountType.id);
+  stmt.run(accountType.type, accountType.classification || 'liquid', accountType.id);
   return getAccountTypeById(accountType.id);
 }
 
@@ -502,11 +722,11 @@ export function searchTransactions(
   options: SearchOptions,
   limit?: number
 ): TransactionWithCategory[] {
-  const { text = "", categoryIds = [], accountIds = [], fromDate, toDate, minAmount, maxAmount, type, sortOrder = 'desc' } = options;
+  const { text = "", categoryIds = [], accountIds = [], recurringId, fromDate, toDate, minAmount, maxAmount, type, sortOrder = 'desc' } = options;
   const searchTerm = `%${text.trim()}%`;
 
   let sql = `
-    SELECT 
+    SELECT
       t.*,
       c.name as categoryName,
       c.colorCode as categoryColor,
@@ -515,15 +735,26 @@ export function searchTransactions(
     LEFT JOIN categories c ON t.categoryId = c.id
     WHERE 1=1
   `;
-  
+
   const params: (string | number)[] = [];
 
   // Add type filter
   if (type) {
-    sql += " AND t.type = ?";
-    params.push(type);
+    if (type === 'expense') {
+      sql += " AND (t.type = 'expense' OR (t.type = 'transfer' AND t.isExpenseTransfer = 1))";
+    } else if (type === 'income') {
+      sql += " AND (t.type = 'income' OR (t.type = 'transfer' AND t.isIncomeTransfer = 1))";
+    } else {
+      sql += " AND t.type = ?";
+      params.push(type);
+    }
   }
 
+  // Add recurring filter
+  if (recurringId !== undefined) {
+    sql += " AND t.recurringId = ?";
+    params.push(recurringId);
+  }
   // Add category filters
   if (categoryIds.length > 0) {
     const placeholders = categoryIds.map(() => "?").join(",");
@@ -534,7 +765,8 @@ export function searchTransactions(
   // Add account filters
   if (accountIds.length > 0) {
     const placeholders = accountIds.map(() => "?").join(",");
-    sql += ` AND t.accountId IN (${placeholders})`;
+    sql += ` AND (t.accountId IN (${placeholders}) OR t.transferAccountId IN (${placeholders}))`;
+    params.push(...accountIds);
     params.push(...accountIds);
   }
 
@@ -571,8 +803,15 @@ export function searchTransactions(
     params.push(searchTerm, searchTerm, searchTerm);
   }
 
-  const validSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
-  sql += ` ORDER BY t.date ${validSortOrder}, t.id DESC`;
+  // Add sorting
+  if (sortOrder === 'amount-desc') {
+    sql += " ORDER BY t.amount DESC, t.date DESC";
+  } else if (sortOrder === 'amount-asc') {
+    sql += " ORDER BY t.amount ASC, t.date DESC";
+  } else {
+    const validSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    sql += ` ORDER BY t.date ${validSortOrder}, t.id DESC`;
+  }
 
   if (limit) {
     sql += " LIMIT ?";
@@ -620,16 +859,15 @@ export function getTransactions(
 
 export function getMonthlyTrends(year: number): MonthlyTrend[] {
   const query = `
-    SELECT 
-      strftime('%m', date) as monthStr,
-      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as totalIncome,
-      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as totalExpenses
-    FROM transactions 
-    WHERE strftime('%Y', date) = ?
-    GROUP BY monthStr
-    ORDER BY monthStr
+  SELECT 
+    strftime('%m', date) as monthStr,
+    SUM(CASE WHEN type = 'income' OR (type = 'transfer' AND isIncomeTransfer = 1) THEN amount ELSE 0 END) as totalIncome,
+    SUM(CASE WHEN type = 'expense' OR (type = 'transfer' AND isExpenseTransfer = 1) THEN amount ELSE 0 END) as totalExpenses
+  FROM transactions
+  WHERE strftime('%Y', date) = ?
+  GROUP BY monthStr
+  ORDER BY monthStr ASC
   `;
-
   const rows = db.prepare(query).all(year.toString()) as { monthStr: string, totalIncome: number, totalExpenses: number }[];
 
   // Fill in missing months and format
@@ -658,16 +896,15 @@ export function getDailyTransactionSum(year: number, month: number, type: 'incom
       strftime('%d', date) as dayStr,
       SUM(amount) as total
     FROM transactions 
-    WHERE strftime('%Y', date) = ? 
-      AND strftime('%m', date) = ? 
-      AND type = ?
+    WHERE strftime('%Y', date) = ?
+      AND strftime('%m', date) = ?
+      AND (type = ? OR (? = 'expense' AND type = 'transfer' AND isExpenseTransfer = 1) OR (? = 'income' AND type = 'transfer' AND isIncomeTransfer = 1))
     GROUP BY dayStr
     ORDER BY dayStr
-  `;
+    `;
 
-  const monthStr = month.toString().padStart(2, '0');
-  const rows = db.prepare(query).all(year.toString(), monthStr, type) as { dayStr: string, total: number }[];
-
+    const monthStr = month.toString().padStart(2, '0');
+    const rows = db.prepare(query).all(year.toString(), monthStr, type, type, type) as { dayStr: string, total: number }[];
   return rows.map(r => ({
     day: parseInt(r.dayStr, 10),
     total: r.total
@@ -697,8 +934,8 @@ export function createTransaction(
   input: CreateTransactionInput
 ): TransactionWithCategory {
   const stmt = db.prepare(`
-    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId, recurringId, isExpenseTransfer, isIncomeTransfer)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -708,7 +945,11 @@ export function createTransaction(
     input.type,
     input.notes || null,
     input.categoryId || null,
-    input.accountId
+    input.accountId,
+    input.transferAccountId || null,
+    input.recurringId || null,
+    input.isExpenseTransfer ? 1 : 0,
+    input.isIncomeTransfer ? 1 : 0
   );
 
   return getTransactionById(result.lastInsertRowid as number)!;
@@ -716,19 +957,22 @@ export function createTransaction(
 
 export function insertTransactionWithId(transaction: Transaction): void{
   const insert = db.prepare(`
-    INSERT INTO transactions (id, ledgerPeriodId, title, amount, date, type, notes, categoryId, accountId)
-    VALUES (?,?,?,?,?,?,?,?,?)
+    INSERT INTO transactions (id, title, amount, date, type, notes, categoryId, accountId, transferAccountId, recurringId, isExpenseTransfer, isIncomeTransfer)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
   `);
   insert.run(
     transaction.id,
-    transaction.ledgerPeriodId,
     transaction.title,
     transaction.amount,
     transaction.date,
     transaction.type,
     transaction.notes,
     transaction.categoryId,
-    transaction.accountId
+    transaction.accountId,
+    transaction.transferAccountId || null,
+    transaction.recurringId || null,
+    transaction.isExpenseTransfer ? 1 : 0,
+    transaction.isIncomeTransfer ? 1 : 0
   );
 }
 
@@ -740,8 +984,8 @@ export function updateTransaction(
   if (!current) return undefined;
 
   const stmt = db.prepare(`
-    UPDATE transactions 
-    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?
+    UPDATE transactions
+    SET title = ?, amount = ?, date = ?, type = ?, notes = ?, categoryId = ?, accountId = ?, transferAccountId = ?, recurringId = ?, isExpenseTransfer = ?, isIncomeTransfer = ?
     WHERE id = ?
   `);
 
@@ -753,6 +997,10 @@ export function updateTransaction(
     input.notes !== undefined ? input.notes : current.notes,
     input.categoryId !== undefined ? input.categoryId : current.categoryId,
     input.accountId !== undefined ? input.accountId : current.accountId,
+    input.transferAccountId !== undefined ? input.transferAccountId : current.transferAccountId,
+    input.recurringId !== undefined ? input.recurringId : current.recurringId,
+    input.isExpenseTransfer !== undefined ? (input.isExpenseTransfer ? 1 : 0) : (current.isExpenseTransfer ? 1 : 0),
+    input.isIncomeTransfer !== undefined ? (input.isIncomeTransfer ? 1 : 0) : (current.isIncomeTransfer ? 1 : 0),
     id
   );
 
@@ -765,32 +1013,68 @@ export function deleteTransaction(id: number): boolean {
   return result.changes > 0;
 }
 
+export function deleteTransactions(ids: number[]): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`);
+  stmt.run(...ids);
+  return true;
+}
+
+export function updateTransactionsCategory(ids: number[], categoryId: number | null): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  
+  if (categoryId !== null) {
+    const category = getCategoryById(categoryId);
+    if (category && category.type !== 'both') {
+      // Update both category and transaction type if the category is strictly income or expense
+      const stmt = db.prepare(`UPDATE transactions SET categoryId = ?, type = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+      stmt.run(categoryId, category.type, ...ids);
+      return true;
+    }
+  }
+
+  // Only update category for non-transfer transactions
+  const stmt = db.prepare(`UPDATE transactions SET categoryId = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+  stmt.run(categoryId, ...ids);
+  return true;
+}
+
+export function updateTransactionsAccount(ids: number[], accountId: number): boolean {
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  // Only update account for non-transfer transactions to prevent complex logic bugs
+  const stmt = db.prepare(`UPDATE transactions SET accountId = ? WHERE id IN (${placeholders}) AND type != 'transfer'`);
+  stmt.run(accountId, ...ids);
+  return true;
+}
+
 export function getRollingMonthlyTrends(): MonthlyTrend[] {
   const now = new Date();
-  
+
   // 13 months inclusive: Current Month back to Same Month Last Year
   // Start Date: 1st of (Current Month - 12)
   const startDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
   // End Date: Last day of Current Month
   const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
+
   const toSqlDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  
+
   const startStr = toSqlDate(startDate);
   const endStr = toSqlDate(endDate);
 
   const query = `
-    SELECT 
+    SELECT
       strftime('%Y', date) as yearStr,
       strftime('%m', date) as monthStr,
-      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as totalIncome,
-      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as totalExpenses
-    FROM transactions 
+      SUM(CASE WHEN type = 'income' OR (type = 'transfer' AND isIncomeTransfer = 1) THEN amount ELSE 0 END) as totalIncome,
+      SUM(CASE WHEN type = 'expense' OR (type = 'transfer' AND isExpenseTransfer = 1) THEN amount ELSE 0 END) as totalExpenses
+    FROM transactions
     WHERE date >= ? AND date <= ?
     GROUP BY yearStr, monthStr
     ORDER BY yearStr, monthStr
-  `;
-  
+  `;  
   const rows = db.prepare(query).all(startStr, endStr) as { yearStr: string, monthStr: string, totalIncome: number, totalExpenses: number }[];
   
   const trends: MonthlyTrend[] = [];
@@ -823,7 +1107,7 @@ export function getTotalMonthSpend(year: number, month: number): number {
     const query = `
         SELECT SUM(amount) as total
         FROM transactions
-        WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ? AND type = 'expense'
+        WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ? AND (type = 'expense' OR (type = 'transfer' AND isExpenseTransfer = 1))
     `;
     const monthStr = month.toString().padStart(2, '0');
     const result = db.prepare(query).get(year.toString(), monthStr) as { total: number };
@@ -831,38 +1115,527 @@ export function getTotalMonthSpend(year: number, month: number): number {
 }
 
 export function getNetWorthTrend(): { month: number, year: number, balance: number }[] {
-    // 1. Get sum of all starting balances
     const accounts = getAccounts();
-    const initialBalance = accounts.reduce((sum, acc) => sum + acc.startingBalance, 0);
+    const holdings = getInvestmentHoldings();
 
-    // 2. Get monthly net changes (income - expense) for all time
+    // 1. Calculate the CURRENT absolute net worth correctly (Matches Dashboard)
+    // Formula: Sum(Account Starting Balances) + Sum(All Cash Inflows) - Sum(All Cash Outflows) + Sum(Current Holdings Market Value)
+    let currentNetWorth = 0;
+
+    for (const acc of accounts) {
+        currentNetWorth += acc.startingBalance;
+    }
+
+    // Net cash flow from all sources (transactions, adjustments, and the cost of trades)
+    const cashFlow = db.prepare(`
+        SELECT SUM(net) as total FROM (
+            -- Standard transactions
+            SELECT SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END) as net FROM transactions
+            UNION ALL
+            -- Investment adjustments (dividends, etc)
+            SELECT SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END) as net FROM investment_adjustments
+            UNION ALL
+            -- Investment trades (cash impact of buying/selling)
+            SELECT SUM(CASE 
+                WHEN type = 'buy' THEN -(quantity * price + fees) 
+                WHEN type = 'sell' THEN (quantity * price - fees) 
+                WHEN type = 'drip' THEN -fees 
+                ELSE 0 END) as net 
+            FROM investment_transactions
+        )
+    `).get() as { total: number };
+
+    currentNetWorth += (cashFlow.total || 0);
+
+    // Current Market Value of Holdings
+    for (const h of holdings) {
+        currentNetWorth += (h.quantity * (h.lastPrice || 0));
+    }
+
+    // 2. Fetch monthly changes that actually AFFECT net worth (Income, Expense, Fees, Adjustments)
+    // We EXCLUDE trade principal because buying stock is just an exchange of cash for assets.
+    // However, unrealized gains/losses (price changes) ARE changes to net worth. 
+    // Since we don't have historical prices, we attribute the total unrealized gain to the months.
     const query = `
         SELECT 
-            strftime('%Y', date) as yearStr,
-            strftime('%m', date) as monthStr,
-            SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as netChange
-        FROM transactions 
+            yearStr, 
+            monthStr, 
+            SUM(netChange) as netChangeTotal
+        FROM (
+            SELECT
+                strftime('%Y', date) as yearStr,
+                strftime('%m', date) as monthStr,
+                CASE
+                    WHEN type = 'income' THEN amount
+                    WHEN type = 'expense' THEN -amount
+                    ELSE 0
+                END as netChange
+            FROM transactions
+
+            UNION ALL
+
+            SELECT
+                strftime('%Y', date) as yearStr,
+                strftime('%m', date) as monthStr,
+                CASE
+                    WHEN type = 'income' THEN amount
+                    WHEN type = 'expense' THEN -amount
+                    ELSE 0
+                END as netChange
+            FROM investment_adjustments
+
+            UNION ALL
+
+            SELECT
+                strftime('%Y', date) as yearStr,
+                strftime('%m', date) as monthStr,
+                -fees as netChange
+            FROM investment_transactions
+            WHERE fees > 0
+        )
         GROUP BY yearStr, monthStr
-        ORDER BY yearStr ASC, monthStr ASC
+        ORDER BY yearStr DESC, monthStr DESC
     `;
-    
-    const rows = db.prepare(query).all() as { yearStr: string, monthStr: string, netChange: number }[];
-    
-    // 3. Calculate cumulative balance
+
+    const rows = db.prepare(query).all() as { yearStr: string, monthStr: string, netChangeTotal: number }[];
+
+    // 3. Build the trend line working BACKWARDS from today's total
     const trends: { month: number, year: number, balance: number }[] = [];
-    let runningBalance = initialBalance;
-    
+    let rollingBalance = currentNetWorth;
+
     for (const row of rows) {
-        runningBalance += row.netChange;
         trends.push({
             year: parseInt(row.yearStr),
             month: parseInt(row.monthStr),
-            balance: runningBalance
+            balance: rollingBalance
         });
+
+        // Subtract this month's net change to find the balance at the start of the month
+        rollingBalance -= row.netChangeTotal;
     }
-    
-    return trends;
+
+    // 4. Sort back to chronological order for the chart
+    return trends.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+    });
 }
 
+export function getDatabaseVersion(): number {
+  try {
+    const row = db.prepare("SELECT version FROM version LIMIT 1").get() as { version: number } | undefined;
+    return row?.version || databaseVersion;
+  } catch {
+    return databaseVersion;
+  }
+}
+
+// ============================================
+// RECURRING TRANSACTIONS OPERATIONS
+// ============================================
+
+export function getRecurringTransactions(): RecurringTransaction[] {
+  return db.prepare("SELECT * FROM recurring_transactions ORDER BY nextRunDate ASC").all() as RecurringTransaction[];
+}
+
+export function createRecurringTransaction(data: Omit<RecurringTransaction, 'id'>): RecurringTransaction {
+  const insert = db.prepare(`
+    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive, isExpenseTransfer, isIncomeTransfer)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const result = insert.run(
+    data.title, data.amount, data.type, data.categoryId, data.accountId, data.transferAccountId,
+    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0, data.isExpenseTransfer ? 1 : 0, data.isIncomeTransfer ? 1 : 0
+  );
+
+  // Process immediately in case the start date is in the past
+  processRecurringTransactions();
+
+  return db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(result.lastInsertRowid) as RecurringTransaction;
+}
+export function updateRecurringTransaction(id: number, data: Partial<RecurringTransaction>): RecurringTransaction {
+  const current = db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction | undefined;
+  if (!current) throw new Error("Recurring transaction not found");
+
+  const update = db.prepare(`
+    UPDATE recurring_transactions
+    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?, isExpenseTransfer = ?, isIncomeTransfer = ?
+    WHERE id = ?
+  `);
+
+  update.run(
+    data.title ?? current.title,
+    data.amount ?? current.amount,
+    data.type ?? current.type,
+    data.categoryId !== undefined ? data.categoryId : current.categoryId,
+    data.accountId ?? current.accountId,
+    data.transferAccountId !== undefined ? data.transferAccountId : current.transferAccountId,
+    data.frequency ?? current.frequency,
+    data.startDate ?? current.startDate,
+    data.nextRunDate ?? current.nextRunDate,
+    data.isActive !== undefined ? (data.isActive ? 1 : 0) : current.isActive,
+    data.isExpenseTransfer !== undefined ? (data.isExpenseTransfer ? 1 : 0) : (current.isExpenseTransfer ? 1 : 0),
+    data.isIncomeTransfer !== undefined ? (data.isIncomeTransfer ? 1 : 0) : (current.isIncomeTransfer ? 1 : 0),
+    id
+  );
+  // Process immediately in case the nextRunDate was changed to the past
+  processRecurringTransactions();
+
+  return db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction;
+}
+
+export function deleteRecurringTransaction(id: number): boolean {
+  const result = db.prepare("DELETE FROM recurring_transactions WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function toggleRecurringTransactionActive(id: number, isActive: boolean): boolean {
+  if (isActive) {
+    const rec = db.prepare("SELECT * FROM recurring_transactions WHERE id = ?").get(id) as RecurringTransaction | undefined;
+    if (rec) {
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+      
+      let nextRun = rec.nextRunDate;
+      // Advance nextRunDate to today or future so we don't back-fill the paused period
+      while (nextRun < todayStr) {
+        nextRun = calculateNextDate(nextRun, rec.frequency);
+      }
+      
+      if (nextRun !== rec.nextRunDate) {
+        db.prepare("UPDATE recurring_transactions SET nextRunDate = ? WHERE id = ?").run(nextRun, id);
+      }
+    }
+  }
+
+  const result = db.prepare("UPDATE recurring_transactions SET isActive = ? WHERE id = ?").run(isActive ? 1 : 0, id);
+  
+  // If re-activated, process (this will create today's transaction if nextRun was advanced exactly to today)
+  if (isActive) {
+    processRecurringTransactions();
+  }
+  
+  return result.changes > 0;
+}
+
+// ============================================
+// INVESTMENT FUNCTIONS
+// ============================================
+
+export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
+  let query = "SELECT * FROM investment_holdings";
+  const params: any[] = [];
+  
+  if (accountId) {
+    query += " WHERE accountId = ?";
+    params.push(accountId);
+  }
+  
+  return db.prepare(query).all(...params) as InvestmentHolding[];
+}
+
+export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
+  const insert = db.prepare(`
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = insert.run(
+    data.accountId,
+    data.symbol,
+    data.name,
+    data.quantity,
+    data.lastPrice,
+    data.lastUpdated
+  );
+  
+  return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
+}
+
+export function updateInvestmentHolding(id: number, data: Partial<InvestmentHolding>): InvestmentHolding {
+  const current = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
+  
+  const update = db.prepare(`
+    UPDATE investment_holdings 
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?
+    WHERE id = ?
+  `);
+  
+  update.run(
+    data.symbol ?? current.symbol,
+    data.name !== undefined ? data.name : current.name,
+    data.quantity ?? current.quantity,
+    data.lastPrice ?? current.lastPrice,
+    data.lastUpdated ?? current.lastUpdated,
+    id
+  );
+  
+  return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
+}
+
+export function deleteInvestmentHolding(id: number): boolean {
+  const result = db.prepare("DELETE FROM investment_holdings WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function getInvestmentTransactions(holdingId: number): any[] {
+  return db.prepare(`
+    SELECT 
+      *,
+      'trade' as recordType,
+      ((quantity * price) + (CASE WHEN type = 'buy' THEN fees ELSE -fees END)) as amount
+    FROM investment_transactions 
+    WHERE holdingId = ? 
+    ORDER BY date DESC
+  `).all(holdingId) as any[];
+}
+
+export function getAllInvestmentTransactions(): InvestmentTransaction[] {
+  return db.prepare("SELECT * FROM investment_transactions").all() as InvestmentTransaction[];
+}
+
+export function getAccountInvestmentTransactions(accountId: number): InvestmentTransaction[] {
+  return db.prepare(`
+    SELECT it.*, ih.symbol as holdingSymbol 
+    FROM investment_transactions it
+    JOIN investment_holdings ih ON it.holdingId = ih.id
+    WHERE ih.accountId = ?
+    ORDER BY it.date DESC
+  `).all(accountId) as (InvestmentTransaction & { holdingSymbol: string })[];
+}
+
+export function getCombinedInvestmentHistory(accountId: number): any[] {
+  return db.prepare(`
+    SELECT
+      'trade' as recordType,
+      it.id,
+      it.date,
+      it.type,
+      ih.symbol as asset,
+      it.quantity,
+      it.price,
+      it.fees,
+      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+    FROM investment_transactions it
+    JOIN investment_holdings ih ON it.holdingId = ih.id
+    WHERE ih.accountId = ?
+
+    UNION ALL
+
+    SELECT
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      CASE WHEN ia.type = 'expense' THEN -ia.amount ELSE ia.amount END as amount
+    FROM investment_adjustments ia
+    WHERE ia.accountId = ?
+
+    UNION ALL
+
+    SELECT
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      CASE
+        WHEN t.accountId = ? THEN -t.amount -- Outflow from this account
+        ELSE t.amount -- Inflow to this account (transferAccountId)
+      END as amount
+    FROM transactions t
+    WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
+
+    ORDER BY date DESC
+  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
+}
+
+export function getAllCombinedInvestmentHistory(): any[] {
+  return db.prepare(`
+    SELECT
+      'trade' as recordType,
+      it.id,
+      it.date,
+      it.type,
+      ih.symbol as asset,
+      it.quantity,
+      it.price,
+      it.fees,
+      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+    FROM investment_transactions it
+    JOIN investment_holdings ih ON it.holdingId = ih.id
+
+    UNION ALL
+
+    SELECT
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      CASE WHEN ia.type = 'expense' THEN -ia.amount ELSE ia.amount END as amount
+    FROM investment_adjustments ia
+
+    UNION ALL
+
+    SELECT
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      -t.amount as amount
+    FROM transactions t
+    JOIN accounts a ON t.accountId = a.id
+    JOIN accountType at ON a.accountTypeId = at.id
+    WHERE t.type = 'transfer' AND at.classification = 'investment'
+
+    UNION ALL
+
+    SELECT
+      'cash' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title as asset,
+      NULL as quantity,
+      NULL as price,
+      NULL as fees,
+      t.amount as amount
+    FROM transactions t
+      JOIN accounts a ON t.transferAccountId = a.id
+      JOIN accountType at ON a.accountTypeId = at.id
+      WHERE t.type = 'transfer' AND at.classification = 'investment'
+
+    ORDER BY date DESC
+  `).all() as any[];
+}
+
+export function getAccountTransactions(accountId: number): TransactionWithCategory[] {
+  return db.prepare(`
+    SELECT t.*, c.name as categoryName, c.colorCode as categoryColor, c.icon as categoryIcon 
+    FROM transactions t 
+    LEFT JOIN categories c ON t.categoryId = c.id 
+    WHERE t.accountId = ? OR t.transferAccountId = ?
+    ORDER BY t.date DESC
+  `).all(accountId, accountId) as TransactionWithCategory[];
+}
+
+export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>): InvestmentTransaction {
+  const insert = db.prepare(`
+    INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const result = insert.run(
+    data.holdingId,
+    data.date,
+    data.type,
+    data.quantity,
+    data.price,
+    data.fees
+  );
+
+  // Update the holding quantity automatically
+  const holding = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(data.holdingId) as InvestmentHolding;
+  let newQuantity = holding.quantity;
+
+  if (data.type === 'buy') {
+    newQuantity += data.quantity;
+  } else if (data.type === 'sell') {
+    newQuantity -= data.quantity;
+  }
+
+  db.prepare("UPDATE investment_holdings SET quantity = ? WHERE id = ?").run(newQuantity, data.holdingId);
+
+  return db.prepare("SELECT * FROM investment_transactions WHERE id = ?").get(result.lastInsertRowid) as InvestmentTransaction;
+}
+
+export function getInvestmentHistory(accountId: number): InvestmentHistory[] {
+  return db.prepare("SELECT * FROM investment_history WHERE accountId = ? ORDER BY date ASC").all(accountId) as InvestmentHistory[];
+}
+
+export function createInvestmentHistoryEntry(accountId: number, totalValue: number, date: string): InvestmentHistory {
+  const insert = db.prepare(`
+    INSERT INTO investment_history (accountId, totalValue, date)
+    VALUES (?, ?, ?)
+  `);
+
+  const result = insert.run(accountId, totalValue, date);
+  return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(result.lastInsertRowid) as InvestmentHistory;
+}
+
+export function adjustAccountCash(accountId: number, amount: number, notes: string): any {
+  const today = new Date().toISOString().split('T')[0];
+  const type = amount >= 0 ? 'income' : 'expense';
+
+  const stmt = db.prepare(`
+    INSERT INTO investment_adjustments (accountId, date, amount, type, notes)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    accountId,
+    today,
+    Math.abs(amount),
+    type,
+    notes
+  );
+
+  return db.prepare("SELECT * FROM investment_adjustments WHERE id = ?").get(result.lastInsertRowid);
+}
+
+export function getInvestmentAdjustments(accountId?: number): any[] {
+  if (accountId) {
+    return db.prepare("SELECT * FROM investment_adjustments WHERE accountId = ?").all(accountId);
+  }
+  return db.prepare("SELECT * FROM investment_adjustments").all();
+}
+
+export function getCombinedCashHistory(accountId: number): any[] {
+  return db.prepare(`
+    SELECT 
+      'adjustment' as recordType,
+      ia.id,
+      ia.date,
+      ia.type,
+      ia.notes as title,
+      CASE WHEN ia.type = 'expense' THEN -ia.amount ELSE ia.amount END as amount,
+      NULL as accountId
+    FROM investment_adjustments ia
+    WHERE ia.accountId = ?
+
+    UNION ALL
+
+    SELECT 
+      'transfer' as recordType,
+      t.id,
+      t.date,
+      t.type,
+      t.title,
+      CASE 
+        WHEN t.accountId = ? THEN -t.amount -- Outflow
+        ELSE t.amount -- Inflow
+      END as amount,
+      t.accountId
+    FROM transactions t
+    WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
+
+    ORDER BY date DESC
+  `).all(accountId, accountId, accountId, accountId) as any[];
+}
 // Export the database instance for advanced operations if needed
 export default db;

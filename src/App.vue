@@ -14,17 +14,21 @@ import TransactionsView from "@/views/TransactionsView.vue";
 import CategoriesView from "@/views/labels/LabelsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
-import InsightsView from "@/views/insights/InsightsView.vue";
+import SpendingInsightsView from "@/views/insights/SpendingInsightsView.vue";
+import RecurringView from "@/views/recurring/RecurringView.vue";
+import PortfolioView from "@/views/investments/PortfolioView.vue";
+import InvestmentInsightsView from "@/views/insights/InvestmentInsightsView.vue";
   
 const store = useFinanceStore();
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights";
+type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
 const activeAccountId = ref<number | null>(null);
 const activeFilterAccountId = ref<number | null>(null);
+const activeFilterRecurringId = ref<number | null>(null);
 
 // Watch for search active
 watch(
@@ -46,6 +50,7 @@ function navigateTo(view: string) {
   // Clear cross-view state on manual navigation
   activeAccountId.value = null;
   activeFilterAccountId.value = null;
+  activeFilterRecurringId.value = null;
 
   if (view === "dashboard") {
     // Keep the current period context when going to Dashboard
@@ -62,8 +67,12 @@ function handleRequestEditAccount(id: number) {
   // But keeping it as state is fine.
 }
 
-function handleRequestViewTransactions(id: number) {
-  activeFilterAccountId.value = id;
+function handleRequestViewTransactions(id: number, type: 'account' | 'recurring' = 'account') {
+  if (type === 'account') {
+    activeFilterAccountId.value = id;
+  } else if (type === 'recurring') {
+    activeFilterRecurringId.value = id;
+  }
   currentView.value = "transactions";
 }
 
@@ -79,6 +88,24 @@ onMounted(async () => {
   });
 
   await store.initialize();
+
+  // Auto-fetch investment prices on startup
+  await store.fetchInvestmentHoldings();
+  store.refreshInvestmentPrices();
+
+  // Refresh investment prices every 30 minutes
+  window.setInterval(() => {
+    store.refreshInvestmentPrices();
+  }, 30 * 60 * 1000);
+
+  // Listen for background recurring transactions
+  window.electronAPI.onRecurringProcessed(async () => {
+    console.log("Background recurring transactions processed, refreshing...");
+    await store.fetchRecurringTransactions();
+    await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+    await store.fetchAccounts();
+    store.fetchPeriodSummarySync();
+  });
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
@@ -106,25 +133,40 @@ function handleKeydown(e: KeyboardEvent) {
               break;
             case "i":
               e.preventDefault();
-              currentView.value = "insights";
+              if (e.shiftKey) {
+                currentView.value = "investments";
+              } else {
+                currentView.value = "insights";
+              }
               break;
-            case "c":
-              if (e.shiftKey) {          e.preventDefault();
-          currentView.value = "categories";
-        }
-        break;
-      case "a":
-        if (e.shiftKey) {
-          e.preventDefault();
-          currentView.value = "accounts";
-        }
-        break;
-      case "s":
-        if (e.shiftKey) {
-          e.preventDefault();
-          currentView.value = "settings";
-        }
-        break;
+            case "l":
+              e.preventDefault();
+              currentView.value = "categories";
+              break;
+            case "a":
+              if (e.shiftKey) {
+                e.preventDefault();
+                currentView.value = "accounts";
+              }
+              break;
+            case "s":
+              e.preventDefault();
+              if (e.shiftKey) {
+                currentView.value = "settings";
+              } else {
+                currentView.value = "recurring";
+              }
+              break;
+            case "p":
+              e.preventDefault();
+              if (e.shiftKey) {
+                // Toggle privacy mode
+                const settingsStore = useSettingsStore();
+                settingsStore.togglePrivacyMode();
+              } else {
+                currentView.value = "investment-insights";
+              }
+              break;    
     }
   }
 }
@@ -144,6 +186,7 @@ function handleKeydown(e: KeyboardEvent) {
       <TopBar 
         v-if="currentView === 'transactions'" 
         :initial-account-id="activeFilterAccountId"
+        :initial-recurring-id="activeFilterRecurringId"
       />
 
       <!-- Content Area -->
@@ -187,7 +230,14 @@ function handleKeydown(e: KeyboardEvent) {
             :highlight-account-id="activeAccountId"
             @request-view-transactions="handleRequestViewTransactions"
           />
-          <InsightsView v-else-if="currentView === 'insights'" />
+          <SpendingInsightsView v-else-if="currentView === 'insights'" />
+          <PortfolioView v-else-if="currentView === 'investments'" />
+          <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
+          <RecurringView 
+            v-else-if="currentView === 'recurring'" 
+            @request-view-transactions="handleRequestViewTransactions"
+            @request-edit-account="handleRequestEditAccount"
+          />
         </template>
       </main>
     </div>

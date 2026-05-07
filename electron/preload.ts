@@ -1,8 +1,89 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
 const electronAPI = {
+  // ============================================
+  // INVESTMENT
+  // ============================================
+
+  getInvestmentHoldings: (accountId?: number): Promise<InvestmentHolding[]> =>
+    ipcRenderer.invoke("db:getInvestmentHoldings", accountId),
+
+  createInvestmentHolding: (data: Omit<InvestmentHolding, 'id'>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:createInvestmentHolding", data),
+
+  updateInvestmentHolding: (id: number, data: Partial<InvestmentHolding>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:updateInvestmentHolding", id, data),
+
+  deleteInvestmentHolding: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteInvestmentHolding", id),
+
+  getInvestmentTransactions: (holdingId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getInvestmentTransactions", holdingId),
+  getAllInvestmentTransactions: (): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getAllInvestmentTransactions"),
+  getAccountInvestmentTransactions: (accountId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getAccountInvestmentTransactions", accountId),
+  getCombinedInvestmentHistory: (accountId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getCombinedInvestmentHistory", accountId),
+  getAllCombinedInvestmentHistory: (): Promise<any[]> =>
+    ipcRenderer.invoke("db:getAllCombinedInvestmentHistory"),
+  getInvestmentAdjustments: (accountId?: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getInvestmentAdjustments", accountId),
+  getCombinedCashHistory: (accountId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getCombinedCashHistory", accountId),
+  getAccountTransactions: (accountId: number): Promise<TransactionWithCategory[]> =>
+    ipcRenderer.invoke("db:getAccountTransactions", accountId),
+
+  createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
+    ipcRenderer.invoke("db:createInvestmentTransaction", data),
+
+  adjustAccountCash: (accountId: number, amount: number, notes: string): Promise<any> =>
+    ipcRenderer.invoke("db:adjustAccountCash", accountId, amount, notes),
+
+  getInvestmentHistory: (accountId: number): Promise<InvestmentHistory[]> =>
+    ipcRenderer.invoke("db:getInvestmentHistory", accountId),
+
+  createInvestmentHistoryEntry: (accountId: number, totalValue: number, date: string): Promise<InvestmentHistory> =>
+    ipcRenderer.invoke("db:createInvestmentHistoryEntry", accountId, totalValue, date),
+
+  // ============================================
+  // FINANCE
+  // ============================================
+
+  getQuote: (symbol: string): Promise<any> =>
+    ipcRenderer.invoke("finance:getQuote", symbol),
+
+  getQuotes: (symbols: string[]): Promise<any[]> =>
+    ipcRenderer.invoke("finance:getQuotes", symbols),
+
+  searchSymbols: (query: string): Promise<any[]> =>
+    ipcRenderer.invoke("finance:searchSymbols", query),
+
+  // ============================================
+  // RECURRING TRANSACTIONS
+  // ============================================
+
+  getRecurringTransactions: (): Promise<RecurringTransaction[]> =>
+    ipcRenderer.invoke("db:getRecurringTransactions"),
+
+  createRecurringTransaction: (data: Omit<RecurringTransaction, 'id'>): Promise<RecurringTransaction> =>
+    ipcRenderer.invoke("db:createRecurringTransaction", data),
+
+  updateRecurringTransaction: (id: number, data: Partial<RecurringTransaction>): Promise<RecurringTransaction> =>
+    ipcRenderer.invoke("db:updateRecurringTransaction", id, data),
+
+  deleteRecurringTransaction: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteRecurringTransaction", id),
+
+  toggleRecurringTransactionActive: (id: number, isActive: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("db:toggleRecurringTransactionActive", id, isActive),
+
+  onRecurringProcessed: (callback: () => void) => {
+    ipcRenderer.on("recurring-processed", callback);
+  },
+
   // ============================================
   // LEDGER YEARS
   // ============================================
@@ -88,6 +169,15 @@ const electronAPI = {
   deleteTransaction: (id: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteTransaction", id),
 
+  deleteTransactions: (ids: number[]): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteTransactions", ids),
+
+  updateTransactionsCategory: (ids: number[], categoryId: number | null): Promise<boolean> =>
+    ipcRenderer.invoke("db:updateTransactionsCategory", ids, categoryId),
+
+  updateTransactionsAccount: (ids: number[], accountId: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:updateTransactionsAccount", ids, accountId),
+
   searchTransactions: (
     options: SearchOptions,
     limit?: number
@@ -108,6 +198,9 @@ const electronAPI = {
 
   getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
     ipcRenderer.invoke("db:getNetWorthTrend"),
+
+  getDatabaseVersion: (): Promise<number> =>
+    ipcRenderer.invoke("db:getDatabaseVersion"),
 
 
   // ============================================
@@ -130,11 +223,13 @@ const electronAPI = {
     ipcRenderer.invoke("save-file", payload),
 
   importDatabase: () : Promise<{success: boolean, filepath? : string, data? : {
+    databaseVersion?: number,
     accounts?: Account[],
     transactions?: TransactionWithCategory[],
     categories?: Category[],
     accountTypes?: AccountType[],
     ledgerYears?: number[],
+    recurringTransactions?: RecurringTransaction[]
   }}> =>
     ipcRenderer.invoke("import-file"),
 

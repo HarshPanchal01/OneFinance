@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 import AppChart from "@/components/AppChart.vue";
 import type { CategoryBreakdown } from "@/types";
-import { formatCurrency, getDateRange, toIsoDateString } from "@/utils";
+import { getDateRange, toIsoDateString } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 
 const props = defineProps<{
   breakdown: CategoryBreakdown[];
@@ -12,6 +14,8 @@ const props = defineProps<{
 }>();
 
 const store = useFinanceStore();
+const { formatCurrency } = useFormatter();
+const settingsStore = useSettingsStore();
 
 const totalExpenses = computed(() => {
   return props.breakdown.reduce((sum, item) => sum + item.total, 0);
@@ -63,7 +67,7 @@ const categoryData = computed(() => {
 
 const categoryOptions = computed(() => ({
   layout: {
-    padding: 10
+    padding: 8
   },
   plugins: {
     legend: { display: false },
@@ -96,17 +100,25 @@ const categoryOptions = computed(() => ({
 </script>
 
 <template>
-  <div class="flex flex-col xl:flex-row h-full w-full items-center xl:justify-between gap-6">
+  <div class="flex flex-col xl:flex-row h-full w-full items-start xl:justify-between gap-6">
     <!-- Left Column: Total Text + Chart -->
-    <div class="flex flex-col items-center justify-center gap-0 shrink-0">
+    <div class="flex flex-col items-center justify-start gap-0 shrink-0 w-full xl:w-auto">
+      <h3 class="font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base mb-1 lg:self-start xl:self-center whitespace-nowrap">
+        <span class="lg:hidden xl:inline">Expense Breakdown</span>
+        <span class="hidden lg:inline xl:hidden">Expenses</span>
+      </h3>
+
       <!-- Total Text (Above Chart) -->
       <div class="flex flex-col items-center justify-center mb-1">
         <span class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">Total</span>
-        <span class="text-2xl xl:text-3xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(totalExpenses) }}</span>
+        <span
+          class="text-xl xl:text-2xl font-bold text-gray-800 dark:text-white"
+          :class="{ 'privacy-blur': settingsStore.privacyMode }"
+        >{{ formatCurrency(totalExpenses) }}</span>
       </div>
 
       <!-- Chart -->
-      <div class="w-40 h-44 xl:w-56 xl:h-60">
+      <div class="w-44 h-44 xl:w-56 xl:h-56">
         <AppChart
           type="pie"
           :data="categoryData"
@@ -117,7 +129,7 @@ const categoryOptions = computed(() => ({
     </div>
 
     <!-- Custom Legend (Right Side - Hidden on small screens) -->
-    <div class="hidden xl:flex overflow-y-auto h-full pr-2 space-y-3 py-2 flex-col">
+    <div class="hidden xl:flex overflow-y-auto h-full pr-2 space-y-3 pt-10 pb-2 flex-col">
       <div
         v-for="cat in topCategories"
         :key="cat.categoryId ?? 'others'"

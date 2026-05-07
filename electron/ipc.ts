@@ -18,6 +18,9 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  deleteTransactions,
+  updateTransactionsCategory,
+  updateTransactionsAccount,
   searchTransactions,
   getMonthlyTrends,
   getDailyTransactionSum,
@@ -37,10 +40,37 @@ import {
   getRollingMonthlyTrends,
   getTotalMonthSpend,
   getNetWorthTrend,
+  getDatabaseVersion,
   deleteAccountTypeById,
   editAccountType,
+
+  // Recurring Transactions
+  getRecurringTransactions,
+  createRecurringTransaction,
+  updateRecurringTransaction,
+  deleteRecurringTransaction,
+  toggleRecurringTransactionActive,
+
+  // Investment Functions
+  getInvestmentHoldings,
+  createInvestmentHolding,
+  updateInvestmentHolding,
+  deleteInvestmentHolding,
+  getInvestmentTransactions,
+  getAllInvestmentTransactions,
+  getAccountInvestmentTransactions,
+  getCombinedInvestmentHistory,
+  getAllCombinedInvestmentHistory,
+  getInvestmentAdjustments,
+  getCombinedCashHistory,
+  getAccountTransactions,
+  createInvestmentTransaction,
+  adjustAccountCash,
+  getInvestmentHistory,
+  createInvestmentHistoryEntry,
 } from "./db";
-import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions } from "@/types";
+import { getQuote, getQuotes, searchSymbols } from "./finance";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -170,6 +200,18 @@ export function registerIpcHandlers(): void {
     return deleteTransaction(id);
   });
 
+  ipcMain.handle("db:deleteTransactions", async (_event, ids: number[]) => {
+    return deleteTransactions(ids);
+  });
+
+  ipcMain.handle("db:updateTransactionsCategory", async (_event, ids: number[], categoryId: number | null) => {
+    return updateTransactionsCategory(ids, categoryId);
+  });
+
+  ipcMain.handle("db:updateTransactionsAccount", async (_event, ids: number[], accountId: number) => {
+    return updateTransactionsAccount(ids, accountId);
+  });
+
   ipcMain.handle(
     "db:searchTransactions",
     async (_event, options: SearchOptions, limit?: number) => {
@@ -197,9 +239,121 @@ export function registerIpcHandlers(): void {
     return getNetWorthTrend();
   });
 
+  ipcMain.handle("db:getDatabaseVersion", async () => {
+    return getDatabaseVersion();
+  });
 
 
 
+
+
+  // ============================================
+  // RECURRING TRANSACTIONS HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getRecurringTransactions", async () => {
+    return getRecurringTransactions();
+  });
+
+  ipcMain.handle("db:createRecurringTransaction", async (_event, data: Omit<RecurringTransaction, 'id'>) => {
+    return createRecurringTransaction(data);
+  });
+
+  ipcMain.handle("db:updateRecurringTransaction", async (_event, id: number, data: Partial<RecurringTransaction>) => {
+    return updateRecurringTransaction(id, data);
+  });
+
+  ipcMain.handle("db:deleteRecurringTransaction", async (_event, id: number) => {
+    return deleteRecurringTransaction(id);
+  });
+
+  ipcMain.handle("db:toggleRecurringTransactionActive", async (_event, id: number, isActive: boolean) => {
+    return toggleRecurringTransactionActive(id, isActive);
+  });
+
+  // ============================================
+  // INVESTMENT HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getInvestmentHoldings", async (_event, accountId?: number) => {
+    return getInvestmentHoldings(accountId);
+  });
+
+  ipcMain.handle("db:createInvestmentHolding", async (_event, data: Omit<InvestmentHolding, 'id'>) => {
+    return createInvestmentHolding(data);
+  });
+
+  ipcMain.handle("db:updateInvestmentHolding", async (_event, id: number, data: Partial<InvestmentHolding>) => {
+    return updateInvestmentHolding(id, data);
+  });
+
+  ipcMain.handle("db:deleteInvestmentHolding", async (_event, id: number) => {
+    return deleteInvestmentHolding(id);
+  });
+
+  ipcMain.handle("db:getInvestmentTransactions", async (_event, holdingId: number) => {
+    return getInvestmentTransactions(holdingId);
+  });
+
+  ipcMain.handle("db:getAllInvestmentTransactions", async () => {
+    return getAllInvestmentTransactions();
+  });
+
+  ipcMain.handle("db:getAccountInvestmentTransactions", async (_event, accountId: number) => {
+    return getAccountInvestmentTransactions(accountId);
+  });
+
+  ipcMain.handle("db:getCombinedInvestmentHistory", async (_event, accountId: number) => {
+    return getCombinedInvestmentHistory(accountId);
+  });
+
+  ipcMain.handle("db:getAllCombinedInvestmentHistory", async () => {
+    return getAllCombinedInvestmentHistory();
+  });
+
+  ipcMain.handle("db:getInvestmentAdjustments", async (_event, accountId?: number) => {
+    return getInvestmentAdjustments(accountId);
+  });
+
+  ipcMain.handle("db:getCombinedCashHistory", async (_event, accountId: number) => {
+    return getCombinedCashHistory(accountId);
+  });
+
+  ipcMain.handle("db:getAccountTransactions", async (_event, accountId: number) => {
+    return getAccountTransactions(accountId);
+  });
+
+  ipcMain.handle("db:createInvestmentTransaction", async (_event, data: Omit<InvestmentTransaction, 'id'>) => {
+    return createInvestmentTransaction(data);
+  });
+
+  ipcMain.handle("db:adjustAccountCash", async (_event, accountId: number, amount: number, notes: string) => {
+    return adjustAccountCash(accountId, amount, notes);
+  });
+
+  ipcMain.handle("db:getInvestmentHistory", async (_event, accountId: number) => {
+    return getInvestmentHistory(accountId);
+  });
+
+  ipcMain.handle("db:createInvestmentHistoryEntry", async (_event, accountId: number, totalValue: number, date: string) => {
+    return createInvestmentHistoryEntry(accountId, totalValue, date);
+  });
+
+  // ============================================
+  // FINANCE HANDLERS
+  // ============================================
+
+  ipcMain.handle("finance:getQuote", async (_event, symbol: string) => {
+    return getQuote(symbol);
+  });
+
+  ipcMain.handle("finance:getQuotes", async (_event, symbols: string[]) => {
+    return getQuotes(symbols);
+  });
+
+  ipcMain.handle("finance:searchSymbols", async (_event, query: string) => {
+    return searchSymbols(query);
+  });
 
   // ============================================
   // SYSTEM HANDLERS

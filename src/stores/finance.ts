@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { toIsoDateString, getExpenseBreakdownForRange } from "@/utils";
+import { toIsoDateString, getExpenseBreakdownForRange, getIncomeBreakdownForRange, type ImportData } from "@/utils";
 import type {
   Category,
   Account,
@@ -13,6 +13,10 @@ import type {
   MonthlyTrend,
   DailyTransactionSum,
   LedgerMonth,
+  RecurringTransaction,
+  InvestmentHolding,
+  InvestmentTransaction,
+  InvestmentHistory,
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -39,10 +43,14 @@ export const useFinanceStore = defineStore("finance", () => {
   const transactions = ref<TransactionWithCategory[]>([]);
   // Global recent transactions (always Global)
   const recentTransactions = ref<TransactionWithCategory[]>([]);
+  // Recurring transactions
+  const recurringTransactions = ref<RecurringTransaction[]>([]);
   // Search results
   const searchResults = ref<TransactionWithCategory[]>([]);
   const isSearching = ref(false);
   const transactionFilter = ref<SearchOptions | null>(null);
+
+  const databaseVersion = ref<number>(0);
 
   // Summary data - always have default values
   const periodSummary = ref<PeriodSummary>({
@@ -54,8 +62,32 @@ export const useFinanceStore = defineStore("finance", () => {
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
   const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
+  const dashboardIncomeBreakdown = ref<CategoryBreakdown[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
+
+  // UI State
+  const expandedAccountSections = ref<Set<string>>(new Set());
+  const expandedInvestmentAccounts = ref<Set<number>>(new Set());
+
+  // Investment State
+  const investmentHoldings = ref<InvestmentHolding[]>([]);
+  const investmentTransactions = ref<InvestmentTransaction[]>([]);
+  const investmentHistory = ref<InvestmentHistory[]>([]);
+
+  const refreshCooldown = ref(0);
+  let cooldownInterval: number | undefined;
+
+  function startRefreshCooldown(seconds: number = 10) {
+    if (cooldownInterval) window.clearInterval(cooldownInterval);
+    refreshCooldown.value = seconds;
+    cooldownInterval = window.setInterval(() => {
+      refreshCooldown.value--;
+      if (refreshCooldown.value <= 0) {
+        window.clearInterval(cooldownInterval);
+      }
+    }, 1000);
+  }
 
   // Loading states - separate for initial load vs period changes
   const isLoading = ref(true); // Initial load
@@ -69,11 +101,15 @@ export const useFinanceStore = defineStore("finance", () => {
   const hasCurrentPeriod = computed(() => currentLedgerMonth.value !== null);
 
   const incomeTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "income")
+    transactions.value.filter((t) => t.type === "income" || (t.type === "transfer" && Boolean(t.isIncomeTransfer)))
   );
 
   const expenseTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "expense")
+    transactions.value.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)))
+  );
+
+  const transferTransactions = computed(() =>
+    transactions.value.filter((t) => t.type === "transfer")
   );
 
   // ============================================
@@ -93,6 +129,11 @@ export const useFinanceStore = defineStore("finance", () => {
       // Load accounts they are always needed
       await fetchAccounts();
       await fetchAccountTypes();
+      
+      // Load recurring transactions
+      await fetchRecurringTransactions();
+
+      databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
       console.log("[Store] Accounts loaded:", accounts.value.length);
       console.log("[Store] AccountTypes loaded:", accountTypes.value.length);
@@ -155,32 +196,31 @@ export const useFinanceStore = defineStore("finance", () => {
     // incomeBreakdown
     // expenseBreakdown
 
-    const transactionsByIncome = toRaw(transactions.value).filter((value) => value.type === "income");
-    const transactionsByExpense = toRaw(transactions.value).filter((value) => value.type === "expense");
+    const allTransactions = transactions.value;
+    const transactionsByIncome = allTransactions.filter((t) => t.type === "income" || (t.type === "transfer" && Boolean(t.isIncomeTransfer)));
+    const transactionsByExpense = allTransactions.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)));
 
-    const transactionsIncomeSum = transactionsByIncome.reduce((sum, currentValue) => sum + currentValue.amount, 0);
-    const transactionsExpenseSum = transactionsByExpense.reduce((sum, currentValue) => sum + currentValue.amount, 0);
+    const transactionsIncomeSum = transactionsByIncome.reduce((sum, t) => sum + t.amount, 0);
+    const transactionsExpenseSum = transactionsByExpense.reduce((sum, t) => sum + t.amount, 0);
 
     const incomeCategoryBreakdown = new Map<number, CategoryBreakdown>();
     const expenseCategoryBreakdown = new Map<number, CategoryBreakdown>();
 
     for(const income of transactionsByIncome){
+      if (income.categoryId == null || income.categoryName == null) continue;
 
-      const entry = incomeCategoryBreakdown.get(income.id);
+      const entry = incomeCategoryBreakdown.get(income.categoryId);
 
       if (entry !== undefined) {
         entry.count += 1;
         entry.total += income.amount;
       } 
       else{
-
-        if (income.categoryId == undefined || income.categoryName == undefined || income.categoryColor == undefined || income.categoryIcon == undefined) {continue}
-
         incomeCategoryBreakdown.set(income.categoryId, 
           { categoryId: income.categoryId,
             categoryName: income.categoryName,
-            categoryColor: income.categoryColor,
-            categoryIcon: income.categoryIcon,
+            categoryColor: income.categoryColor || '#6b7280',
+            categoryIcon: income.categoryIcon || 'pi-tag',
             total: income.amount,
             count: 1
         });
@@ -189,30 +229,19 @@ export const useFinanceStore = defineStore("finance", () => {
 
 
     for(const expense of transactionsByExpense){
-
-
-      if (expense.categoryId == undefined) {
-        continue
-      }
+      if (expense.categoryId == null || expense.categoryName == null) continue;
 
       const entry = expenseCategoryBreakdown.get(expense.categoryId);
       if (entry != undefined) {
         entry.count += 1;
         entry.total += expense.amount;
-
-        expenseCategoryBreakdown.set(expense.categoryId, entry);
       }
       else {
-
-        if (expense.categoryId == undefined || expense.categoryName == undefined || expense.categoryColor == undefined || expense.categoryIcon == undefined) {
-          continue
-        }
-
         expenseCategoryBreakdown.set(expense.categoryId, 
           { categoryId: expense.categoryId,
             categoryName: expense.categoryName,
-            categoryColor: expense.categoryColor,
-            categoryIcon: expense.categoryIcon,
+            categoryColor: expense.categoryColor || '#6b7280',
+            categoryIcon: expense.categoryIcon || 'pi-tag',
             total: expense.amount,
             count: 1
         });
@@ -225,8 +254,6 @@ export const useFinanceStore = defineStore("finance", () => {
 
     incomeBreakdown.value = Array.from(incomeCategoryBreakdown.values());
     expenseBreakdown.value = Array.from(expenseCategoryBreakdown.values());
-
-
   }
 
   async function createYear(year: number) {
@@ -325,13 +352,48 @@ export const useFinanceStore = defineStore("finance", () => {
   async function fetchAccounts(){
     const accountsRaw = await window.electronAPI.getAccounts();
     const transactionsRaw = await window.electronAPI.getTransactions();
+    const holdingsRaw = await window.electronAPI.getInvestmentHoldings();
+    const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
+    const investmentTransactionsRaw = await window.electronAPI.getAllInvestmentTransactions();
 
     accountsRaw.forEach(account => {
-      const accountTransactions = transactionsRaw.filter(t => t.accountId === account.id);
+      // Find transactions where this account is either the source or the destination
+      const accountTransactions = transactionsRaw.filter(t => t.accountId === account.id || t.transferAccountId === account.id);
+      
       const transactionSum = accountTransactions.reduce((sum, t) => {
-        return t.type === 'income' ? sum + t.amount : sum - t.amount;
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        if (t.type === 'transfer') {
+          if (t.accountId === account.id) return sum - t.amount; // Outflow
+          if (t.transferAccountId === account.id) return sum + t.amount; // Inflow
+        }
+        return sum;
       }, 0);
-      account.balance = account.startingBalance + transactionSum;
+
+      // Add investment adjustments
+      const accountAdjustments = adjustmentsRaw.filter(a => a.accountId === account.id);
+      const adjustmentSum = accountAdjustments.reduce((sum, a) => {
+        if (a.type === 'income') return sum + a.amount;
+        if (a.type === 'expense') return sum - a.amount;
+        return sum;
+      }, 0);
+
+      // Add investment trades (cash impact of buys/sells)
+      const accountHoldings = holdingsRaw.filter(h => h.accountId === account.id);
+      const accountHoldingIds = accountHoldings.map(h => h.id);
+      const accountInvestmentTransactions = investmentTransactionsRaw.filter(it => accountHoldingIds.includes(it.holdingId));
+      
+      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => {
+        if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
+        if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
+        if (it.type === 'drip') return sum - it.fees;
+        return sum;
+      }, 0);
+
+      // Add investment holdings current market value
+      const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+
+      account.balance = account.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
     });
 
     accounts.value = accountsRaw;
@@ -429,6 +491,57 @@ export const useFinanceStore = defineStore("finance", () => {
   }
 
   // ============================================
+  // ACTIONS - Recurring Transactions
+  // ============================================
+
+  async function fetchRecurringTransactions() {
+    recurringTransactions.value = await window.electronAPI.getRecurringTransactions();
+  }
+
+  async function addRecurringTransaction(data: Omit<RecurringTransaction, 'id'>) {
+    const newRec = await window.electronAPI.createRecurringTransaction(data);
+    if (newRec) {
+      await fetchRecurringTransactions();
+      // Refresh current transactions and account balances in case catch-up triggered
+      await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+      await fetchAccounts();
+    }
+    return newRec;
+  }
+
+  async function editRecurringTransaction(id: number, data: Partial<RecurringTransaction>) {
+    const updated = await window.electronAPI.updateRecurringTransaction(id, data);
+    if (updated) {
+      await fetchRecurringTransactions();
+      // Refresh current transactions and account balances in case catch-up triggered
+      await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+      await fetchAccounts();
+    }
+    return updated;
+  }
+
+  async function removeRecurringTransaction(id: number) {
+    const success = await window.electronAPI.deleteRecurringTransaction(id);
+    if (success) {
+      recurringTransactions.value = recurringTransactions.value.filter(r => r.id !== id);
+    }
+    return success;
+  }
+
+  async function toggleRecurringTransaction(id: number, isActive: boolean) {
+    const success = await window.electronAPI.toggleRecurringTransactionActive(id, isActive);
+    if (success) {
+      await fetchRecurringTransactions();
+      if (isActive) {
+        // Refresh in case catch-up triggered on activation
+        await fetchTransactions(currentLedgerMonth.value, selectedYear.value ?? undefined);
+        await fetchAccounts();
+      }
+    }
+    return success;
+  }
+
+  // ============================================
   // ACTIONS - Transactions
   // ============================================
 
@@ -461,11 +574,11 @@ export const useFinanceStore = defineStore("finance", () => {
     
     const results = await window.electronAPI.searchTransactions({
       fromDate: toIsoDateString(thirtyDaysAgo),
-      toDate: toIsoDateString(now),
-      type: 'expense'
+      toDate: toIsoDateString(now)
     });
     
     dashboardBreakdown.value = getExpenseBreakdownForRange('last30Days', results);
+    dashboardIncomeBreakdown.value = getIncomeBreakdownForRange('last30Days', results);
   }
 
   async function addTransaction(transaction: CreateTransactionInput
@@ -491,6 +604,10 @@ export const useFinanceStore = defineStore("finance", () => {
         // Refresh summary
         fetchPeriodSummarySync();
     }
+
+    // Refresh trends
+    const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+    await fetchMonthlyTrends(yearToRefresh);
 
     return newTransaction;
   }
@@ -520,9 +637,22 @@ export const useFinanceStore = defineStore("finance", () => {
              transactions.value[index] = updated;
         }
       }
+
+      // Refresh search results if active
+      if (isSearching.value) {
+        const sIndex = searchResults.value.findIndex((t) => t.id === id);
+        if (sIndex !== -1) {
+          searchResults.value[sIndex] = updated;
+        }
+      }
+
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
+
+      // Refresh trends
+      const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+      await fetchMonthlyTrends(yearToRefresh);
     }
     return updated;
   }
@@ -534,7 +664,7 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchRecentTransactions(5); // Update dashboard list
       await fetchDashboardBreakdown();
       await fetchPeriodSummarySync(); // Refresh summary
-      
+
       // Also remove from search results if present
       if (isSearching.value) {
         searchResults.value = searchResults.value.filter((t) => t.id !== id);
@@ -544,6 +674,190 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchMonthlyTrends(yearToRefresh);
     }
     return success;
+  }
+
+  async function removeTransactions(ids: number[]) {
+    try {
+      const safeIds = Array.from(ids);
+      const success = await window.electronAPI.deleteTransactions(safeIds);
+      if (success) {
+        const idSet = new Set(safeIds);
+        transactions.value = transactions.value.filter((t) => !idSet.has(t.id));
+        await fetchRecentTransactions(5); // Update dashboard list
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync(); // Refresh summary
+
+        // Also remove from search results if present
+        if (isSearching.value) {
+          searchResults.value = searchResults.value.filter((t) => !idSet.has(t.id));
+        }
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
+      }
+      return success;
+    } catch (e) {
+      console.error("Error in removeTransactions:", e);
+      return false;
+    }
+  }
+
+  async function bulkEditCategory(ids: number[], categoryId: number | null) {
+    try {
+      const safeIds = Array.from(ids);
+      const success = await window.electronAPI.updateTransactionsCategory(safeIds, categoryId);
+      if (success) {
+        // Safest to just refetch the list
+        if (currentLedgerMonth.value) {
+          await fetchTransactions(toRaw(currentLedgerMonth.value));
+        } else {
+          await fetchTransactions(null, selectedYear.value ?? undefined);
+        }
+        if (isSearching.value) {
+          // Refetch search results if possible, or just force user to search again
+          if (transactionFilter.value) {
+            await searchTransactions(toRaw(transactionFilter.value));
+          }
+        }
+        await fetchRecentTransactions(5);
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync();
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
+        }
+        return success;
+        } catch (e) {
+        console.error("Error in bulkEditCategory:", e);
+        return false;
+        }
+        }
+
+        async function bulkEditAccount(ids: number[], accountId: number) {
+        try {
+        const safeIds = Array.from(ids);
+        const success = await window.electronAPI.updateTransactionsAccount(safeIds, accountId);
+        if (success) {
+        // Re-fetch transactions
+        if (currentLedgerMonth.value) {
+          await fetchTransactions(toRaw(currentLedgerMonth.value));
+        } else {
+          await fetchTransactions(null, selectedYear.value ?? undefined);
+        }
+        if (isSearching.value && transactionFilter.value) {
+          await searchTransactions(toRaw(transactionFilter.value));
+        }
+        await fetchRecentTransactions(5);
+        await fetchDashboardBreakdown();
+        await fetchPeriodSummarySync();
+        // Refresh trends
+        const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
+        await fetchMonthlyTrends(yearToRefresh);
+        // Re-fetch accounts to update balances
+        await fetchAccounts();
+        }
+        return success;    } catch (e) {
+      console.error("Error in bulkEditAccount:", e);
+      return false;
+    }
+  }
+
+  // ============================================
+  // ACTIONS - Investments
+  // ============================================
+
+  async function fetchInvestmentHoldings(accountId?: number) {
+    investmentHoldings.value = await window.electronAPI.getInvestmentHoldings(accountId);
+  }
+
+  async function fetchInvestmentTransactions(holdingId: number) {
+    investmentTransactions.value = await window.electronAPI.getInvestmentTransactions(holdingId);
+  }
+
+  async function fetchInvestmentHistory(accountId: number) {
+    investmentHistory.value = await window.electronAPI.getInvestmentHistory(accountId);
+  }
+
+  async function addInvestmentHolding(data: Omit<InvestmentHolding, 'id'>) {
+    const newHolding = await window.electronAPI.createInvestmentHolding(data);
+    if (newHolding) {
+      await fetchInvestmentHoldings(data.accountId);
+    }
+    return newHolding;
+  }
+
+  async function editInvestmentHolding(id: number, data: Partial<InvestmentHolding>) {
+    const updated = await window.electronAPI.updateInvestmentHolding(id, data);
+    if (updated) {
+      const index = investmentHoldings.value.findIndex(h => h.id === id);
+      if (index !== -1) {
+        investmentHoldings.value[index] = updated;
+      }
+    }
+    return updated;
+  }
+
+  async function removeInvestmentHolding(id: number) {
+    const holding = investmentHoldings.value.find(h => h.id === id);
+    const success = await window.electronAPI.deleteInvestmentHolding(id);
+    if (success && holding) {
+      investmentHoldings.value = investmentHoldings.value.filter(h => h.id !== id);
+    }
+    return success;
+  }
+
+  async function addInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>) {
+    const newTx = await window.electronAPI.createInvestmentTransaction(data);
+    if (newTx) {
+      // Find the holding to know which account to refresh
+      const holding = investmentHoldings.value.find(h => h.id === data.holdingId);
+      if (holding) {
+        await fetchInvestmentHoldings(holding.accountId);
+        await fetchInvestmentTransactions(data.holdingId);
+        // Also refresh accounts because investment balance might change
+        await fetchAccounts();
+      }
+    }
+    return newTx;
+  }
+
+  async function refreshInvestmentPrices() {
+    if (investmentHoldings.value.length === 0) return;
+    
+    const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
+    try {
+      const quotes = await window.electronAPI.getQuotes(symbols);
+      
+      for (const quote of quotes) {
+        // Update all holdings with this symbol in DB
+        const holdingsToUpdate = investmentHoldings.value.filter(h => h.symbol === quote.symbol);
+        for (const holding of holdingsToUpdate) {
+          await window.electronAPI.updateInvestmentHolding(holding.id, {
+            lastPrice: quote.price,
+            lastUpdated: quote.updatedAt,
+            name: quote.name
+          });
+        }
+      }
+
+      // Refresh store state
+      await fetchInvestmentHoldings();
+      await fetchAccounts();
+
+      // Record history for each investment account
+      const investmentAccounts = accounts.value.filter(a => {
+        const type = accountTypes.value.find(at => at.id === a.accountTypeId);
+        return type?.classification === 'investment';
+      });
+
+      const today = new Date().toISOString().split('T')[0];
+      for (const acc of investmentAccounts) {
+          await window.electronAPI.createInvestmentHistoryEntry(acc.id, acc.balance || 0, today);
+      }
+
+    } catch (e) {
+      console.error("[Store] Failed to refresh investment prices:", e);
+    }
   }
 
   async function searchTransactions(options: SearchOptions) {
@@ -693,33 +1007,35 @@ export const useFinanceStore = defineStore("finance", () => {
   // SETTINGS ACTIONS
   // ==================================
 
-  async function importDatabaseData(data: {
-    accounts?: Account[],
-    transactions?: TransactionWithCategory[],
-    categories?: Category[],
-    accountTypes?: AccountType[],
-    ledgerYears?: number[]
-  }, skipDuplicates: boolean): Promise<boolean> {
+  async function importDatabaseData(data: ImportData, skipDuplicates: boolean = false, isReplace: boolean = false): Promise<boolean> {
 
     const importAccounts = data.accounts!;
     const importTransactions = data.transactions!;
     const importCategories = data.categories!;
     const importAccountTypes = data.accountTypes!;
     const importLedgerYears = data.ledgerYears!;
+    const importRecurringTransactions = data.recurringTransactions || [];
+    const importInvestmentHoldings = data.investmentHoldings || [];
+    const importInvestmentTransactions = data.investmentTransactions || [];
+    const importInvestmentHistory = data.investmentHistory || [];
 
     const accountTypeIdMap = new Map<number, number>();
     const categoryTypeIdMap = new Map<number, number>();
     const accountIdMap = new Map<number, number>();
+    const recurringIdMap = new Map<number, number>();
+    const holdingIdMap = new Map<number, number>();
 
     try {
       for (const accountType of importAccountTypes){
 
-        // Check for existing account type
-        const existing = accountTypes.value.find((at) => at.type === accountType.type);
-        if (existing){
-          accountTypeIdMap.set(accountType.id, existing.id);
-          console.log(`Skipping inserting existing account type ${accountType.type}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing account type
+          const existing = accountTypes.value.find((at) => at.type === accountType.type);
+          if (existing){
+            accountTypeIdMap.set(accountType.id, existing.id);
+            console.log(`Skipping inserting existing account type ${accountType.type}`);
+            continue;
+          }
         }
     
         const result = await addAccountType(accountType);
@@ -735,12 +1051,14 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const account of importAccounts){
 
-        // Check for existing account
-        const existing = accounts.value.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
-        if (existing){
-          accountIdMap.set(account.id, existing.id);
-          console.log(`Skipping inserting existing account ${account.accountName}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing account
+          const existing = accounts.value.find((a) => a.accountName === account.accountName && a.institutionName === account.institutionName);
+          if (existing){
+            accountIdMap.set(account.id, existing.id);
+            console.log(`Skipping inserting existing account ${account.accountName}`);
+            continue;
+          }
         }
     
         const accountTypeId = accountTypeIdMap.get(account.accountTypeId);
@@ -765,12 +1083,14 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const category of importCategories){
 
-        // Check for existing category
-        const existing = categories.value.find((c) => c.name === category.name);
-        if (existing){
-          categoryTypeIdMap.set(category.id, existing.id);
-          console.log(`Skipping inserting existing category ${category.name}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing category
+          const existing = categories.value.find((c) => c.name === category.name);
+          if (existing){
+            categoryTypeIdMap.set(category.id, existing.id);
+            console.log(`Skipping inserting existing category ${category.name}`);
+            continue;
+          }
         }
     
         const result = await addCategory(
@@ -792,11 +1112,13 @@ export const useFinanceStore = defineStore("finance", () => {
     
       for (const ledgerYear of importLedgerYears){
 
-        // Check for existing ledger year
-        const existing = ledgerYears.value.find((ly) => ly === ledgerYear);
-        if (existing){
-          console.log(`Skipping inserting existing ledger year ${ledgerYear}`);
-          continue;
+        if (!isReplace) {
+          // Check for existing ledger year
+          const existing = ledgerYears.value.find((ly) => ly === ledgerYear);
+          if (existing){
+            console.log(`Skipping inserting existing ledger year ${ledgerYear}`);
+            continue;
+          }
         }
     
         await createYear(ledgerYear);
@@ -804,9 +1126,67 @@ export const useFinanceStore = defineStore("finance", () => {
         console.log(`Inserting ledger year ${ledgerYear} completed`);
       }
     
+      for (const recurring of importRecurringTransactions) {
+        if (!isReplace) {
+          // Check for existing recurring transaction
+          const existing = recurringTransactions.value.find((r) => 
+            r.title === recurring.title && r.amount === recurring.amount && r.frequency === recurring.frequency
+          );
+          
+          if (existing) {
+            recurringIdMap.set(recurring.id, existing.id);
+            console.log(`Skipping inserting existing recurring transaction ${recurring.title}`);
+            continue;
+          }
+        }
+
+        if (recurring.categoryId != undefined) {
+          const mappedCategoryId = categoryTypeIdMap.get(recurring.categoryId);
+          if (mappedCategoryId == undefined) {
+            throw new Error("Category id mapping not found for recurring transaction id: " + recurring.id);
+          }
+          recurring.categoryId = mappedCategoryId;
+        }
+
+        const mappedAccountId = accountIdMap.get(recurring.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for recurring transaction id: " + recurring.id);
+        }
+        recurring.accountId = mappedAccountId;
+
+        if (recurring.transferAccountId != undefined) {
+          const mappedTransferAccountId = accountIdMap.get(recurring.transferAccountId);
+          if (mappedTransferAccountId == undefined) {
+            throw new Error("Transfer Account id mapping not found for recurring transaction id: " + recurring.id);
+          }
+          recurring.transferAccountId = mappedTransferAccountId;
+        }
+
+        const result = await addRecurringTransaction({
+          title: recurring.title,
+          amount: recurring.amount,
+          type: recurring.type,
+          categoryId: recurring.categoryId ?? null,
+          accountId: recurring.accountId,
+          transferAccountId: recurring.transferAccountId ?? null,
+          frequency: recurring.frequency,
+          startDate: recurring.startDate,
+          nextRunDate: recurring.nextRunDate,
+          isActive: recurring.isActive,
+          isExpenseTransfer: recurring.isExpenseTransfer,
+        });
+
+        console.log(`Inserting recurring transaction ${recurring.title} completed`);
+        
+        if (result == null) {
+          throw new Error("Resulting Id from inserting of recurring transaction is null");
+        }
+        recurringIdMap.set(recurring.id, result.id);
+      }
+
       for (const transaction of importTransactions){
 
-          if (skipDuplicates){
+          if (!isReplace && skipDuplicates){
             // Check for existing transaction
             const existing = transactions.value.find((t) => t.title === transaction.title && t.amount === transaction.amount && t.date === transaction.date);
             if (existing){
@@ -832,19 +1212,160 @@ export const useFinanceStore = defineStore("finance", () => {
           }
     
           transaction.accountId = mappedAccountId;
-    
-          await addTransaction({
-              title: transaction.title,
-              amount: transaction.amount,
-              date: transaction.date,
-              type: transaction.type,
-              categoryId: transaction.categoryId ?? undefined,
-              accountId: transaction.accountId!,
-              notes: transaction.notes || undefined,
+
+          if (transaction.transferAccountId != undefined) {
+            const mappedTransferAccountId = accountIdMap.get(transaction.transferAccountId);
+            if (mappedTransferAccountId == undefined) {
+              throw new Error("Transfer Account id mapping not found for transaction id: " + transaction.id);
             }
-          );
+            transaction.transferAccountId = mappedTransferAccountId;
+          }
+          
+          if (transaction.recurringId != undefined) {
+            const mappedRecurringId = recurringIdMap.get(transaction.recurringId);
+            if (mappedRecurringId != undefined) {
+              transaction.recurringId = mappedRecurringId;
+            } else {
+              // If we didn't find the recurring mapping, it might be an orphaned link.
+              // We set it to undefined to avoid foreign key failure.
+              transaction.recurringId = undefined;
+            }
+          }
+
+          await addTransaction({
+            title: transaction.title,
+            amount: transaction.amount,
+            date: transaction.date,
+            type: transaction.type,
+            categoryId: transaction.categoryId ?? undefined,
+            accountId: transaction.accountId!,
+            transferAccountId: transaction.transferAccountId ?? undefined,
+            recurringId: transaction.recurringId ?? undefined,
+            notes: transaction.notes || undefined,
+            isExpenseTransfer: transaction.isExpenseTransfer,
+            isIncomeTransfer: transaction.isIncomeTransfer,
+          });
           console.log(`Inserting transaction ${transaction.title} completed`);
       }
+
+      for (const holding of importInvestmentHoldings) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(holding.accountId);
+          const existing = investmentHoldings.value.find(h => h.accountId === mappedAccountId && h.symbol === holding.symbol);
+          if (existing) {
+            holdingIdMap.set(holding.id, existing.id);
+            console.log(`Skipping inserting existing holding ${holding.symbol}`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(holding.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for holding id: " + holding.id);
+        }
+
+        const result = await addInvestmentHolding({
+          accountId: mappedAccountId,
+          symbol: holding.symbol,
+          name: holding.name,
+          quantity: holding.quantity,
+          lastPrice: holding.lastPrice,
+          lastUpdated: holding.lastUpdated
+        });
+
+        console.log(`Inserting holding ${holding.symbol} completed`);
+        if (result == null) {
+          throw new Error("Resulting Id from inserting holding is null");
+        }
+        holdingIdMap.set(holding.id, result.id);
+      }
+
+      for (const tx of importInvestmentTransactions) {
+        if (!isReplace && skipDuplicates) {
+          const mappedHoldingId = holdingIdMap.get(tx.holdingId);
+          const existing = investmentTransactions.value.find(t => 
+            t.holdingId === mappedHoldingId && t.date === tx.date && t.type === tx.type && t.quantity === tx.quantity
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment transaction`);
+            continue;
+          }
+        }
+
+        const mappedHoldingId = holdingIdMap.get(tx.holdingId);
+        if (mappedHoldingId == undefined) {
+          throw new Error("Holding id mapping not found for investment transaction id: " + tx.id);
+        }
+
+        await addInvestmentTransaction({
+          holdingId: mappedHoldingId,
+          date: tx.date,
+          type: tx.type,
+          quantity: tx.quantity,
+          price: tx.price,
+          fees: tx.fees
+        });
+      }
+
+      // Reset holding quantities to their exported values since adding transactions artificially inflates them
+      for (const holding of importInvestmentHoldings) {
+        const mappedHoldingId = holdingIdMap.get(holding.id);
+        if (mappedHoldingId !== undefined) {
+          await window.electronAPI.updateInvestmentHolding(mappedHoldingId, {
+            quantity: holding.quantity
+          });
+        }
+      }
+
+      for (const hist of importInvestmentHistory) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(hist.accountId);
+          const existing = investmentHistory.value.find(h => 
+            h.accountId === mappedAccountId && h.date === hist.date && h.totalValue === hist.totalValue
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment history`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(hist.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for investment history id: " + hist.id);
+        }
+
+        await window.electronAPI.createInvestmentHistoryEntry(
+          mappedAccountId,
+          hist.totalValue,
+          hist.date
+        );
+      }
+
+      const importInvestmentAdjustments = data.investmentAdjustments || [];
+      for (const adj of importInvestmentAdjustments) {
+        if (!isReplace && skipDuplicates) {
+          const mappedAccountId = accountIdMap.get(adj.accountId);
+          const existing = (await window.electronAPI.getInvestmentAdjustments(mappedAccountId)).find(a => 
+            a.date === adj.date && a.amount === adj.amount && a.type === adj.type && a.notes === adj.notes
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing investment adjustment`);
+            continue;
+          }
+        }
+
+        const mappedAccountId = accountIdMap.get(adj.accountId);
+        if (mappedAccountId == undefined) {
+          throw new Error("Account id mapping not found for investment adjustment id: " + adj.id);
+        }
+
+        await window.electronAPI.adjustAccountCash(
+          mappedAccountId,
+          adj.type === 'expense' ? -adj.amount : adj.amount,
+          adj.notes
+        );
+      }
+
     }
    catch (error) {
       console.log(error);
@@ -862,6 +1383,9 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes.value = [];
     ledgerMonths.value = [];
     ledgerYears.value = [];
+    investmentHoldings.value = [];
+    investmentTransactions.value = [];
+    investmentHistory.value = [];
   }
 
   // ============================================
@@ -879,15 +1403,25 @@ export const useFinanceStore = defineStore("finance", () => {
     accountTypes,
     transactions,
     recentTransactions,
+    recurringTransactions,
     searchResults,
     isSearching,
     transactionFilter,
+    databaseVersion,
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
     dashboardBreakdown,
+    dashboardIncomeBreakdown,
     monthlyTrends,
     netWorthTrends,
+    expandedAccountSections,
+    expandedInvestmentAccounts,
+    investmentHoldings,
+    investmentTransactions,
+    investmentHistory,
+    refreshCooldown,
+    startRefreshCooldown,
     isLoading,
     isChangingPeriod,
     error,
@@ -896,6 +1430,7 @@ export const useFinanceStore = defineStore("finance", () => {
     hasCurrentPeriod,
     incomeTransactions,
     expenseTransactions,
+    transferTransactions,
 
     // Actions
     initialize,
@@ -908,6 +1443,11 @@ export const useFinanceStore = defineStore("finance", () => {
     addCategory,
     editCategory,
     removeCategory,
+    fetchRecurringTransactions,
+    addRecurringTransaction,
+    editRecurringTransaction,
+    removeRecurringTransaction,
+    toggleRecurringTransaction,
     fetchTransactions,
     fetchRecentTransactions,
     fetchDashboardBreakdown,
@@ -916,9 +1456,20 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchRollingMonthlyTrends,
     fetchNetWorthTrend,
     fetchPacingData,
+    fetchInvestmentHoldings,
+    fetchInvestmentTransactions,
+    fetchInvestmentHistory,
+    addInvestmentHolding,
+    editInvestmentHolding,
+    removeInvestmentHolding,
+    addInvestmentTransaction,
+    refreshInvestmentPrices,
     addTransaction,
     editTransaction,
     removeTransaction,
+    removeTransactions,
+    bulkEditCategory,
+    bulkEditAccount,
     searchTransactions,
     clearSearch,
     setTransactionFilter,

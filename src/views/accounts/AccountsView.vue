@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, watch } from 'vue';
+import { reactive, ref, onMounted, watch, computed } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
+import { useSettingsStore } from '@/stores/settings';
+import { useFormatter } from '@/composables/useFormatter';
 import AccountListView from './components/AccountListView.vue';
-import { Account } from '@/types';
+import { Account, AccountClassification } from '@/types';
 import ErrorModal from '@/components/ErrorModal.vue';
 import AccountDeleteModal from './components/AccountDeleteModal.vue';
+import AmountInput from '@/components/AmountInput.vue';
 
 const props = defineProps<{
   highlightAccountId?: number | null;
@@ -15,9 +18,13 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
-//Deep copy because the compiler is stupid and can't handle nested reactives
-const accounts = store.accounts.filter(() => true);
+const totalNetWorth = computed(() => {
+  return store.accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
+});
+
 const accountsTypeArray = store.accountTypes.filter(() => true);
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 
@@ -25,18 +32,44 @@ const openDialog = ref(false);
 const showDeleteModal = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const highlightedId = ref<number | null>(null);
+const expandedSections = computed({
+  get: () => store.expandedAccountSections,
+  set: (val) => { store.expandedAccountSections = val; }
+});
 
-let isEdit = false;
+const isEdit = ref(false);
 let accountEditId = 0;
 
 const state = reactive({
-  accountArray: accounts,
+  accountArray: store.accounts,
   accountTypeArray: accountsTypeArray
 });
+
+function toggleSection(section: string) {
+  const newSet = new Set(expandedSections.value);
+  if (newSet.has(section)) {
+    newSet.delete(section);
+  } else {
+    newSet.add(section);
+  }
+  expandedSections.value = newSet;
+}
 
 function highlightAccount(id?: number | null) {
   if (id) {
     highlightedId.value = id;
+    
+    // Find the account and its classification to expand the section
+    const account = store.accounts.find(a => a.id === id);
+    if (account) {
+      const typeObj = store.accountTypes.find(t => t.id === account.accountTypeId);
+      const classification = typeObj?.classification || 'liquid';
+      
+      const newSet = new Set(expandedSections.value);
+      newSet.add(classification);
+      expandedSections.value = newSet;
+    }
+
     // Clear highlight after animation
     window.setTimeout(() => {
       highlightedId.value = null;
@@ -58,34 +91,43 @@ watch(() => props.highlightAccountId, (newId) => {
 const form = reactive({
   accountName: '',
   institutionName: '',
-  startingBalance: 0,
-  accountType: 0,
+  startingBalance: 0 as number | null,
+  classification: 'liquid' as AccountClassification,
+  accountType: null as number | null,
   isDefault: false
+});
+
+const filteredAccountTypes = computed(() => {
+  return state.accountTypeArray.filter(t => t.classification === form.classification);
 });
 
 
 function closeDialog() {
   openDialog.value = false;
-  isEdit = false;
+  isEdit.value = false;
   accountEditId = 0;
   // Reset form object entirely
   Object.assign(form, {
     accountName: '',
     institutionName: '',
-    startingBalance: 0,
-    accountType: 0,
+    startingBalance: 0 as number | null,
+    classification: 'liquid',
+    accountType: null,
     isDefault: false
   });
 }
 
 async function submitForm() {
+  const isLiability = form.classification === 'liability';
+  const amount = form.startingBalance ?? 0;
+  const processedBalance = isLiability ? -Math.abs(amount) : Math.abs(amount);
 
-  if(!isEdit){
+  if(!isEdit.value){
     store.addAccount({
       id : 0,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance,
+      startingBalance: processedBalance,
       accountTypeId:  form.accountType,
       isDefault: form.isDefault,
     } as Account);
@@ -95,9 +137,10 @@ async function submitForm() {
       id : accountEditId,
       accountName: form.accountName,
       institutionName: form.institutionName,
-      startingBalance: form.startingBalance,
+      startingBalance: processedBalance,
       accountTypeId: form.accountType,
-      isDefault: form.isDefault} as Account);
+      isDefault: form.isDefault
+    } as Account);
   }
 
   closeDialog();
@@ -110,14 +153,16 @@ async function submitForm() {
 }
 
 function editAccount(account: Account) {
+  const accountTypeObj = state.accountTypeArray.find(t => t.id === account.accountTypeId);
 
   openDialog.value = true;
   form.accountName= account.accountName;
   form.institutionName = account.institutionName ?? "";
-  form.startingBalance = account.startingBalance;
+  form.startingBalance = Math.abs(account.startingBalance);
+  form.classification = accountTypeObj?.classification || 'liquid';
   form.accountType = account.accountTypeId;
   form.isDefault = Boolean(account.isDefault);
-  isEdit = true;
+  isEdit.value = true;
   accountEditId = account.id;
 }
 
@@ -153,50 +198,127 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-4 h-14 bg-gray-100 dark:bg-gray-900 border-b border-transparent dark:border-gray-800 shrink-0">
+  <div class="flex flex-col h-full overflow-hidden">
+    <header class="flex items-center justify-between mb-6 shrink-0">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           Accounts
-        </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          <span>All Accounts</span> ({{ store.accounts.length }})
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Manage your accounts and track net worth.
         </p>
       </div>
-      <button
-        class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
-        @click="openDialog = true"
-      >
-        <i class="pi pi-plus mr-2" />
-        New Account
-      </button>
+      <div class="flex items-center space-x-6">
+        <div class="text-right">
+          <span
+            class="text-2xl font-bold text-gray-900 dark:text-white"
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(totalNetWorth) }}
+          </span>
+          <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Total Net Worth
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button
+            class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors"
+            @click="openDialog = true"
+          >
+            <i class="pi pi-plus mr-2" />
+            New Account
+          </button>
+        </div>
+      </div>
     </header>
 
-    <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-2 pb-4">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <AccountListView
-          :account-array="state.accountArray"
-          :highlighted-id="highlightedId"
-          @edit="editAccount"
-          @delete="deleteAccount"
-          @view-transactions="viewTransactions"
-        />
-      </div>
+    <div class="flex-1 overflow-y-auto min-h-0 space-y-6 pb-6">
+      <AccountListView
+        :account-array="state.accountArray"
+        :highlighted-id="highlightedId"
+        :expanded-sections="expandedSections"
+        @edit="editAccount"
+        @delete="deleteAccount"
+        @view-transactions="viewTransactions"
+        @toggle-section="toggleSection"
+      />
 
       <div
         v-if="openDialog"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       >
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg flex flex-col max-h-[90vh]">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md sm:mx-auto shadow-lg flex flex-col max-h-[90vh]">
           <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white shrink-0">
-            Add New Account
+            {{ isEdit ? 'Edit Account' : 'Add New Account' }}
           </h2>
 
           <form
             class="space-y-4 overflow-y-auto min-h-0 pr-1"
             @submit.prevent="submitForm"
           >
+            <!-- Classification Toggle -->
+            <div
+              class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+              :class="{ 'opacity-75 cursor-not-allowed': isEdit }"
+            >
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'liquid'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'liquid' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'liquid'; form.accountType = null;"
+              >
+                Liquid
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'liability'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'liability' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'liability'; form.accountType = null;"
+              >
+                Liability
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'asset'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'asset' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'asset'; form.accountType = null; form.isDefault = false;"
+              >
+                Asset
+              </button>
+              <button
+                type="button"
+                :disabled="isEdit"
+                :class="[
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  form.classification === 'investment'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                  !isEdit && form.classification !== 'investment' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                ]"
+                @click="form.classification = 'investment'; form.accountType = null; form.isDefault = false;"
+              >
+                Investment
+              </button>
+            </div>
+
             <div>
               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Account Name</label>
               <input
@@ -225,19 +347,11 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
               >
                 Starting Balance
               </label>
-              <div class="relative">
-                <span
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-                >$</span>
-                <input
-                  v-model.number="form.startingBalance"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  class="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
+              <AmountInput
+                v-model="form.startingBalance"
+                show-currency
+                placeholder="0.00"
+              />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Account Type</label>
@@ -247,7 +361,14 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 required
               >
                 <option
-                  v-for="type in state.accountTypeArray"
+                  :value="null"
+                  disabled
+                  hidden
+                >
+                  Select an account type
+                </option>
+                <option
+                  v-for="type in filteredAccountTypes"
                   :key="type.id"
                   :value="type.id"
                 >
@@ -255,11 +376,14 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 </option>
               </select>
             </div>
-            <div class="flex items-center space-x-2">
+            <div
+              v-if="form.classification !== 'asset' && form.classification !== 'investment'"
+              class="flex items-center space-x-2"
+            >
               <input
                 v-model="form.isDefault"
                 type="checkbox"
-                class="w-4 h-4 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5"
+                class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
               />
               <label
                 for="isDefault"
@@ -267,17 +391,19 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
               >Set as Default</label>
             </div>
 
-            <div class="flex justify-end space-x-2 mt-4">
+            <!-- Footer -->
+            <div class="flex justify-end items-center pt-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-x-3 mt-4">
               <button
                 type="button"
-                class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 @click="closeDialog"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                :disabled="!form.accountType || !form.accountName.trim()"
+                class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 Save
               </button>

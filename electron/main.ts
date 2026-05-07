@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { initializeDatabase } from './db'
+import { initializeDatabase, processRecurringTransactions } from './db'
 import { registerIpcHandlers } from './ipc'
 import fs from 'fs'
 
@@ -131,6 +131,16 @@ if (isDev) {
   console.log(`[Main] Running in dev mode. UserData: ${devUserDataPath}`);
 }
 
+// Background task to check for due recurring transactions
+function startRecurringTransactionsTask() {
+  // Check every 1 minute
+  setInterval(() => {
+    if (processRecurringTransactions()) {
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('recurring-processed'));
+    }
+  }, 60 * 1000);
+}
+
 if (app.isPackaged) {
   const gotTheLock = app.requestSingleInstanceLock()
 
@@ -151,6 +161,7 @@ if (app.isPackaged) {
       registerIpcHandlers();
       
       createWindow();
+      startRecurringTransactionsTask();
     });
   }
 } else {
@@ -160,5 +171,6 @@ if (app.isPackaged) {
     registerIpcHandlers();
     
     createWindow();
+    startRecurringTransactionsTask();
   });
 }
