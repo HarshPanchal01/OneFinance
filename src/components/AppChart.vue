@@ -5,7 +5,7 @@ import type { TooltipItem, ChartOptions, ChartData } from "chart.js";
 import { useSettingsStore } from "@/stores/settings";
 
 interface Props {
-  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar";
+  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter";
   data: ChartData;
   options?: ChartOptions;
   height?: string;
@@ -50,7 +50,7 @@ const defaultOptions = computed(() => {
 
   // Add Currency Formatting to Tooltips
   if (props.currencyFormat) {
-    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar">) {
+    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter">) {
         let label = context.dataset.label || '';
         if (label) {
             label += ': ';
@@ -85,7 +85,7 @@ const defaultOptions = computed(() => {
   }
 
   // Add Scales Configuration (only for cartesian charts)
-  if (['bar', 'line'].includes(props.type)) {
+  if (['bar', 'line', 'scatter'].includes(props.type)) {
     base.scales = {
       x: {
         ticks: {

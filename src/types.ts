@@ -42,6 +42,7 @@ export interface InvestmentHolding {
   quantity: number;
   lastPrice: number | null;
   lastUpdated: string | null;
+  sectorWeightings?: string | null;
 }
 
 export type InvestmentTransactionType = 'buy' | 'sell';

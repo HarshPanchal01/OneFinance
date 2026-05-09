@@ -779,7 +779,12 @@ export const useFinanceStore = defineStore("finance", () => {
   }
 
   async function addInvestmentHolding(data: Omit<InvestmentHolding, 'id'>) {
-    const newHolding = await window.electronAPI.createInvestmentHolding(data);
+    // Fetch profile data (sectors)
+    const profile = await window.electronAPI.getAssetProfile(data.symbol);
+    const newHolding = await window.electronAPI.createInvestmentHolding({
+        ...data,
+        sectorWeightings: profile
+    });
     if (newHolding) {
       await fetchInvestmentHoldings(data.accountId);
     }
@@ -832,11 +837,18 @@ export const useFinanceStore = defineStore("finance", () => {
         // Update all holdings with this symbol in DB
         const holdingsToUpdate = investmentHoldings.value.filter(h => h.symbol === quote.symbol);
         for (const holding of holdingsToUpdate) {
-          await window.electronAPI.updateInvestmentHolding(holding.id, {
+          const updateData: any = {
             lastPrice: quote.price,
             lastUpdated: quote.updatedAt,
             name: quote.name
-          });
+          };
+
+          // If sector weightings are missing, fetch them
+          if (!holding.sectorWeightings) {
+            updateData.sectorWeightings = await window.electronAPI.getAssetProfile(holding.symbol);
+          }
+
+          await window.electronAPI.updateInvestmentHolding(holding.id, updateData);
         }
       }
 
@@ -1270,7 +1282,8 @@ export const useFinanceStore = defineStore("finance", () => {
           name: holding.name,
           quantity: holding.quantity,
           lastPrice: holding.lastPrice,
-          lastUpdated: holding.lastUpdated
+          lastUpdated: holding.lastUpdated,
+          sectorWeightings: holding.sectorWeightings
         });
 
         console.log(`Inserting holding ${holding.symbol} completed`);

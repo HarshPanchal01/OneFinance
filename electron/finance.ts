@@ -49,6 +49,29 @@ export async function getQuotes(symbols: string[]) {
 }
 
 /**
+ * Fetch asset profile (sectors/weightings) for a given symbol
+ */
+export async function getAssetProfile(symbol: string) {
+  try {
+    const summary = await yahooFinance.quoteSummary(symbol, { modules: ['topHoldings', 'summaryProfile'] });
+    let sectorData: any = null;
+
+    if (summary.topHoldings && summary.topHoldings.sectorWeightings) {
+      // ETF
+      sectorData = summary.topHoldings.sectorWeightings;
+    } else if (summary.summaryProfile && summary.summaryProfile.sector) {
+      // Stock
+      sectorData = { [summary.summaryProfile.sector.toLowerCase()]: 1 };
+    }
+
+    return sectorData ? JSON.stringify(sectorData) : null;
+  } catch (error) {
+    console.error(`[Finance] Error fetching asset profile for ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
  * Search for symbols
  */
 export async function searchSymbols(query: string) {

@@ -171,6 +171,7 @@ function migrate1to2(db: any): void {
         quantity REAL NOT NULL,
         lastPrice REAL,
         lastUpdated TEXT,
+        sectorWeightings TEXT,
         FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
       )
     `);

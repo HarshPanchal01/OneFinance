@@ -194,6 +194,7 @@ export function initializeDatabase(): void {
       quantity REAL NOT NULL,
       lastPrice REAL,
       lastUpdated TEXT,
+      sectorWeightings TEXT,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -1357,7 +1358,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   
   const update = db.prepare(`
     UPDATE investment_holdings 
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?
     WHERE id = ?
   `);
   
@@ -1367,6 +1368,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.quantity ?? current.quantity,
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
+    data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
     id
   );
   

@@ -3,11 +3,12 @@ import { computed, onMounted, ref } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { useFormatter } from '@/composables/useFormatter';
 import AssetAllocationChart from './components/charts/AssetAllocationChart.vue';
-import PortfolioHistoryChart from './components/charts/PortfolioHistoryChart.vue';
+import SectorDiversificationChart from './components/charts/SectorDiversificationChart.vue';
 import MarketVsBookList from './components/MarketVsBookList.vue';
 import NetContributionsChart from './components/charts/NetContributionsChart.vue';
 import InsightMetricCard from '@/views/insights/components/InsightMetricCard.vue';
 import TradeHistoryModal from '@/views/investments/components/TradeHistoryModal.vue';
+import SectorBreakdownModal from './components/SectorBreakdownModal.vue';
 import { getDateRange, toIsoDateString, getCustomRangeObj, getTimeRangeLabel } from '@/utils';
 import type { InvestmentTransaction } from '@/types';
 
@@ -22,6 +23,16 @@ function handleOpenHistory(symbol: string, accountId: string) {
   historyInitialAssetFilter.value = symbol;
   modalHistoryAccountId.value = accountId === 'all' ? null : Number(accountId);
   showHistoryModal.value = true;
+}
+
+const showSectorModal = ref(false);
+const selectedSectorName = ref('');
+const selectedSectorAccountId = ref('all');
+
+function handleSectorDrillDown(sectorName: string) {
+  selectedSectorName.value = sectorName;
+  selectedSectorAccountId.value = historyAccountId.value;
+  showSectorModal.value = true;
 }
 
 const globalHistory = ref<{ date: string, totalValue: number }[]>([]);
@@ -163,7 +174,6 @@ const allocationAccountId = ref<string>('all');
 const contributionsAccountId = ref<string>('all');
 const contributionsOption = ref<string>('YTD');
 const historyAccountId = ref<string>('all');
-const historyOption = ref<string>('YTD');
 
 const highlightedSymbol = ref<string | null>(null);
 
@@ -174,20 +184,6 @@ const availableYears = computed(() => {
         years.add(parseInt(h.date.substring(0, 4)));
     });
     return Array.from(years).sort((a, b) => b - a);
-});
-
-const computedHistoryData = computed(() => {
-    if (historyAccountId.value === 'all') {
-        return globalHistory.value;
-    }
-    const accId = parseInt(historyAccountId.value);
-    const dateMap = new Map<string, number>();
-    for (const h of rawHistories.value.filter(x => x.accountId === accId)) {
-        dateMap.set(h.date, (dateMap.get(h.date) || 0) + h.totalValue);
-    }
-    return Array.from(dateMap.entries())
-        .map(([date, totalValue]) => ({ date, totalValue }))
-        .sort((a, b) => a.date.localeCompare(b.date));
 });
 
 // Stats State
@@ -386,9 +382,9 @@ const contributionsData = computed(() => {
     </div>
 
     <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- Net Contributions History -->
-      <div class="card p-4 flex flex-col h-[350px]">
+      <div class="card p-4 flex flex-col h-[350px] xl:col-span-2">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
           <!-- Custom Legend (Left) -->
           <div class="hidden xl:flex flex-row gap-4 absolute left-0">
@@ -453,15 +449,9 @@ const contributionsData = computed(() => {
         </div>
       </div>
 
-      <!-- Portfolio Value History -->
-      <div class="card p-4 flex flex-col h-[350px]">
+      <!-- Sector Diversification -->
+      <div class="card p-4 flex flex-col h-[350px] xl:col-span-1">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
-          <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
-            Portfolio Value
-          </h3>
-          <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
-            Portfolio Value
-          </h3>
           <div class="z-10 flex gap-2">
             <select
               v-model="historyAccountId"
@@ -478,32 +468,16 @@ const contributionsData = computed(() => {
                 {{ acc.accountName }}
               </option>
             </select>
-            <select
-              v-model="historyOption"
-              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer"
-            >
-              <option value="YTD">
-                YTD
-              </option>
-              <option
-                v-for="year in availableYears"
-                :key="year"
-                :value="year.toString()"
-              >
-                {{ year }}
-              </option>
-            </select>
           </div>
         </div>
         <div class="flex-1 relative min-h-0">
-          <PortfolioHistoryChart
-            :history="computedHistoryData"
-            :option="historyOption"
+          <SectorDiversificationChart
+            :account-id="historyAccountId"
+            @drill-down="handleSectorDrillDown"
           />
         </div>
       </div>
     </div>
-
     <!-- Modals -->
     <TradeHistoryModal
       v-if="showHistoryModal"
@@ -512,6 +486,12 @@ const contributionsData = computed(() => {
       :is-cash="false"
       :initial-asset-filter="historyInitialAssetFilter"
       @close="showHistoryModal = false"
+    />
+    <SectorBreakdownModal
+      v-if="showSectorModal"
+      :sector-name="selectedSectorName"
+      :account-id="selectedSectorAccountId"
+      @close="showSectorModal = false"
     />
   </div>
 </template>

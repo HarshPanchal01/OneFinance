@@ -69,7 +69,7 @@ import {
   getInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
-import { getQuote, getQuotes, searchSymbols } from "./finance";
+import { getQuote, getQuotes, searchSymbols, getAssetProfile } from "./finance";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction } from "@/types";
 
 /**
@@ -353,6 +353,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("finance:searchSymbols", async (_event, query: string) => {
     return searchSymbols(query);
+  });
+
+  ipcMain.handle("finance:getAssetProfile", async (_event, symbol: string) => {
+    return getAssetProfile(symbol);
   });
 
   // ============================================

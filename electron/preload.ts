@@ -61,6 +61,9 @@ const electronAPI = {
   searchSymbols: (query: string): Promise<any[]> =>
     ipcRenderer.invoke("finance:searchSymbols", query),
 
+  getAssetProfile: (symbol: string): Promise<string | null> =>
+    ipcRenderer.invoke("finance:getAssetProfile", symbol),
+
   // ============================================
   // RECURRING TRANSACTIONS
   // ============================================
