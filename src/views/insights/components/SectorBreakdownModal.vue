@@ -20,47 +20,126 @@ const sectorHoldings = computed(() => {
     props.accountId === 'all' || h.accountId === parseInt(props.accountId)
   );
 
+  const sectorTotals = new Map<string, number>();
+
+  holdings.forEach(h => {
+    if (h.quantity <= 0) return;
+    const marketValue = h.quantity * (h.lastPrice || 0);
+
+    if (!h.sectorWeightings) {
+      sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
+      return;
+    }
+
+    try {
+      const data = JSON.parse(h.sectorWeightings);
+      if (!data) {
+        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
+        return;
+      }
+      
+      let totalWeight = 0;
+      
+      if (Array.isArray(data)) {
+        data.forEach(item => {
+          const sector = Object.keys(item)[0];
+          const weight = item[sector];
+          const sectorValue = marketValue * weight;
+          totalWeight += weight;
+          sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
+        });
+      } else {
+        const sector = Object.keys(data)[0];
+        const weight = data[sector];
+        const sectorValue = marketValue * weight;
+        totalWeight += weight;
+        sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
+      }
+
+      if (totalWeight < 0.99) {
+        const remainingWeight = 1 - totalWeight;
+        const remainingValue = marketValue * remainingWeight;
+        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
+      }
+    } catch {
+      sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
+    }
+  });
+
+  const sortedSectors = Array.from(sectorTotals.entries())
+    .sort((a, b) => b[1] - a[1]);
+
+  const top10Sectors = new Set(sortedSectors.slice(0, 10).map(([s]) => s));
+
   const breakdown: { symbol: string, name: string, amount: number }[] = [];
 
   holdings.forEach(h => {
-    if (!h.sectorWeightings || h.quantity <= 0) return;
-    
+    if (h.quantity <= 0) return;
     const marketValue = h.quantity * (h.lastPrice || 0);
-    try {
-      const data = JSON.parse(h.sectorWeightings);
-      if (!data) return;
-      
-      if (Array.isArray(data)) {
-        // ETF Format
-        data.forEach(item => {
-          const rawSector = Object.keys(item)[0];
-          const sectorStr = rawSector === 'realestate' ? 'Real Estate' : rawSector.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          
-          if (sectorStr === props.sectorName) {
-            const weight = item[rawSector];
-            breakdown.push({
-              symbol: h.symbol,
-              name: h.name || h.symbol,
-              amount: marketValue * weight
-            });
-          }
-        });
+    
+    let processed = false;
+
+    const addIfMatch = (rawSector: string, value: number) => {
+      let sectorStr = rawSector.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      if (rawSector === 'realestate') sectorStr = 'Real Estate';
+      if (rawSector === 'cash_and_equivalents') sectorStr = 'Cash & Equivalents';
+
+      let isMatch = false;
+      if (props.sectorName === 'Others') {
+        isMatch = !top10Sectors.has(rawSector);
       } else {
-        // Stock Format
-        const rawSector = Object.keys(data)[0];
-        const sectorStr = rawSector === 'realestate' ? 'Real Estate' : rawSector.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        
-        if (sectorStr === props.sectorName) {
-          const weight = data[rawSector];
+        isMatch = (sectorStr === props.sectorName);
+      }
+
+      if (isMatch && value > 0) {
+        const existing = breakdown.find(b => b.symbol === h.symbol);
+        if (existing) {
+          existing.amount += value;
+        } else {
           breakdown.push({
             symbol: h.symbol,
             name: h.name || h.symbol,
-            amount: marketValue * weight
+            amount: value
           });
         }
       }
-    } catch (e) {
-      console.error("Failed to parse sector weightings", e);
+    };
+
+    if (!h.sectorWeightings) {
+      addIfMatch('cash_and_equivalents', marketValue);
+      processed = true;
+    }
+
+    if (!processed) {
+      try {
+        const data = JSON.parse(h.sectorWeightings!);
+        if (!data) {
+          addIfMatch('cash_and_equivalents', marketValue);
+          processed = true;
+        } else {
+          let totalWeight = 0;
+          if (Array.isArray(data)) {
+            data.forEach(item => {
+              const rawSector = Object.keys(item)[0];
+              const weight = item[rawSector];
+              totalWeight += weight;
+              addIfMatch(rawSector, marketValue * weight);
+            });
+          } else {
+            const rawSector = Object.keys(data)[0];
+            const weight = data[rawSector];
+            totalWeight += weight;
+            addIfMatch(rawSector, marketValue * weight);
+          }
+
+          if (totalWeight < 0.99) {
+            const remainingWeight = 1 - totalWeight;
+            addIfMatch('cash_and_equivalents', marketValue * remainingWeight);
+          }
+        }
+      } catch {
+        addIfMatch('cash_and_equivalents', marketValue);
+      }
     }
   });
 

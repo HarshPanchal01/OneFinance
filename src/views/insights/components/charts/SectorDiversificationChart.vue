@@ -25,12 +25,23 @@ const chartDataObj = computed(() => {
   const sectorTotals = new Map<string, number>();
 
   holdings.forEach(h => {
-    if (!h.sectorWeightings || h.quantity <= 0) return;
+    if (h.quantity <= 0) return;
     
     const marketValue = h.quantity * (h.lastPrice || 0);
+
+    if (!h.sectorWeightings) {
+      sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
+      return;
+    }
+
     try {
       const data = JSON.parse(h.sectorWeightings);
-      if (!data) return;
+      if (!data) {
+        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
+        return;
+      }
+      
+      let totalWeight = 0;
       
       if (Array.isArray(data)) {
         // ETF Format: [{ "technology": 0.25 }, ...]
@@ -38,6 +49,7 @@ const chartDataObj = computed(() => {
           const sector = Object.keys(item)[0];
           const weight = item[sector];
           const sectorValue = marketValue * weight;
+          totalWeight += weight;
           sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
         });
       } else {
@@ -45,26 +57,44 @@ const chartDataObj = computed(() => {
         const sector = Object.keys(data)[0];
         const weight = data[sector];
         const sectorValue = marketValue * weight;
+        totalWeight += weight;
         sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
+      }
+
+      if (totalWeight < 0.99) {
+        const remainingWeight = 1 - totalWeight;
+        const remainingValue = marketValue * remainingWeight;
+        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
       }
     } catch (e) {
       console.error("Failed to parse sector weightings for", h.symbol, e);
+      sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
     }
   });
 
   const sortedSectors = Array.from(sectorTotals.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10); // Keep top 10
+    .sort((a, b) => b[1] - a[1]);
 
   const totalValue = sortedSectors.reduce((sum, [, v]) => sum + v, 0);
+
+  const top = sortedSectors.slice(0, 10);
+  const others = sortedSectors.slice(10);
+  
+  if (others.length > 0) {
+    const othersValue = others.reduce((sum, [, v]) => sum + v, 0);
+    top.push(['others', othersValue]);
+  }
 
   const baseColors = [
     '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', 
     '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
   ];
 
-  const topSectors = sortedSectors.map(([s, v], index) => {
-    const rawName = s === 'realestate' ? 'Real Estate' : s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const topSectors = top.map(([s, v], index) => {
+    let rawName = s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    if (s === 'realestate') rawName = 'Real Estate';
+    if (s === 'cash_and_equivalents') rawName = 'Cash & Equivalents';
+    if (s === 'others') rawName = 'Others';
     
     let icon = 'pi-briefcase';
     if (s === 'technology') icon = 'pi-desktop';
@@ -76,14 +106,15 @@ const chartDataObj = computed(() => {
     else if (s === 'energy') icon = 'pi-bolt';
     else if (s === 'consumer_defensive') icon = 'pi-shopping-bag';
     else if (s === 'basic_materials') icon = 'pi-box';
-    else if (s === 'utilities') icon = 'pi-home';
-    else if (s === 'realestate') icon = 'pi-home';
+    else if (s === 'utilities' || s === 'realestate') icon = 'pi-home';
+    else if (s === 'cash_and_equivalents') icon = 'pi-money-bill';
+    else if (s === 'others') icon = 'pi-ellipsis-h';
 
     return {
       sectorName: rawName,
       total: v,
       percentage: totalValue > 0 ? (v / totalValue) * 100 : 0,
-      color: baseColors[index % baseColors.length],
+      color: s === 'others' ? '#9ca3af' : baseColors[index % baseColors.length],
       icon
     };
   });
