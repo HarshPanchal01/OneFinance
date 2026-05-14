@@ -105,7 +105,7 @@ const chartData = computed(() => {
         borderColor: chartDataObj.value.topSectors.map(s => s.color),
         hoverBorderColor: chartDataObj.value.topSectors.map(s => s.color),
         borderWidth: 2,
-        hoverOffset: 4,
+        hoverOffset: 6,
       }
     ]
   };
@@ -113,7 +113,7 @@ const chartData = computed(() => {
 
 const chartOptions = computed(() => ({
   layout: {
-    padding: 0
+    padding: 8
   },
   plugins: {
     legend: { display: false },
@@ -161,26 +161,26 @@ const chartOptions = computed(() => ({
     
     <div
       v-else
-      class="flex flex-col xl:flex-row h-full w-full items-start xl:justify-between gap-6"
+      class="flex flex-col xl:flex-row h-full w-full items-center xl:justify-between gap-4"
     >
       <!-- Left Column: Title + Total Text + Chart -->
-      <div class="flex flex-col items-center justify-start gap-0 shrink-0 w-full xl:w-auto">
+      <div class="flex flex-col items-center justify-start gap-0 shrink-0 flex-1 min-w-0 mt-[-32px]">
         <h3 class="font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base mb-1 lg:self-start xl:self-center whitespace-nowrap">
           <span class="lg:hidden xl:inline">Sector Diversification</span>
           <span class="hidden lg:inline xl:hidden">Sectors</span>
         </h3>
 
         <!-- Total Text (Above Chart) -->
-        <div class="flex flex-col items-center justify-center mb-1">
-          <span class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight">Total</span>
+        <div class="flex flex-col items-center justify-center mb-2">
+          <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase leading-tight mb-0.5">Total</span>
           <span
-            class="text-xl xl:text-2xl font-bold text-gray-800 dark:text-white"
+            class="text-base xl:text-xl font-bold text-gray-800 dark:text-white"
             :class="{ 'privacy-blur': settingsStore.privacyMode }"
           >{{ formatCurrency(chartDataObj.totalValue) }}</span>
         </div>
 
         <!-- Chart -->
-        <div class="w-44 h-44 xl:w-56 xl:h-56">
+        <div class="relative w-52 h-52 xl:w-60 xl:h-60">
           <AppChart
             type="pie"
             :data="chartData"
@@ -192,28 +192,28 @@ const chartOptions = computed(() => ({
       </div>
 
       <!-- Custom Legend (Right Side - Hidden on small screens) -->
-      <div class="hidden xl:flex overflow-y-auto h-full pr-2 space-y-3 pt-2 pb-2 flex-col flex-1 min-w-0">
+      <div class="hidden xl:flex overflow-y-auto h-full pr-1 space-y-2.5 pt-8 pb-2 flex-col w-28 shrink-0">
         <div
           v-for="cat in chartDataObj.topSectors"
           :key="cat.sectorName"
-          class="flex items-center gap-3 cursor-pointer p-1.5 transition-colors"
+          class="flex items-center gap-2.5 cursor-pointer p-1 transition-colors"
           :title="cat.sectorName"
           @click="emit('drill-down', cat.sectorName)"
         >
           <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            class="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
             :style="{ backgroundColor: cat.color + '20' }"
           >
             <i
               :class="['pi', cat.icon]"
-              :style="{ color: cat.color, fontSize: '12px' }"
+              :style="{ color: cat.color, fontSize: '10px' }"
             />
           </div>
           <div class="flex flex-col min-w-0">
-            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">
+            <span class="text-[11px] font-semibold text-gray-700 dark:text-gray-200 truncate">
               {{ cat.sectorName }}
             </span>
-            <span class="text-[11px] text-gray-400 font-medium">
+            <span class="text-[10px] text-gray-400 font-medium">
               {{ cat.percentage.toFixed(1) }}%
             </span>
           </div>

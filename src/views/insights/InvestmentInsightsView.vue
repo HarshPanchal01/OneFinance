@@ -382,9 +382,9 @@ const contributionsData = computed(() => {
     </div>
 
     <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <!-- Net Contributions History -->
-      <div class="card p-4 flex flex-col h-[350px] xl:col-span-2">
+      <div class="card p-4 flex flex-col h-[350px] lg:col-span-2 xl:col-span-3">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
           <!-- Custom Legend (Left) -->
           <div class="hidden xl:flex flex-row gap-4 absolute left-0">
@@ -450,7 +450,7 @@ const contributionsData = computed(() => {
       </div>
 
       <!-- Sector Diversification -->
-      <div class="card p-4 flex flex-col h-[350px] xl:col-span-1">
+      <div class="card p-4 flex flex-col h-[350px] lg:col-span-1 xl:col-span-1">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
           <div class="z-10 flex gap-2">
             <select
