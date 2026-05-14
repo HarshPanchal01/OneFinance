@@ -56,10 +56,12 @@ const sectorHoldings = computed(() => {
         sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
       }
 
-      if (totalWeight < 0.99) {
+      if (totalWeight < 1) {
         const remainingWeight = 1 - totalWeight;
-        const remainingValue = marketValue * remainingWeight;
-        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
+        if (remainingWeight > 0.000001) {
+          const remainingValue = marketValue * remainingWeight;
+          sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
+        }
       }
     } catch {
       sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
@@ -132,9 +134,11 @@ const sectorHoldings = computed(() => {
             addIfMatch(rawSector, marketValue * weight);
           }
 
-          if (totalWeight < 0.99) {
+          if (totalWeight < 1) {
             const remainingWeight = 1 - totalWeight;
-            addIfMatch('cash_and_equivalents', marketValue * remainingWeight);
+            if (remainingWeight > 0.000001) {
+              addIfMatch('cash_and_equivalents', marketValue * remainingWeight);
+            }
           }
         }
       } catch {

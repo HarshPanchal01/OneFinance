@@ -4,6 +4,7 @@ import { useFinanceStore } from "@/stores/finance";
 import AppChart from "@/components/AppChart.vue";
 import { useFormatter } from "@/composables/useFormatter";
 import { useSettingsStore } from "@/stores/settings";
+import { getSectorColor } from "@/utils";
 
 const props = defineProps<{
   accountId: string;
@@ -61,10 +62,12 @@ const chartDataObj = computed(() => {
         sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
       }
 
-      if (totalWeight < 0.99) {
+      if (totalWeight < 1) {
         const remainingWeight = 1 - totalWeight;
-        const remainingValue = marketValue * remainingWeight;
-        sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
+        if (remainingWeight > 0.000001) {
+          const remainingValue = marketValue * remainingWeight;
+          sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + remainingValue);
+        }
       }
     } catch (e) {
       console.error("Failed to parse sector weightings for", h.symbol, e);
@@ -85,12 +88,7 @@ const chartDataObj = computed(() => {
     top.push(['others', othersValue]);
   }
 
-  const baseColors = [
-    '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', 
-    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
-  ];
-
-  const topSectors = top.map(([s, v], index) => {
+  const topSectors = top.map(([s, v]) => {
     let rawName = s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     if (s === 'realestate') rawName = 'Real Estate';
     if (s === 'cash_and_equivalents') rawName = 'Cash & Equivalents';
@@ -114,7 +112,7 @@ const chartDataObj = computed(() => {
       sectorName: rawName,
       total: v,
       percentage: totalValue > 0 ? (v / totalValue) * 100 : 0,
-      color: s === 'others' ? '#9ca3af' : baseColors[index % baseColors.length],
+      color: s === 'others' ? '#9ca3af' : getSectorColor(rawName),
       icon
     };
   });

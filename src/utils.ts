@@ -43,6 +43,64 @@ export function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
 }
 
+export function getStringColor(str: string, customColors?: string[]): string {
+  // A palette specifically designed for high contrast and distinct adjacent colors
+  const defaultColors = [
+    '#3b82f6', // Blue
+    '#ef4444', // Red
+    '#10b981', // Green
+    '#f59e0b', // Yellow/Orange
+    '#8b5cf6', // Purple
+    '#06b6d4', // Cyan
+    '#ec4899', // Pink
+    '#84cc16', // Lime
+    '#f97316', // Orange
+    '#6366f1', // Indigo
+    '#14b8a6', // Teal
+    '#eab308', // Yellow
+    '#d946ef', // Fuchsia
+    '#0ea5e9', // Light Blue
+    '#22c55e', // Light Green
+  ];
+
+  const colors = customColors || defaultColors;
+
+  // Better hashing to spread similar strings to different colors
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  hash = Math.abs(hash);
+  
+  // Use a prime multiplier to further scatter the index
+  const index = (hash * 31) % colors.length;
+  return colors[index];
+}
+
+export function getSectorColor(sectorName: string): string {
+  const normalized = sectorName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Semantic color mapping for known sectors
+  switch (normalized) {
+    case 'technology': return '#3b82f6'; // Blue
+    case 'cashequivalents': return '#10b981'; // Green
+    case 'financialservices': return '#14b8a6'; // Teal
+    case 'healthcare': return '#ef4444'; // Red
+    case 'energy': return '#f59e0b'; // Yellow/Orange
+    case 'industrials': return '#6366f1'; // Indigo
+    case 'consumercyclical': return '#ec4899'; // Pink
+    case 'consumerdefensive': return '#8b5cf6'; // Purple
+    case 'communicationservices': return '#0ea5e9'; // Light Blue
+    case 'utilities': return '#f97316'; // Orange
+    case 'basicmaterials': return '#84cc16'; // Lime
+    case 'realestate': return '#a855f7'; // Lavender
+    case 'others': return '#9ca3af'; // Gray
+    default: return getStringColor(sectorName); // Fallback
+  }
+}
+
 export interface ImportData {
   databaseVersion?: number;
   accounts?: Account[];

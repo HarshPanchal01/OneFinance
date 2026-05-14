@@ -4,6 +4,7 @@ import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 import AppChart from "@/components/AppChart.vue";
 import { useFormatter } from "@/composables/useFormatter";
+import { getStringColor } from "@/utils";
 
 const props = defineProps<{
   accountId: string;
@@ -67,11 +68,11 @@ const chartData = computed(() => {
     '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
     '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#3b82f6',
     '#fbbf24', '#2dd4bf', '#a855f7', '#fb7185', '#fb923c',
-    '#4ade80', '#60a5fa', '#818cf8', '#c084fc', '#9ca3af'
+    '#4ade80', '#60a5fa', '#818cf8', '#c084fc'
   ];
   
-  // Assign colors, cycling through if we exceed the palette size
-  const colors = topAssets.value.map((_, i) => bgColors[i % bgColors.length]);
+  // Assign colors deterministically based on label
+  const colors = topAssets.value.map((a) => a.label === 'Others' ? '#9ca3af' : getStringColor(a.label, bgColors));
 
   return {
     labels: topAssets.value.map(a => a.label),
