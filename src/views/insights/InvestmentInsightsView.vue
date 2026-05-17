@@ -5,10 +5,11 @@ import { useFormatter } from '@/composables/useFormatter';
 import AssetAllocationChart from './components/charts/AssetAllocationChart.vue';
 import SectorDiversificationChart from './components/charts/SectorDiversificationChart.vue';
 import MarketVsBookList from './components/MarketVsBookList.vue';
-import NetContributionsChart from './components/charts/NetContributionsChart.vue';
+import PortfolioGrowthChart from './components/charts/PortfolioGrowthChart.vue';
 import InsightMetricCard from '@/views/insights/components/InsightMetricCard.vue';
 import TradeHistoryModal from '@/views/investments/components/TradeHistoryModal.vue';
 import SectorBreakdownModal from './components/SectorBreakdownModal.vue';
+import HistoricalHoldingsModal from './components/HistoricalHoldingsModal.vue';
 import { getDateRange, toIsoDateString, getCustomRangeObj, getTimeRangeLabel } from '@/utils';
 import type { InvestmentTransaction } from '@/types';
 
@@ -33,6 +34,16 @@ function handleSectorDrillDown(sectorName: string) {
   selectedSectorName.value = sectorName;
   selectedSectorAccountId.value = historyAccountId.value;
   showSectorModal.value = true;
+}
+
+const showHistoricalModal = ref(false);
+const historicalModalDate = ref('');
+const historicalModalValue = ref(0);
+
+function handleGrowthClick(date: string, _accountId: string, totalValue: number) {
+  historicalModalDate.value = date;
+  historicalModalValue.value = totalValue;
+  showHistoricalModal.value = true;
 }
 
 const globalHistory = ref<{ date: string, totalValue: number }[]>([]);
@@ -151,28 +162,11 @@ function handleHighlightAsset(symbol: string, accountId: string) {
   }, 2000);
 }
 
-function handleContributionsDrillDown(data: { range: { fromDate: string, toDate: string }, type: 'deposit' | 'withdrawal' }) {
-    const filter: any = {
-        fromDate: data.range.fromDate,
-        toDate: data.range.toDate,
-        type: 'transfer' as const
-    };
-    
-    if (contributionsAccountId.value !== 'all') {
-        filter.accountIds = [parseInt(contributionsAccountId.value)];
-    } else {
-        filter.accountIds = Array.from(investmentAccountIds.value);
-    }
-    
-    store.setTransactionFilter(filter);
-    store.searchTransactions(filter);
-}
-
 // Chart Filters
 const bookValueAccountId = ref<string>('all');
 const allocationAccountId = ref<string>('all');
-const contributionsAccountId = ref<string>('all');
-const contributionsOption = ref<string>('YTD');
+const growthAccountId = ref<string>('all');
+const growthOption = ref<string>('YTD');
 const historyAccountId = ref<string>('all');
 
 const highlightedSymbol = ref<string | null>(null);
@@ -383,30 +377,18 @@ const contributionsData = computed(() => {
 
     <!-- Charts Row 2 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <!-- Net Contributions History -->
+      <!-- Portfolio Growth Trend -->
       <div class="card p-4 flex flex-col h-[350px] lg:col-span-2 xl:col-span-3">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
-          <!-- Custom Legend (Left) -->
-          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-income shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Deposits</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-expense shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Withdrawals</span>
-            </div>
-          </div>
-
           <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
-            Net Contributions
+            Portfolio Growth Trend
           </h3>
           <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
-            Net Contributions
+            Portfolio Growth Trend
           </h3>
           <div class="z-10 flex gap-2">
             <select
-              v-model="contributionsAccountId"
+              v-model="growthAccountId"
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
             >
               <option value="all">
@@ -421,7 +403,7 @@ const contributionsData = computed(() => {
               </option>
             </select>
             <select
-              v-model="contributionsOption"
+              v-model="growthOption"
               class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer"
             >
               <option value="YTD">
@@ -441,10 +423,11 @@ const contributionsData = computed(() => {
           </div>
         </div>
         <div class="flex-1 relative min-h-0">
-          <NetContributionsChart
-            :account-id="contributionsAccountId"
-            :option="contributionsOption"
-            @drill-down="handleContributionsDrillDown"
+          <PortfolioGrowthChart
+            :account-id="growthAccountId"
+            :option="growthOption"
+            :histories="rawHistories"
+            @point-click="handleGrowthClick"
           />
         </div>
       </div>
@@ -479,6 +462,13 @@ const contributionsData = computed(() => {
       </div>
     </div>
     <!-- Modals -->
+    <HistoricalHoldingsModal
+      v-if="showHistoricalModal"
+      :date="historicalModalDate"
+      :account-id="growthAccountId"
+      :target-value="historicalModalValue"
+      @close="showHistoricalModal = false"
+    />
     <TradeHistoryModal
       v-if="showHistoryModal"
       :holding="null"

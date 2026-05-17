@@ -64,6 +64,9 @@ const electronAPI = {
   getAssetProfile: (symbol: string): Promise<string | null> =>
     ipcRenderer.invoke("finance:getAssetProfile", symbol),
 
+  getHistoricalPrices: (symbol: string, period1: string, period2: string): Promise<{ date: string; close: number }[]> =>
+    ipcRenderer.invoke("finance:getHistoricalPrices", symbol, period1, period2),
+
   // ============================================
   // RECURRING TRANSACTIONS
   // ============================================

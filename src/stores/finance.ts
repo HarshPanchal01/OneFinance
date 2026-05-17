@@ -856,15 +856,147 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchInvestmentHoldings();
       await fetchAccounts();
 
+      const today = new Date().toISOString().split('T')[0];
+
       // Record history for each investment account
       const investmentAccounts = accounts.value.filter(a => {
         const type = accountTypes.value.find(at => at.id === a.accountTypeId);
         return type?.classification === 'investment';
       });
 
-      const today = new Date().toISOString().split('T')[0];
+      // BACKFILL LOGIC
+      const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
+      const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
+      const allHoldings = await window.electronAPI.getInvestmentHoldings();
+      const allTransactions = transactions.value;
+
+      const gapsByAccount = new Map<number, string[]>();
+      let oldestGapDate = today;
+
       for (const acc of investmentAccounts) {
-          await window.electronAPI.createInvestmentHistoryEntry(acc.id, acc.balance || 0, today);
+        if (!acc.id) continue;
+        const hist = await window.electronAPI.getInvestmentHistory(acc.id);
+        
+        let lastDateStr = '';
+        if (hist.length > 0) {
+          lastDateStr = hist[hist.length - 1].date;
+        } else {
+          // Find earliest date
+          const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
+          const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
+          const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
+          const hIds = accHoldings.map(h => h.id);
+          const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
+          
+          const dates = [
+            ...accTxns.map(t => t.date),
+            ...adjTxns.map(a => a.date),
+            ...iTxns.map(t => t.date)
+          ].sort();
+
+          lastDateStr = dates.length > 0 ? dates[0] : today;
+        }
+
+        if (lastDateStr < today) {
+          const missingDates = [];
+          const current = new Date(lastDateStr);
+          current.setDate(current.getDate() + 1);
+
+          while (current.toISOString().split('T')[0] < today) {
+            missingDates.push(current.toISOString().split('T')[0]);
+            current.setDate(current.getDate() + 1);
+          }
+
+          if (missingDates.length > 0) {
+            gapsByAccount.set(acc.id, missingDates);
+            if (missingDates[0] < oldestGapDate) {
+              oldestGapDate = missingDates[0];
+            }
+          }
+        }
+      }
+
+      if (gapsByAccount.size > 0) {
+         const uniqueSymbols = [...new Set(allHoldings.map(h => h.symbol))];
+         const priceMap = new Map<string, {date: string, close: number}[]>();
+         
+         for (const sym of uniqueSymbols) {
+            const history = await window.electronAPI.getHistoricalPrices(sym, oldestGapDate, today);
+            // Sort history by date ASC just in case
+            history.sort((a, b) => a.date.localeCompare(b.date));
+            priceMap.set(sym, history);
+         }
+
+         for (const [accountId, dates] of gapsByAccount.entries()) {
+            const acc = accounts.value.find(a => a.id === accountId);
+            if (!acc) continue;
+
+            const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
+            const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
+            const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
+            const hIds = accHoldings.map(h => h.id);
+            const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
+
+            for (const mDate of dates) {
+               const pastAccTxns = accTxns.filter(t => t.date <= mDate);
+               const transactionSum = pastAccTxns.reduce((sum, t) => {
+                 if (t.accountId === acc.id && t.type === 'expense') return sum - t.amount;
+                 if (t.accountId === acc.id && t.type === 'income') return sum + t.amount;
+                 if (t.accountId === acc.id && t.type === 'transfer') return sum - t.amount;
+                 if (t.transferAccountId === acc.id && t.type === 'transfer') return sum + t.amount;
+                 return sum;
+               }, 0);
+
+               const pastAdjTxns = adjTxns.filter(a => a.date <= mDate);
+               const adjustmentSum = pastAdjTxns.reduce((sum, a) => {
+                 if (a.type === 'income') return sum + a.amount;
+                 if (a.type === 'expense') return sum - a.amount;
+                 return sum;
+               }, 0);
+
+               const pastITxns = iTxns.filter(t => t.date <= mDate);
+               const investmentTradeSum = pastITxns.reduce((sum, it) => {
+                 if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
+                 if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
+                 // Ignore type 'drip' fees subtraction if drip doesn't affect cash natively
+                 if ((it as any).type === 'drip') return sum - it.fees; 
+                 return sum;
+               }, 0);
+
+               let holdingsValue = 0;
+               for (const holding of accHoldings) {
+                  const holdingTxns = pastITxns.filter(t => t.holdingId === holding.id);
+                  const qty = holdingTxns.reduce((sum, t) => {
+                     if (t.type === 'buy') return sum + t.quantity;
+                     if (t.type === 'sell') return sum - t.quantity;
+                     if ((t as any).type === 'drip') return sum + t.quantity;
+                     return sum;
+                  }, 0);
+
+                  if (qty > 0) {
+                     const symbolHistory = priceMap.get(holding.symbol) || [];
+                     const pastPrices = symbolHistory.filter(p => p.date <= mDate);
+                     
+                     let price = holding.lastPrice || 0;
+                     if (pastPrices.length > 0) {
+                         price = pastPrices[pastPrices.length - 1].close;
+                     }
+                     holdingsValue += (qty * price);
+                  }
+               }
+
+               const totalValue = acc.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
+               
+               await window.electronAPI.createInvestmentHistoryEntry(acc.id, totalValue, mDate);
+            }
+         }
+      }
+
+      // Record today's actual live balance (or update if already exists)
+      for (const acc of investmentAccounts) {
+          if (acc.id) {
+            await window.electronAPI.createInvestmentHistoryEntry(acc.id, acc.balance || 0, today);
+          }
       }
 
     } catch (e) {

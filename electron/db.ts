@@ -1571,13 +1571,20 @@ export function getInvestmentHistory(accountId: number): InvestmentHistory[] {
 }
 
 export function createInvestmentHistoryEntry(accountId: number, totalValue: number, date: string): InvestmentHistory {
-  const insert = db.prepare(`
-    INSERT INTO investment_history (accountId, totalValue, date)
-    VALUES (?, ?, ?)
-  `);
+  const existing = db.prepare("SELECT * FROM investment_history WHERE accountId = ? AND date = ?").get(accountId, date) as InvestmentHistory | undefined;
 
-  const result = insert.run(accountId, totalValue, date);
-  return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(result.lastInsertRowid) as InvestmentHistory;
+  if (existing) {
+    db.prepare("UPDATE investment_history SET totalValue = ? WHERE id = ?").run(totalValue, existing.id);
+    return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(existing.id) as InvestmentHistory;
+  } else {
+    const insert = db.prepare(`
+      INSERT INTO investment_history (accountId, totalValue, date)
+      VALUES (?, ?, ?)
+    `);
+
+    const result = insert.run(accountId, totalValue, date);
+    return db.prepare("SELECT * FROM investment_history WHERE id = ?").get(result.lastInsertRowid) as InvestmentHistory;
+  }
 }
 
 export function adjustAccountCash(accountId: number, amount: number, notes: string): any {

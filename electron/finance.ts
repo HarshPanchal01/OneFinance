@@ -1,6 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
 
 /**
  * Fetch current quote for a given symbol
@@ -68,6 +68,34 @@ export async function getAssetProfile(symbol: string) {
   } catch (error) {
     console.error(`[Finance] Error fetching asset profile for ${symbol}:`, error);
     return null;
+  }
+}
+
+/**
+ * Fetch historical daily closing prices
+ */
+export async function getHistoricalPrices(symbol: string, period1: string | Date, period2: string | Date = new Date()) {
+  try {
+    const d1 = new Date(period1);
+    const d2 = new Date(period2);
+
+    // Yahoo Finance requires period2 to be strictly greater than period1
+    if (d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0]) {
+      d2.setDate(d2.getDate() + 1);
+    }
+
+    const results = await yahooFinance.historical(symbol, {
+      period1: d1,
+      period2: d2,
+      interval: '1d'
+    });
+    return results.map(r => ({
+      date: r.date.toISOString().split('T')[0],
+      close: r.close
+    }));
+  } catch (error) {
+    console.error(`[Finance] Error fetching historical prices for ${symbol}:`, error);
+    return [];
   }
 }
 
