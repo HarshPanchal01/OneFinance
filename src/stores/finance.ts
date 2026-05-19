@@ -870,64 +870,49 @@ export const useFinanceStore = defineStore("finance", () => {
       const allHoldings = await window.electronAPI.getInvestmentHoldings();
       const allTransactions = await window.electronAPI.getAllTransactions();
 
-      const gapsByAccount = new Map<number, string[]>();
-      let oldestGapDate = today;
+      const datesByAccount = new Map<number, string[]>();
+      let oldestDate = today;
 
       for (const acc of investmentAccounts) {
         if (!acc.id) continue;
-        const hist = await window.electronAPI.getInvestmentHistory(acc.id);
         
-        let lastDateStr = '';
-        if (hist.length > 0) {
-          lastDateStr = hist[hist.length - 1].date;
-        } else {
-          // Find earliest date
-          const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
-          const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
-          const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
-          const hIds = accHoldings.map(h => h.id);
-          const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
-          
-          const dates = [
-            ...accTxns.map(t => t.date),
-            ...adjTxns.map(a => a.date),
-            ...iTxns.map(t => t.date)
-          ].sort();
+        // Find earliest date
+        const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
+        const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
+        const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
+        const hIds = accHoldings.map(h => h.id);
+        const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
+        
+        const dates = [
+          ...accTxns.map(t => t.date),
+          ...adjTxns.map(a => a.date),
+          ...iTxns.map(t => t.date)
+        ].sort();
 
-          lastDateStr = dates.length > 0 ? dates[0] : today;
-        }
-
-        if (lastDateStr < today) {
-          const missingDates = [];
-          const current = new Date(lastDateStr);
+        const startDateStr = dates.length > 0 ? dates[0] : today;
+        if (startDateStr < oldestDate) oldestDate = startDateStr;
+        
+        const allDates = [];
+        const current = new Date(startDateStr);
+        while (current.toISOString().split('T')[0] <= today) {
+          allDates.push(current.toISOString().split('T')[0]);
           current.setDate(current.getDate() + 1);
-
-          while (current.toISOString().split('T')[0] < today) {
-            missingDates.push(current.toISOString().split('T')[0]);
-            current.setDate(current.getDate() + 1);
-          }
-
-          if (missingDates.length > 0) {
-            gapsByAccount.set(acc.id, missingDates);
-            if (missingDates[0] < oldestGapDate) {
-              oldestGapDate = missingDates[0];
-            }
-          }
         }
+        datesByAccount.set(acc.id, allDates);
       }
 
-      if (gapsByAccount.size > 0) {
+      if (datesByAccount.size > 0) {
          const uniqueSymbols = [...new Set(allHoldings.map(h => h.symbol))];
          const priceMap = new Map<string, {date: string, close: number}[]>();
          
          for (const sym of uniqueSymbols) {
-            const history = await window.electronAPI.getHistoricalPrices(sym, oldestGapDate, today);
+            const history = await window.electronAPI.getHistoricalPrices(sym, oldestDate, today);
             // Sort history by date ASC just in case
             history.sort((a, b) => a.date.localeCompare(b.date));
             priceMap.set(sym, history);
          }
 
-         for (const [accountId, dates] of gapsByAccount.entries()) {
+         for (const [accountId, dates] of datesByAccount.entries()) {
             const acc = accounts.value.find(a => a.id === accountId);
             if (!acc) continue;
 
@@ -962,6 +947,8 @@ export const useFinanceStore = defineStore("finance", () => {
             }, 0);
 
             const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+
+            const newHistories = [];
 
             for (const mDate of dates) {
                let pastCash = currentTrueCash;
@@ -1015,16 +1002,11 @@ export const useFinanceStore = defineStore("finance", () => {
 
                const totalValue = pastCash + holdingsValue;
                
-               await window.electronAPI.createInvestmentHistoryEntry(acc.id, totalValue, mDate);
+               newHistories.push({ date: mDate, totalValue });
             }
-         }
-      }
 
-      // Record today's actual live balance (or update if already exists)
-      for (const acc of investmentAccounts) {
-          if (acc.id) {
-            await window.electronAPI.createInvestmentHistoryEntry(acc.id, acc.balance || 0, today);
-          }
+            await window.electronAPI.replaceInvestmentHistory(acc.id, newHistories);
+         }
       }
 
     } catch (e) {

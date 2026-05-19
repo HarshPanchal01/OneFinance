@@ -1584,6 +1584,17 @@ export function getInvestmentHistory(accountId: number): InvestmentHistory[] {
   return db.prepare("SELECT * FROM investment_history WHERE accountId = ? ORDER BY date ASC").all(accountId) as InvestmentHistory[];
 }
 
+export function replaceInvestmentHistory(accountId: number, histories: {date: string, totalValue: number}[]): void {
+  const transaction = db.transaction(() => {
+    db.prepare("DELETE FROM investment_history WHERE accountId = ?").run(accountId);
+    const insert = db.prepare("INSERT INTO investment_history (accountId, totalValue, date) VALUES (?, ?, ?)");
+    for (const h of histories) {
+      insert.run(accountId, h.totalValue, h.date);
+    }
+  });
+  transaction();
+}
+
 export function createInvestmentHistoryEntry(accountId: number, totalValue: number, date: string): InvestmentHistory {
   const existing = db.prepare("SELECT * FROM investment_history WHERE accountId = ? AND date = ?").get(accountId, date) as InvestmentHistory | undefined;
 
