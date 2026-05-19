@@ -23,7 +23,31 @@ const chartDataObj = computed(() => {
     props.accountId === 'all' || h.accountId === parseInt(props.accountId)
   );
 
+  let targetAccounts = store.accounts.filter(a => {
+    const type = store.accountTypes.find(at => at.id === a.accountTypeId);
+    return type?.classification === 'investment';
+  });
+
+  if (props.accountId !== 'all') {
+    const aId = parseInt(props.accountId);
+    targetAccounts = targetAccounts.filter(a => a.id === aId);
+  }
+
+  let totalUninvestedCash = 0;
+  for (const acc of targetAccounts) {
+    const accHoldings = store.investmentHoldings.filter(h => h.accountId === acc.id);
+    const holdingsValue = accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+    const cash = (acc.balance || 0) - holdingsValue;
+    if (cash > 0) {
+      totalUninvestedCash += cash;
+    }
+  }
+
   const sectorTotals = new Map<string, number>();
+
+  if (totalUninvestedCash > 0) {
+    sectorTotals.set('cash_and_equivalents', totalUninvestedCash);
+  }
 
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
@@ -42,25 +66,29 @@ const chartDataObj = computed(() => {
         return;
       }
       
-      let totalWeight = 0;
-      
+      let parsedWeights: { sector: string, weight: number }[] = [];
       if (Array.isArray(data)) {
-        // ETF Format: [{ "technology": 0.25 }, ...]
         data.forEach(item => {
           const sector = Object.keys(item)[0];
-          const weight = item[sector];
-          const sectorValue = marketValue * weight;
-          totalWeight += weight;
-          sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
+          parsedWeights.push({ sector, weight: item[sector] });
         });
       } else {
-        // Stock Format: { "technology": 1 }
         const sector = Object.keys(data)[0];
-        const weight = data[sector];
-        const sectorValue = marketValue * weight;
-        totalWeight += weight;
-        sectorTotals.set(sector, (sectorTotals.get(sector) || 0) + sectorValue);
+        parsedWeights.push({ sector, weight: data[sector] });
       }
+
+      let totalWeight = parsedWeights.reduce((sum, item) => sum + item.weight, 0);
+
+      // Normalize if > 1 to prevent floating point inflation (e.g. 1.000012)
+      if (totalWeight > 1) {
+          parsedWeights = parsedWeights.map(item => ({ sector: item.sector, weight: item.weight / totalWeight }));
+          totalWeight = 1;
+      }
+
+      parsedWeights.forEach(item => {
+          const sectorValue = marketValue * item.weight;
+          sectorTotals.set(item.sector, (sectorTotals.get(item.sector) || 0) + sectorValue);
+      });
 
       if (totalWeight < 1) {
         const remainingWeight = 1 - totalWeight;

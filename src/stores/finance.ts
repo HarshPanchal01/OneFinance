@@ -868,7 +868,7 @@ export const useFinanceStore = defineStore("finance", () => {
       const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
       const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
       const allHoldings = await window.electronAPI.getInvestmentHoldings();
-      const allTransactions = transactions.value;
+      const allTransactions = await window.electronAPI.getAllTransactions();
 
       const gapsByAccount = new Map<number, string[]>();
       let oldestGapDate = today;
@@ -937,43 +937,71 @@ export const useFinanceStore = defineStore("finance", () => {
             const hIds = accHoldings.map(h => h.id);
             const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
 
+            const transactionSumAll = accTxns.reduce((sum, t) => {
+              if (t.accountId === acc.id && t.type === 'expense') return sum - t.amount;
+              if (t.accountId === acc.id && t.type === 'income') return sum + t.amount;
+              if (t.type === 'transfer') {
+                  if (t.accountId === acc.id) return sum - t.amount;
+                  if (t.transferAccountId === acc.id) return sum + t.amount;
+              }
+              return sum;
+            }, 0);
+
+            const adjustmentSumAll = adjTxns.reduce((sum, a) => {
+              if (a.type === 'income') return sum + a.amount;
+              if (a.type === 'expense') return sum - a.amount;
+              return sum;
+            }, 0);
+            
+            const investmentTradeSumAll = iTxns.reduce((sum, it) => {
+              if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
+              if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              if ((it as any).type === 'drip') return sum - it.fees; 
+              return sum;
+            }, 0);
+
+            const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+
             for (const mDate of dates) {
-               const pastAccTxns = accTxns.filter(t => t.date <= mDate);
-               const transactionSum = pastAccTxns.reduce((sum, t) => {
-                 if (t.accountId === acc.id && t.type === 'expense') return sum - t.amount;
-                 if (t.accountId === acc.id && t.type === 'income') return sum + t.amount;
-                 if (t.accountId === acc.id && t.type === 'transfer') return sum - t.amount;
-                 if (t.transferAccountId === acc.id && t.type === 'transfer') return sum + t.amount;
-                 return sum;
-               }, 0);
+               let pastCash = currentTrueCash;
+               
+               const futureAccTxns = accTxns.filter(t => t.date > mDate);
+               futureAccTxns.forEach(t => {
+                  if (t.accountId === acc.id && t.type === 'expense') pastCash += t.amount;
+                  if (t.accountId === acc.id && t.type === 'income') pastCash -= t.amount;
+                  if (t.type === 'transfer') {
+                      if (t.accountId === acc.id) pastCash += t.amount;
+                      if (t.transferAccountId === acc.id) pastCash -= t.amount;
+                  }
+               });
 
-               const pastAdjTxns = adjTxns.filter(a => a.date <= mDate);
-               const adjustmentSum = pastAdjTxns.reduce((sum, a) => {
-                 if (a.type === 'income') return sum + a.amount;
-                 if (a.type === 'expense') return sum - a.amount;
-                 return sum;
-               }, 0);
+               const futureAdjTxns = adjTxns.filter(a => a.date > mDate);
+               futureAdjTxns.forEach(a => {
+                  if (a.type === 'income') pastCash -= a.amount;
+                  if (a.type === 'expense') pastCash += a.amount;
+               });
 
-               const pastITxns = iTxns.filter(t => t.date <= mDate);
-               const investmentTradeSum = pastITxns.reduce((sum, it) => {
-                 if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-                 if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-                 // Ignore type 'drip' fees subtraction if drip doesn't affect cash natively
-                 if ((it as any).type === 'drip') return sum - it.fees; 
-                 return sum;
-               }, 0);
+               const futureITxns = iTxns.filter(t => t.date > mDate);
+               futureITxns.forEach(it => {
+                  if (it.type === 'buy') pastCash += (it.quantity * it.price + it.fees);
+                  if (it.type === 'sell') pastCash -= (it.quantity * it.price - it.fees);
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  if ((it as any).type === 'drip') pastCash += it.fees;
+               });
 
                let holdingsValue = 0;
                for (const holding of accHoldings) {
-                  const holdingTxns = pastITxns.filter(t => t.holdingId === holding.id);
-                  const qty = holdingTxns.reduce((sum, t) => {
-                     if (t.type === 'buy') return sum + t.quantity;
-                     if (t.type === 'sell') return sum - t.quantity;
-                     if ((t as any).type === 'drip') return sum + t.quantity;
-                     return sum;
-                  }, 0);
+                  let currentQty = holding.quantity;
+                  const futureHoldingTxns = futureITxns.filter(t => t.holdingId === holding.id);
+                  futureHoldingTxns.forEach(t => {
+                      if (t.type === 'buy') currentQty -= t.quantity;
+                      if (t.type === 'sell') currentQty += t.quantity;
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      if ((t as any).type === 'drip') currentQty -= t.quantity;
+                  });
 
-                  if (qty > 0) {
+                  if (currentQty > 0) {
                      const symbolHistory = priceMap.get(holding.symbol) || [];
                      const pastPrices = symbolHistory.filter(p => p.date <= mDate);
                      
@@ -981,11 +1009,11 @@ export const useFinanceStore = defineStore("finance", () => {
                      if (pastPrices.length > 0) {
                          price = pastPrices[pastPrices.length - 1].close;
                      }
-                     holdingsValue += (qty * price);
+                     holdingsValue += (currentQty * price);
                   }
                }
 
-               const totalValue = acc.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
+               const totalValue = pastCash + holdingsValue;
                
                await window.electronAPI.createInvestmentHistoryEntry(acc.id, totalValue, mDate);
             }

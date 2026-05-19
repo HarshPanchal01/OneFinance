@@ -119,20 +119,27 @@ const sectorHoldings = computed(() => {
           addIfMatch('cash_and_equivalents', marketValue);
           processed = true;
         } else {
-          let totalWeight = 0;
+          let parsedWeights: { sector: string, weight: number }[] = [];
           if (Array.isArray(data)) {
             data.forEach(item => {
               const rawSector = Object.keys(item)[0];
-              const weight = item[rawSector];
-              totalWeight += weight;
-              addIfMatch(rawSector, marketValue * weight);
+              parsedWeights.push({ sector: rawSector, weight: item[rawSector] });
             });
           } else {
             const rawSector = Object.keys(data)[0];
-            const weight = data[rawSector];
-            totalWeight += weight;
-            addIfMatch(rawSector, marketValue * weight);
+            parsedWeights.push({ sector: rawSector, weight: data[rawSector] });
           }
+
+          let totalWeight = parsedWeights.reduce((sum, item) => sum + item.weight, 0);
+
+          if (totalWeight > 1) {
+             parsedWeights = parsedWeights.map(item => ({ sector: item.sector, weight: item.weight / totalWeight }));
+             totalWeight = 1;
+          }
+
+          parsedWeights.forEach(item => {
+             addIfMatch(item.sector, marketValue * item.weight);
+          });
 
           if (totalWeight < 1) {
             const remainingWeight = 1 - totalWeight;

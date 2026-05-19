@@ -156,6 +156,9 @@ const electronAPI = {
   ): Promise<TransactionWithCategory[]> =>
     ipcRenderer.invoke("db:getTransactions", ledgerMonth, limit),
 
+  getAllTransactions: (): Promise<TransactionWithCategory[]> =>
+    ipcRenderer.invoke("db:getAllTransactions"),
+
   getTransactionById: (
     id: number
   ): Promise<TransactionWithCategory | undefined> =>

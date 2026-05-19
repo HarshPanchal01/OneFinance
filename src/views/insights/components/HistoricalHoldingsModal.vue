@@ -29,7 +29,7 @@ watch(() => props.date, async (newDate) => {
   
   const allHoldings = store.investmentHoldings;
   const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
-  const allTransactions = store.transactions;
+  const allTransactions = await window.electronAPI.getAllTransactions();
   const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
   
   let targetAccounts = store.accounts.filter(a => {
@@ -48,17 +48,21 @@ watch(() => props.date, async (newDate) => {
   
   for (const acc of targetAccounts) {
     if (!acc.id) continue;
-    const accTxns = allTransactions.filter(t => (t.accountId === acc.id || t.transferAccountId === acc.id) && t.date <= newDate);
-    const transactionSum = accTxns.reduce((sum, t) => {
+
+    // 1. Calculate CURRENT cash for this account exactly as the dashboard does
+    const accTxnsAll = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
+    const transactionSumAll = accTxnsAll.reduce((sum, t) => {
       if (t.accountId === acc.id && t.type === 'expense') return sum - t.amount;
       if (t.accountId === acc.id && t.type === 'income') return sum + t.amount;
-      if (t.accountId === acc.id && t.type === 'transfer') return sum - t.amount;
-      if (t.transferAccountId === acc.id && t.type === 'transfer') return sum + t.amount;
+      if (t.type === 'transfer') {
+          if (t.accountId === acc.id) return sum - t.amount;
+          if (t.transferAccountId === acc.id) return sum + t.amount;
+      }
       return sum;
     }, 0);
 
-    const pastAdjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id && a.date <= newDate);
-    const adjustmentSum = pastAdjTxns.reduce((sum, a) => {
+    const adjTxnsAll = adjustmentsRaw.filter(a => a.accountId === acc.id);
+    const adjustmentSumAll = adjTxnsAll.reduce((sum, a) => {
       if (a.type === 'income') return sum + a.amount;
       if (a.type === 'expense') return sum - a.amount;
       return sum;
@@ -66,9 +70,9 @@ watch(() => props.date, async (newDate) => {
 
     const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
     const hIds = accHoldings.map(h => h.id);
-    const pastITxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId) && t.date <= newDate);
+    const iTxnsAll = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
     
-    const investmentTradeSum = pastITxns.reduce((sum, it) => {
+    const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => {
       if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
       if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,24 +80,53 @@ watch(() => props.date, async (newDate) => {
       return sum;
     }, 0);
 
-    computedCash += acc.startingBalance + transactionSum + adjustmentSum + investmentTradeSum;
+    let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+
+    // 2. Walk backwards: Undo any transactions that happened AFTER newDate
+    const futureAccTxns = accTxnsAll.filter(t => t.date > newDate);
+    futureAccTxns.forEach(t => {
+      if (t.accountId === acc.id && t.type === 'expense') currentCash += t.amount;
+      if (t.accountId === acc.id && t.type === 'income') currentCash -= t.amount;
+      if (t.type === 'transfer') {
+          if (t.accountId === acc.id) currentCash += t.amount;
+          if (t.transferAccountId === acc.id) currentCash -= t.amount;
+      }
+    });
+
+    const futureAdjTxns = adjTxnsAll.filter(a => a.date > newDate);
+    futureAdjTxns.forEach(a => {
+      if (a.type === 'income') currentCash -= a.amount;
+      if (a.type === 'expense') currentCash += a.amount;
+    });
+
+    const futureITxns = iTxnsAll.filter(t => t.date > newDate);
+    futureITxns.forEach(it => {
+      if (it.type === 'buy') currentCash += (it.quantity * it.price + it.fees);
+      if (it.type === 'sell') currentCash -= (it.quantity * it.price - it.fees);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((it as any).type === 'drip') currentCash += it.fees;
+    });
+
+    computedCash += currentCash;
     
+    // 3. Reconstruct Holdings Quantity backwards
     for (const holding of accHoldings) {
-      const holdingTxns = pastITxns.filter(t => t.holdingId === holding.id);
-      const qty = holdingTxns.reduce((sum, t) => {
-          if (t.type === 'buy') return sum + t.quantity;
-          if (t.type === 'sell') return sum - t.quantity;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if ((t as any).type === 'drip') return sum + t.quantity;
-          return sum;
-      }, 0);
+      let currentQty = holding.quantity;
+      const futureHoldingTxns = futureITxns.filter(t => t.holdingId === holding.id);
       
-      if (qty > 0) {
+      futureHoldingTxns.forEach(t => {
+          if (t.type === 'buy') currentQty -= t.quantity;
+          if (t.type === 'sell') currentQty += t.quantity;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((t as any).type === 'drip') currentQty -= t.quantity;
+      });
+      
+      if (currentQty > 0) {
         if (!holdingMap.has(holding.id)) {
-            holdingMap.set(holding.id, { symbol: holding.symbol, name: holding.name || holding.symbol, quantity: qty });
+            holdingMap.set(holding.id, { symbol: holding.symbol, name: holding.name || holding.symbol, quantity: currentQty });
         } else {
              
-            holdingMap.get(holding.id)!.quantity += qty;
+            holdingMap.get(holding.id)!.quantity += currentQty;
         }
       }
     }

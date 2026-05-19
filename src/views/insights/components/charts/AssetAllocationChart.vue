@@ -25,6 +25,26 @@ const topAssets = computed(() => {
     props.accountId === 'all' || h.accountId === parseInt(props.accountId)
   );
 
+  let targetAccounts = store.accounts.filter(a => {
+    const type = store.accountTypes.find(at => at.id === a.accountTypeId);
+    return type?.classification === 'investment';
+  });
+
+  if (props.accountId !== 'all') {
+    const aId = parseInt(props.accountId);
+    targetAccounts = targetAccounts.filter(a => a.id === aId);
+  }
+
+  let totalUninvestedCash = 0;
+  for (const acc of targetAccounts) {
+    const accHoldings = store.investmentHoldings.filter(h => h.accountId === acc.id);
+    const holdingsValue = accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+    const cash = (acc.balance || 0) - holdingsValue;
+    if (cash > 0) {
+      totalUninvestedCash += cash;
+    }
+  }
+
   const allocationMap = new Map<string, number>();
   
   holdings.forEach(h => {
@@ -32,6 +52,10 @@ const topAssets = computed(() => {
     allocationMap.set(h.symbol, (allocationMap.get(h.symbol) || 0) + value);
   });
   
+  if (totalUninvestedCash > 0) {
+    allocationMap.set('Cash', totalUninvestedCash);
+  }
+
   const sorted = Array.from(allocationMap.entries())
     .map(([symbol, value]) => ({ symbol, value }))
     .sort((a, b) => b.value - a.value);

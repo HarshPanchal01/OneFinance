@@ -858,6 +858,20 @@ export function getTransactions(
   return db.prepare(query).all(...params) as TransactionWithCategory[];
 }
 
+export function getAllTransactions(): TransactionWithCategory[] {
+  const query = `
+    SELECT 
+      t.*,
+      c.name as categoryName,
+      c.colorCode as categoryColor,
+      c.icon as categoryIcon
+    FROM transactions t
+    LEFT JOIN categories c ON t.categoryId = c.id
+    ORDER BY t.date DESC, t.id DESC
+  `;
+  return db.prepare(query).all() as TransactionWithCategory[];
+}
+
 export function getMonthlyTrends(year: number): MonthlyTrend[] {
   const query = `
   SELECT 

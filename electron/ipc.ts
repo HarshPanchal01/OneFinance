@@ -14,6 +14,7 @@ import {
   deleteCategory,
   // Transactions
   getTransactions,
+  getAllTransactions,
   getTransactionById,
   createTransaction,
   updateTransaction,
@@ -175,6 +176,13 @@ export function registerIpcHandlers(): void {
     "db:getTransactions",
     async (_event, ledgerMonth?: LedgerMonth, limit?: number) => {
       return getTransactions(ledgerMonth, limit);
+    }
+  );
+
+  ipcMain.handle(
+    "db:getAllTransactions",
+    async () => {
+      return getAllTransactions();
     }
   );
 
