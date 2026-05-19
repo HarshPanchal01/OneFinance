@@ -8,6 +8,7 @@ import { getStringColor } from "@/utils";
 
 const props = defineProps<{
   accountId: string;
+  marketStates?: Record<string, { isOpen: boolean, prevClose: number }>;
 }>();
 
 const emit = defineEmits<{
@@ -38,8 +39,7 @@ const topAssets = computed(() => {
   let totalUninvestedCash = 0;
   for (const acc of targetAccounts) {
     const accHoldings = store.investmentHoldings.filter(h => h.accountId === acc.id);
-    const holdingsValue = accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
-    const cash = (acc.balance || 0) - holdingsValue;
+    const cash = (acc.balance || 0) - accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
     if (cash > 0) {
       totalUninvestedCash += cash;
     }
@@ -48,7 +48,9 @@ const topAssets = computed(() => {
   const allocationMap = new Map<string, number>();
   
   holdings.forEach(h => {
-    const value = h.quantity * (h.lastPrice || 0);
+    const state = props.marketStates?.[h.symbol];
+    const price = state?.isOpen ? state.prevClose : (h.lastPrice || 0);
+    const value = h.quantity * price;
     allocationMap.set(h.symbol, (allocationMap.get(h.symbol) || 0) + value);
   });
   

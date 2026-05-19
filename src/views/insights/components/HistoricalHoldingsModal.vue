@@ -145,20 +145,39 @@ watch(() => props.date, async (newDate) => {
 
   // Fetch prices for symbols at newDate
   const finalHoldings = [];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const symbolList = Array.from(uniqueSymbols.keys());
+  const marketStates = newDate === todayStr ? await window.electronAPI.getMarketStateAndPrevClose(symbolList) : {};
+  
   for (const [symbol, data] of uniqueSymbols.entries()) {
-      const history = await window.electronAPI.getHistoricalPrices(symbol, newDate, newDate);
       let price = 0;
-      if (history && history.length > 0) {
-          price = history[0].close;
-      } else {
-          // If the market was closed exactly on this day, we should fetch a 5 day window and get the closest.
-          const datePast = new Date(newDate);
-          datePast.setDate(datePast.getDate() - 5);
-          const pastHistory = await window.electronAPI.getHistoricalPrices(symbol, datePast.toISOString().split('T')[0], newDate);
-          if (pastHistory && pastHistory.length > 0) {
-              // Get the last one
-              pastHistory.sort((a,b) => a.date.localeCompare(b.date));
-              price = pastHistory[pastHistory.length - 1].close;
+      
+      if (newDate === todayStr) {
+          const state = marketStates[symbol];
+          if (state && state.isOpen) {
+              price = state.prevClose;
+          } else {
+              const matchingHolding = store.investmentHoldings.find(h => h.symbol === symbol);
+              if (matchingHolding) {
+                  price = matchingHolding.lastPrice || 0;
+              }
+          }
+      }
+      
+      if (price === 0) {
+          const history = await window.electronAPI.getHistoricalPrices(symbol, newDate, newDate);
+          if (history && history.length > 0) {
+              price = history[0].close;
+          } else {
+              // If the market was closed exactly on this day, we should fetch a 5 day window and get the closest.
+              const datePast = new Date(newDate);
+              datePast.setDate(datePast.getDate() - 5);
+              const pastHistory = await window.electronAPI.getHistoricalPrices(symbol, datePast.toISOString().split('T')[0], newDate);
+              if (pastHistory && pastHistory.length > 0) {
+                  // Get the last one
+                  pastHistory.sort((a,b) => a.date.localeCompare(b.date));
+                  price = pastHistory[pastHistory.length - 1].close;
+              }
           }
       }
       
