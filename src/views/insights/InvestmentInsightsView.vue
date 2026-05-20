@@ -391,6 +391,18 @@ const contributionsData = computed(() => {
       <!-- Portfolio Growth Trend -->
       <div class="card p-4 flex flex-col h-[350px] lg:col-span-2 xl:col-span-3">
         <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+          <!-- Custom Legend (Left) -->
+          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-1.5 rounded-sm bg-[#3b82f6] shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Total Value</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-0 border-t-2 border-gray-500 dark:border-gray-400 border-dashed shrink-0" />
+              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Invested Capital</span>
+            </div>
+          </div>
+
           <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
             Portfolio Growth Trend
           </h3>

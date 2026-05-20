@@ -4,6 +4,7 @@ import AppChart from "@/components/AppChart.vue";
 import { formatDate } from "@/utils";
 import { useFormatter } from "@/composables/useFormatter";
 import { useSettingsStore } from "@/stores/settings";
+import { useFinanceStore } from "@/stores/finance";
 
 const props = defineProps<{
   accountId: string;
@@ -17,6 +18,15 @@ const emit = defineEmits<{
 
 const { formatCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
+const store = useFinanceStore();
+
+// Helper to determine if an account is an investment account
+const investmentAccountIds = computed(() => new Set(store.accounts.filter(a => {
+  const type = store.accountTypes.find(at => at.id === a.accountTypeId);
+  return type?.classification === 'investment';
+}).map(a => a.id)));
+
+const isInvestment = (id: number) => investmentAccountIds.value.has(id);
 
 const chartDataObj = computed(() => {
   let history = props.histories;
@@ -68,7 +78,49 @@ const chartDataObj = computed(() => {
     );
   }
 
-  return aggregated;
+  // Calculate Benchmark (Net Invested Capital)
+  if (aggregated.length === 0) return [];
+  
+  const startValue = aggregated[0].totalValue;
+  const startDate = aggregated[0].date;
+  const endDate = aggregated[aggregated.length - 1].date;
+
+  // Track transactions affecting the benchmark
+  const txMap = new Map<string, number>();
+  store.transactions.forEach(t => {
+      if (t.date < startDate || t.date > endDate) return;
+      if (t.type !== 'transfer' || !t.transferAccountId) return;
+      
+      const sourceInv = isInvestment(t.accountId);
+      const destInv = isInvestment(t.transferAccountId);
+      let amount = 0;
+      
+      if (props.accountId !== 'all') {
+          const accId = parseInt(props.accountId);
+          if (!sourceInv && t.transferAccountId === accId) amount += t.amount;
+          if (t.accountId === accId && !destInv) amount -= t.amount;
+      } else {
+          if (!sourceInv && destInv) amount += t.amount;
+          if (sourceInv && !destInv) amount -= t.amount;
+      }
+
+      if (amount !== 0) {
+          txMap.set(t.date, (txMap.get(t.date) || 0) + amount);
+      }
+  });
+
+  let cumulativeExtra = 0;
+  return aggregated.map((day, index) => {
+      // We start the benchmark at the first day's total value.
+      // We only add contributions that happen AFTER the first day's snapshot.
+      if (index > 0) {
+          cumulativeExtra += (txMap.get(day.date) || 0);
+      }
+      return {
+          ...day,
+          benchmark: startValue + cumulativeExtra
+      };
+  });
 });
 
 const chartData = computed(() => {
@@ -78,18 +130,30 @@ const chartData = computed(() => {
     return new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   });
   const dataTotal = displayTrends.map((t) => t.totalValue);
+  const dataBenchmark = displayTrends.map((t) => (t as any).benchmark);
 
   return {
     labels,
     datasets: [
       {
+        label: "Invested Capital",
+        data: dataBenchmark,
+        borderColor: "rgba(107, 114, 128, 0.8)", // Gray-500
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        tension: 0.1,
+      },
+      {
         label: "Total Value",
         data: dataTotal,
-        // Dynamic area fill: Blue theme
+        // Comparison fill: Green above capital, Red below
         fill: {
-          target: "origin",
-          above: "rgba(59, 130, 246, 0.1)", // Light blue fill
-          below: "rgba(239, 68, 68, 0.1)",
+          target: 0, // Target the "Invested Capital" dataset (index 0)
+          above: "rgba(34, 197, 94, 0.15)", // Light green
+          below: "rgba(239, 68, 68, 0.15)",  // Light red
         },
         borderColor: "#3b82f6", // Neutral Blue
         pointBackgroundColor: "#3b82f6",
@@ -98,15 +162,16 @@ const chartData = computed(() => {
         tension: 0.3,
         // Dynamic point visibility: Show all if <= 31 (a month), otherwise show a subset to indicate interactivity
         pointRadius: (context: any) => {
+           if (context.datasetIndex === 0) return 0; // No points for benchmark
            const count = context.dataset.data.length;
-           if (count <= 31) return 4; // Increased from 3 to 4
+           if (count <= 31) return 4;
            
            // For longer ranges, show roughly 10 points spread out
            const step = Math.floor(count / 10);
            return context.dataIndex % step === 0 ? 4 : 0;
         },
-        pointHoverRadius: 7, // Increased from 6 to 7
-        pointHitRadius: 20, // Larger hit area for easier clicking
+        pointHoverRadius: 7,
+        pointHitRadius: 20,
         borderWidth: 2,
       }
     ],
@@ -149,7 +214,9 @@ const chartOptions = computed(() => {
       },
     },
     plugins: {
-      legend: { display: false },
+      legend: { 
+        display: false, // Using custom legend in parent for consistency
+      },
       tooltip: {
         intersect: false,
         mode: 'index' as const,
@@ -158,7 +225,7 @@ const chartOptions = computed(() => {
         bodyColor: '#fff',
         padding: 12,
         cornerRadius: 8,
-        displayColors: false,
+        displayColors: true, // Enable colors to distinguish lines
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           title: (context: any[]) => {
@@ -167,8 +234,10 @@ const chartOptions = computed(() => {
             return t ? formatDate(t.date) : '';
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (context: any) => {
-            return `Total Value: ${formatCurrency(context.parsed.y)}`;
+          labelTextColor: (context: any) => {
+            // Index 0 is Invested Capital, make it darker grey
+            if (context.datasetIndex === 0) return 'rgba(156, 163, 175, 1)'; // Gray-400
+            return '#fff';
           }
         }
       }
