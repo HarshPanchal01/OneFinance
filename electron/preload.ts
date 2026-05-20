@@ -67,9 +67,6 @@ const electronAPI = {
 
   getHistoricalPrices: (symbol: string, period1: string, period2: string): Promise<{ date: string; close: number }[]> =>
     ipcRenderer.invoke("finance:getHistoricalPrices", symbol, period1, period2),
-  
-  getMarketStateAndPrevClose: (symbols: string[]): Promise<Record<string, { isOpen: boolean, prevClose: number }>> =>
-    ipcRenderer.invoke("finance:getMarketStateAndPrevClose", symbols),
 
   // ============================================
   // RECURRING TRANSACTIONS

@@ -52,12 +52,6 @@ const globalAdjustments = ref<any[]>([]);
 const globalInvestmentTransactions = ref<InvestmentTransaction[]>([]);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const rawHistories = ref<any[]>([]);
-const marketStates = ref<Record<string, { isOpen: boolean, prevClose: number }>>({});
-
-async function fetchMarketStates() {
-  const symbols = [...new Set(store.investmentHoldings.map(h => h.symbol))];
-  marketStates.value = await window.electronAPI.getMarketStateAndPrevClose(symbols);
-}
 
 async function fetchGlobalHistory() {
   const investmentAccounts = store.accounts.filter(a => {
@@ -90,7 +84,6 @@ onMounted(async () => {
   await store.fetchInvestmentHoldings();
   
   await fetchGlobalHistory();
-  await fetchMarketStates();
 
   // Fetch adjustments for net contributions
   globalAdjustments.value = await window.electronAPI.getInvestmentAdjustments();
@@ -106,7 +99,6 @@ async function refreshPrices() {
   await store.refreshInvestmentPrices();
   await store.fetchAccounts(); // Refresh balances
   await fetchGlobalHistory();
-  await fetchMarketStates();
   isRefreshing.value = false;
   store.startRefreshCooldown();
 }
@@ -377,7 +369,6 @@ const contributionsData = computed(() => {
         <div class="flex-1 relative min-h-0">
           <AssetAllocationChart
             :account-id="allocationAccountId"
-            :market-states="marketStates"
             @highlight-asset="handleHighlightAsset"
           />
         </div>
@@ -465,7 +456,6 @@ const contributionsData = computed(() => {
         <div class="flex-1 relative min-h-0">
           <SectorDiversificationChart
             :account-id="historyAccountId"
-            :market-states="marketStates"
             @drill-down="handleSectorDrillDown"
           />
         </div>

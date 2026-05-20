@@ -911,8 +911,6 @@ export const useFinanceStore = defineStore("finance", () => {
             history.sort((a, b) => a.date.localeCompare(b.date));
             priceMap.set(sym, history);
          }
-         
-         const marketStates = await window.electronAPI.getMarketStateAndPrevClose(uniqueSymbols);
 
          for (const [accountId, dates] of datesByAccount.entries()) {
             const acc = accounts.value.find(a => a.id === accountId);
@@ -995,14 +993,7 @@ export const useFinanceStore = defineStore("finance", () => {
                      const pastPrices = symbolHistory.filter(p => p.date <= mDate);
                      
                      let price = holding.lastPrice || 0;
-                     if (mDate === today) {
-                        const state = marketStates[holding.symbol];
-                        if (state && state.isOpen) {
-                           price = state.prevClose;
-                        } else {
-                           price = holding.lastPrice || 0;
-                        }
-                     } else if (pastPrices.length > 0) {
+                     if (mDate !== today && pastPrices.length > 0) {
                          price = pastPrices[pastPrices.length - 1].close;
                      }
                      holdingsValue += (currentQty * price);

@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import AppChart from "@/components/AppChart.vue";
 import { formatDate } from "@/utils";
+import { useFormatter } from "@/composables/useFormatter";
 
 const props = defineProps<{
   accountId: string;
@@ -12,6 +13,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'point-click', date: string, accountId: string, totalValue: number): void;
 }>();
+
+const { formatCurrency } = useFormatter();
 
 const chartDataObj = computed(() => {
   let history = props.histories;
@@ -87,18 +90,20 @@ const chartData = computed(() => {
       {
         label: "Total Value",
         data: dataTotal,
-        // Dynamic area fill: Green above 0, Red below 0
+        // Dynamic area fill: Blue theme
         fill: {
           target: "origin",
-          above: "rgba(16, 185, 129, 0.2)", // Match primary green for growth
-          below: "rgba(239, 68, 68, 0.2)",
+          above: "rgba(59, 130, 246, 0.1)", // Light blue fill
+          below: "rgba(239, 68, 68, 0.1)",
         },
-        borderColor: "#10b981", // Green
-        pointBackgroundColor: "#10b981",
-        pointBorderColor: "#10b981",
-        tension: 0.4,
-        pointRadius: 0, // hide points by default
-        pointHoverRadius: 6,
+        borderColor: "#3b82f6", // Neutral Blue
+        pointBackgroundColor: "#3b82f6",
+        pointBorderColor: "#3b82f6",
+        pointBorderWidth: 0,
+        tension: 0.3,
+        pointRadius: 0, // Hidden by default for clean look
+        pointHoverRadius: 6, // Shows on hover to indicate clickable point
+        pointHitRadius: 20, // Larger hit area for easier clicking
         borderWidth: 2,
       }
     ],
@@ -118,14 +123,14 @@ const chartOptions = computed(() => {
       delay: (context: any) => {
         let delay = 0;
         if (context.type === 'data' && context.mode === 'default' && !delayed.value) {
-          delay = context.dataIndex * 10;
+          delay = context.dataIndex * 5 + context.datasetIndex * 100;
         }
         return delay;
       },
     },
     animations: {
       y: {
-        duration: 1000,
+        duration: 800,
         easing: "easeOutQuart" as const,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         from: (ctx: any) => {
@@ -141,12 +146,22 @@ const chartOptions = computed(() => {
       tooltip: {
         intersect: false,
         mode: 'index' as const,
+        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: false,
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           title: (context: any[]) => {
             const index = context[0].dataIndex;
             const t = chartDataObj.value[index];
             return t ? formatDate(t.date) : '';
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          label: (context: any) => {
+            return `Total Value: ${formatCurrency(context.parsed.y)}`;
           }
         }
       }

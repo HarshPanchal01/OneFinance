@@ -71,7 +71,7 @@ import {
   replaceInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
-import { getQuote, getQuotes, searchSymbols, getAssetProfile, getHistoricalPrices, getMarketStateAndPrevClose } from "./finance";
+import { getQuote, getQuotes, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction } from "@/types";
 
 /**
@@ -374,10 +374,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("finance:getHistoricalPrices", async (_event, symbol: string, period1: string, period2: string) => {
     return getHistoricalPrices(symbol, period1, period2);
-  });
-
-  ipcMain.handle("finance:getMarketStateAndPrevClose", async (_event, symbols: string[]) => {
-    return getMarketStateAndPrevClose(symbols);
   });
 
   // ============================================

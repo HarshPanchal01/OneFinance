@@ -116,27 +116,3 @@ export async function searchSymbols(query: string) {
     throw error;
   }
 }
-
-/**
- * Fetch market state and previous close for a list of symbols
- */
-export async function getMarketStateAndPrevClose(symbols: string[]) {
-  if (symbols.length === 0) return {};
-  
-  try {
-    const results = await yahooFinance.quote(symbols) as any;
-    const quotes = Array.isArray(results) ? results : [results];
-    
-    const data: Record<string, { isOpen: boolean, prevClose: number }> = {};
-    for (const q of quotes) {
-       data[q.symbol] = {
-          isOpen: q.marketState === 'REGULAR',
-          prevClose: q.regularMarketPreviousClose || q.regularMarketPrice
-       };
-    }
-    return data;
-  } catch (error) {
-    console.error(`[Finance] Error fetching market state:`, error);
-    return {};
-  }
-}

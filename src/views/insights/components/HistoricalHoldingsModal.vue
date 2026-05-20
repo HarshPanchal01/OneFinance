@@ -146,21 +146,14 @@ watch(() => props.date, async (newDate) => {
   // Fetch prices for symbols at newDate
   const finalHoldings = [];
   const todayStr = new Date().toISOString().split('T')[0];
-  const symbolList = Array.from(uniqueSymbols.keys());
-  const marketStates = newDate === todayStr ? await window.electronAPI.getMarketStateAndPrevClose(symbolList) : {};
   
   for (const [symbol, data] of uniqueSymbols.entries()) {
       let price = 0;
       
       if (newDate === todayStr) {
-          const state = marketStates[symbol];
-          if (state && state.isOpen) {
-              price = state.prevClose;
-          } else {
-              const matchingHolding = store.investmentHoldings.find(h => h.symbol === symbol);
-              if (matchingHolding) {
-                  price = matchingHolding.lastPrice || 0;
-              }
+          const matchingHolding = store.investmentHoldings.find(h => h.symbol === symbol);
+          if (matchingHolding) {
+              price = matchingHolding.lastPrice || 0;
           }
       }
       

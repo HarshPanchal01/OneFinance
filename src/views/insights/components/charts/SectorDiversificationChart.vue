@@ -8,7 +8,6 @@ import { getSectorColor } from "@/utils";
 
 const props = defineProps<{
   accountId: string;
-  marketStates?: Record<string, { isOpen: boolean, prevClose: number }>;
 }>();
 
 const emit = defineEmits<{
@@ -53,9 +52,7 @@ const chartDataObj = computed(() => {
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
     
-    const state = props.marketStates?.[h.symbol];
-    const price = state?.isOpen ? state.prevClose : (h.lastPrice || 0);
-    const marketValue = h.quantity * price;
+    const marketValue = h.quantity * (h.lastPrice || 0);
 
     if (!h.sectorWeightings) {
       sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
