@@ -137,7 +137,7 @@ async function handleTransactionSaved() {
 }
 
 async function openYahooFinance(symbol: string) {
-  const dontAsk = localStorage.getItem('hideYahooFinanceConfirm');
+  const dontAsk = window.localStorage.getItem('hideYahooFinanceConfirm');
   if (dontAsk === 'true') {
     window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
     return;
@@ -154,7 +154,7 @@ async function openYahooFinance(symbol: string) {
 
   if (result.confirmed) {
     if (result.dontAskAgain) {
-      localStorage.setItem('hideYahooFinanceConfirm', 'true');
+      window.localStorage.setItem('hideYahooFinanceConfirm', 'true');
     }
     window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
   }

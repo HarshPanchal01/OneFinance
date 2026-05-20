@@ -14,8 +14,6 @@ const dontAskAgain = ref(false);
 let resolveCallback: ((result: any) => void) | null = null;
 let returnsObject = false;
 
-function openConfirmation(options: { title: string; message: string; cancelText?: string; confirmText?: string; confirmButtonClass?: string; showDontAskAgain: true }): Promise<{ confirmed: boolean; dontAskAgain: boolean }>;
-function openConfirmation(options: { title: string; message: string; cancelText?: string; confirmText?: string; confirmButtonClass?: string; showDontAskAgain?: false }): Promise<boolean>;
 function openConfirmation(options: {
   title: string;
   message: string;
@@ -79,14 +77,20 @@ defineExpose({ openConfirmation });
         {{ message }}
       </p>
 
-      <div v-if="showDontAskAgain" class="mb-4 flex items-center">
+      <div
+        v-if="showDontAskAgain"
+        class="mb-4 flex items-center"
+      >
         <input 
           id="dontAskAgain" 
-          type="checkbox" 
-          v-model="dontAskAgain"
+          v-model="dontAskAgain" 
+          type="checkbox"
           class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+        />
+        <label
+          for="dontAskAgain"
+          class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300 cursor-pointer"
         >
-        <label for="dontAskAgain" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300 cursor-pointer">
           Don't ask again
         </label>
       </div>

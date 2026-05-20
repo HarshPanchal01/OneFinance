@@ -203,10 +203,15 @@ const returnData = computed(() => {
     const startVal = getPortfolioValueAt(startDate);
     const endVal = endIso >= todayIso ? totalPortfolioValue.value : getPortfolioValueAt(endDate);
     
-    const change = endVal - startVal;
-    const percent = startVal > 0 ? (change / startVal) * 100 : 0;
+    // True Market Performance (excluding cash flows)
+    const netContributions = getNetContributions(startDate, endDate);
+    const change = (endVal - startVal) - netContributions;
     
-    return { startVal, endVal, change, percent };
+    // Modified Dietz Approximation for percentage return
+    const denominator = startVal + (netContributions / 2);
+    const percent = denominator !== 0 ? (change / denominator) * 100 : 0;
+    
+    return { startVal, endVal, change, percent, netContributions, denominator };
 });
 
 const netValueData = computed(() => {
@@ -217,8 +222,11 @@ const netValueData = computed(() => {
     const startVal = getPortfolioValueAt(startDate);
     const endVal = endIso >= todayIso ? totalPortfolioValue.value : getPortfolioValueAt(endDate);
     
-    const change = endVal - startVal;
-    return { startVal, endVal, change };
+    // True Market Performance (excluding cash flows)
+    const netContributions = getNetContributions(startDate, endDate);
+    const change = (endVal - startVal) - netContributions;
+    
+    return { startVal, endVal, change, netContributions };
 });
 
 const contributionsData = computed(() => {
@@ -265,8 +273,8 @@ const contributionsData = computed(() => {
         :value-class="returnData.percent >= 0 ? 'text-income' : 'text-expense'"
         :border-class="returnData.percent >= 0 ? 'border-income' : 'border-expense'"
         formula-title="Period Return"
-        formula="(End Value - Start Value) / Start Value"
-        :calculation="`(${formatCurrency(returnData.endVal)} - ${formatCurrency(returnData.startVal)}) / ${formatCurrency(returnData.startVal)}`"
+        formula="Net Gain / Average Invested Capital"
+        :calculation="`${formatCurrency(returnData.change)} / ${formatCurrency(returnData.denominator)}`"
       >
         <template #footer>
           <div class="text-xs text-gray-400 mt-1">
@@ -284,8 +292,8 @@ const contributionsData = computed(() => {
         :value-class="netValueData.change >= 0 ? 'text-income' : 'text-expense'"
         :border-class="netValueData.change >= 0 ? 'border-income' : 'border-expense'"
         formula-title="Net Value Change"
-        formula="End Value - Start Value"
-        :calculation="`${formatCurrency(netValueData.endVal)} - ${formatCurrency(netValueData.startVal)}`"
+        formula="End Value - Start Value - Net Contributions"
+        :calculation="`${formatCurrency(netValueData.endVal)} - ${formatCurrency(netValueData.startVal)} ${netValueData.netContributions < 0 ? '+' : '-'} ${formatCurrency(Math.abs(netValueData.netContributions))}`"
       >
         <template #footer>
           <div class="text-xs text-gray-400 mt-1">
