@@ -274,7 +274,7 @@ const contributionsData = computed(() => {
         :border-class="returnData.percent >= 0 ? 'border-income' : 'border-expense'"
         formula-title="Period Return"
         formula="Net Gain / Average Invested Capital"
-        :calculation="`${formatCurrency(returnData.change)} / ${formatCurrency(returnData.denominator)}`"
+        :calculation="`Net Gain: ${formatCurrency(returnData.change)}\nAvg Capital: ${formatCurrency(returnData.denominator)}\n\nModified Dietz formula is used for measuring true market performance by excluding cash flows.`"
       >
         <template #footer>
           <div class="text-xs text-gray-400 mt-1">
@@ -293,7 +293,7 @@ const contributionsData = computed(() => {
         :border-class="netValueData.change >= 0 ? 'border-income' : 'border-expense'"
         formula-title="Net Value Change"
         formula="End Value - Start Value - Net Contributions"
-        :calculation="`${formatCurrency(netValueData.endVal)} - ${formatCurrency(netValueData.startVal)} ${netValueData.netContributions < 0 ? '+' : '-'} ${formatCurrency(Math.abs(netValueData.netContributions))}`"
+        :calculation="`End Value: ${formatCurrency(netValueData.endVal)}\nStart Value: ${formatCurrency(netValueData.startVal)}\nNet Contributions: ${formatCurrency(netValueData.netContributions)}\n\nCalculates the total profit or loss from market movements, excluding your deposits and withdrawals.`"
       >
         <template #footer>
           <div class="text-xs text-gray-400 mt-1">
@@ -312,7 +312,7 @@ const contributionsData = computed(() => {
         :border-class="contributionsData.net >= 0 ? 'border-income' : 'border-expense'"
         formula-title="Net Contributions"
         formula="Total Deposits - Total Withdrawals"
-        :calculation="`${formatCurrency(contributionsData.net)} net cash movements`"
+        :calculation="`${formatCurrency(contributionsData.net)} net cash movements.`"
       >
         <template #footer>
           <div class="text-xs text-gray-400 mt-1">

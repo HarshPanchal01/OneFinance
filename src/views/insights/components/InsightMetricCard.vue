@@ -76,7 +76,7 @@ const toggle = (event: Event) => {
           </code>
         </div>
         <p
-          class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed"
+          class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-line"
           :class="{ 'privacy-blur': settingsStore.privacyMode }"
         >
           {{ calculation }}
