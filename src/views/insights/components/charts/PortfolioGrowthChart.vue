@@ -3,10 +3,11 @@ import { computed, ref } from "vue";
 import AppChart from "@/components/AppChart.vue";
 import { formatDate } from "@/utils";
 import { useFormatter } from "@/composables/useFormatter";
+import { useSettingsStore } from "@/stores/settings";
 
 const props = defineProps<{
   accountId: string;
-  option: string; // "all", "YTD", or specific year
+  dateRange: { startDate: string, endDate: string };
   histories: { accountId: number, date: string, totalValue: number }[];
 }>();
 
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const { formatCurrency } = useFormatter();
+const settingsStore = useSettingsStore();
 
 const chartDataObj = computed(() => {
   let history = props.histories;
@@ -58,19 +60,12 @@ const chartDataObj = computed(() => {
     aggregated = padded;
   }
 
-  // Filter by time option
+  // Filter by date range
   if (aggregated.length > 0) {
-    const isYTD = props.option === "YTD";
-    const isAllTime = props.option === "all";
-    
-    if (isYTD) {
-      const now = new Date();
-      const twelveMonthsAgoStr = new Date(now.getFullYear(), now.getMonth() - 12, 1).toISOString().split('T')[0];
-      aggregated = aggregated.filter(a => a.date >= twelveMonthsAgoStr);
-    } else if (!isAllTime) {
-      const year = props.option;
-      aggregated = aggregated.filter(a => a.date.startsWith(year));
-    }
+    aggregated = aggregated.filter(a => 
+      a.date >= props.dateRange.startDate && 
+      a.date <= props.dateRange.endDate
+    );
   }
 
   return aggregated;
@@ -101,8 +96,16 @@ const chartData = computed(() => {
         pointBorderColor: "#3b82f6",
         pointBorderWidth: 0,
         tension: 0.3,
-        pointRadius: 0, // Hidden by default for clean look
-        pointHoverRadius: 6, // Shows on hover to indicate clickable point
+        // Dynamic point visibility: Show all if <= 31 (a month), otherwise show a subset to indicate interactivity
+        pointRadius: (context: any) => {
+           const count = context.dataset.data.length;
+           if (count <= 31) return 4; // Increased from 3 to 4
+           
+           // For longer ranges, show roughly 10 points spread out
+           const step = Math.floor(count / 10);
+           return context.dataIndex % step === 0 ? 4 : 0;
+        },
+        pointHoverRadius: 7, // Increased from 6 to 7
         pointHitRadius: 20, // Larger hit area for easier clicking
         borderWidth: 2,
       }
@@ -169,11 +172,29 @@ const chartOptions = computed(() => {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { maxTicksLimit: 8 }
+        ticks: { maxTicksLimit: 8 },
+        title: {
+          display: true,
+          text: 'Date',
+          color: 'rgba(156, 163, 175, 0.8)',
+          font: { size: 13, weight: 'bold' }
+        }
       },
       y: {
         grid: {
           color: 'rgba(156, 163, 175, 0.1)',
+        },
+        title: {
+          display: true,
+          text: 'Total Value',
+          color: 'rgba(156, 163, 175, 0.8)',
+          font: { size: 13, weight: 'bold' }
+        },
+        ticks: {
+          callback: function(value: any) {
+            if (settingsStore.privacyMode) return '***';
+            return formatCurrency(value);
+          }
         }
       }
     },

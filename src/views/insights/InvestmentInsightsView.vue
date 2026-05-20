@@ -7,6 +7,7 @@ import SectorDiversificationChart from './components/charts/SectorDiversificatio
 import MarketVsBookList from './components/MarketVsBookList.vue';
 import PortfolioGrowthChart from './components/charts/PortfolioGrowthChart.vue';
 import InsightMetricCard from '@/views/insights/components/InsightMetricCard.vue';
+import InsightTimeRangeSelector from '@/views/insights/components/InsightTimeRangeSelector.vue';
 import TradeHistoryModal from '@/views/investments/components/TradeHistoryModal.vue';
 import SectorBreakdownModal from './components/SectorBreakdownModal.vue';
 import HistoricalHoldingsModal from './components/HistoricalHoldingsModal.vue';
@@ -166,19 +167,21 @@ function handleHighlightAsset(symbol: string, accountId: string) {
 const bookValueAccountId = ref<string>('all');
 const allocationAccountId = ref<string>('all');
 const growthAccountId = ref<string>('all');
-const growthOption = ref<string>('YTD');
+const growthTimeRange = ref<string>('thisMonth');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const growthCustomDate = ref<any>(null);
+
+const growthDateRange = computed(() => {
+    const { startDate, endDate } = getDateRange(growthTimeRange.value, store.transactions, getCustomRangeObj(growthCustomDate.value));
+    return { 
+        startDate: toIsoDateString(startDate), 
+        endDate: toIsoDateString(endDate) 
+    };
+});
+
 const historyAccountId = ref<string>('all');
 
 const highlightedSymbol = ref<string | null>(null);
-
-// Helper for years
-const availableYears = computed(() => {
-    const years = new Set(store.ledgerYears);
-    globalHistory.value.forEach(h => {
-        years.add(parseInt(h.date.substring(0, 4)));
-    });
-    return Array.from(years).sort((a, b) => b - a);
-});
 
 // Stats State
 const returnTimeRange = ref<string>('thisMonth');
@@ -389,7 +392,7 @@ const contributionsData = computed(() => {
           <div class="z-10 flex gap-2">
             <select
               v-model="growthAccountId"
-              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer max-w-[80px] truncate"
+              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer w-[120px] truncate"
             >
               <option value="all">
                 All Accounts
@@ -402,30 +405,18 @@ const contributionsData = computed(() => {
                 {{ acc.accountName }}
               </option>
             </select>
-            <select
-              v-model="growthOption"
-              class="text-[10px] lg:text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer"
-            >
-              <option value="YTD">
-                YTD
-              </option>
-              <option value="all">
-                All Time
-              </option>
-              <option
-                v-for="year in availableYears"
-                :key="year"
-                :value="year.toString()"
-              >
-                {{ year }}
-              </option>
-            </select>
+            <InsightTimeRangeSelector
+              v-model="growthTimeRange"
+              v-model:custom-range="growthCustomDate"
+            />
           </div>
         </div>
-        <div class="flex-1 relative min-h-0">
+        <div 
+          class="flex-1 relative min-h-0"
+        >
           <PortfolioGrowthChart
             :account-id="growthAccountId"
-            :option="growthOption"
+            :date-range="growthDateRange"
             :histories="rawHistories"
             @point-click="handleGrowthClick"
           />
