@@ -396,6 +396,10 @@ export function registerIpcHandlers(): void {
     shell.showItemInFolder(getDbPath());
   });
 
+  ipcMain.handle("system:openExternal", async (_event, url: string) => {
+    return shell.openExternal(url);
+  });
+
   ipcMain.handle("system:deleteDatabase", async () => {
     try {
       // Close the database connection first

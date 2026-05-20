@@ -44,9 +44,9 @@ const chartData = computed(() => {
           above: "rgba(34, 197, 94, 0.25)",
           below: "rgba(239, 68, 68, 0.25)",
         },
-        borderColor: "#0ea5e9", // Primary Brand Blue
-        pointBackgroundColor: "#0ea5e9",
-        pointBorderColor: "#0ea5e9",
+        borderColor: "#3b82f6", // Neutral Blue
+        pointBackgroundColor: "#3b82f6",
+        pointBorderColor: "#3b82f6",
         tension: 0.4,
         pointRadius: 4,
         pointHoverRadius: 6,

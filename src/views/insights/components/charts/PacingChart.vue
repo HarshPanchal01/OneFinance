@@ -49,7 +49,7 @@ const pacingData = computed(() => {
       {
         label: props.labelA,
         data: currentData,
-        borderColor: "#0ea5e9", // Primary Brand Blue
+        borderColor: "#3b82f6", // Neutral Blue
         tension: 0.4,
         pointHoverRadius: 6,
         pointHitRadius: 10

@@ -226,6 +226,9 @@ const electronAPI = {
   openDbLocation: (): Promise<void> =>
     ipcRenderer.invoke("system:openDbLocation"),
 
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke("system:openExternal", url),
+
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),
 

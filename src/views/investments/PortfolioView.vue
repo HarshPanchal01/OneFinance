@@ -136,6 +136,30 @@ async function handleTransactionSaved() {
   await store.fetchInvestmentHoldings();
 }
 
+async function openYahooFinance(symbol: string) {
+  const dontAsk = localStorage.getItem('hideYahooFinanceConfirm');
+  if (dontAsk === 'true') {
+    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
+    return;
+  }
+
+  if (!confirmModal.value) return;
+  const result = await confirmModal.value.openConfirmation({
+    title: 'Open in Yahoo Finance',
+    message: `Do you want to view ${symbol} on the Yahoo Finance website?`,
+    confirmText: 'Open',
+    confirmButtonClass: 'bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60',
+    showDontAskAgain: true
+  });
+
+  if (result.confirmed) {
+    if (result.dontAskAgain) {
+      localStorage.setItem('hideYahooFinanceConfirm', 'true');
+    }
+    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
+  }
+}
+
 function getAccountTypeLabel(typeId: number) {
   return store.accountTypes.find(t => t.id === typeId)?.type || 'Unknown';
 }
@@ -305,10 +329,16 @@ function getAccountCashBalance(accountId: number) {
                 <tr
                   v-for="holding in store.investmentHoldings.filter(h => h.accountId === account.id && h.quantity > 0)"
                   :key="holding.id"
-                  class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                  class="transition-colors"
                 >
-                  <td class="px-4 py-3 font-bold text-gray-900 dark:text-white truncate">
-                    {{ holding.symbol }}
+                  <td class="px-4 py-3 font-bold truncate">
+                    <span 
+                      class="text-primary-500 dark:text-primary-400 leading-tight underline decoration-primary-300 dark:decoration-primary-600 underline-offset-2 w-max cursor-pointer hover:text-primary-600 dark:hover:text-primary-500 transition-colors"
+                      title="View on Yahoo Finance"
+                      @click="openYahooFinance(holding.symbol)"
+                    >
+                      {{ holding.symbol }}
+                    </span>
                   </td>
                   <td class="px-4 py-3 text-gray-500 dark:text-gray-400 truncate">
                     {{ holding.name || '---' }}
