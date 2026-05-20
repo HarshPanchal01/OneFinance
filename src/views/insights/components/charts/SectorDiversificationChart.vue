@@ -180,7 +180,6 @@ const chartOptions = computed(() => ({
             const val = context.raw;
             const total = chartDataObj.value.totalValue;
             const percent = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
-            if (settingsStore.privacyMode) return `${context.label}: ***`;
             return `${context.label}: ${formatCurrency(val)} (${percent}%)`;
         }
       }

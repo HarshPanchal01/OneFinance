@@ -117,6 +117,10 @@ const chartData = computed(() => {
 const delayed = ref(false);
 
 const chartOptions = computed(() => {
+  // Track privacyMode for reactivity
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  settingsStore.privacyMode;
+
   return {
     animation: {
       onComplete: () => {
