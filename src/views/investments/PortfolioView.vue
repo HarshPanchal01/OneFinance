@@ -156,7 +156,7 @@ async function openYahooFinance(symbol: string) {
     if (result.dontAskAgain) {
       window.localStorage.setItem('hideYahooFinanceConfirm', 'true');
     }
-    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
+    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`);
   }
 }
 
