@@ -75,8 +75,6 @@ watch(() => props.date, async (newDate) => {
     const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => {
       if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
       if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((it as any).type === 'drip') return sum - it.fees; 
       return sum;
     }, 0);
 
@@ -103,8 +101,6 @@ watch(() => props.date, async (newDate) => {
     futureITxns.forEach(it => {
       if (it.type === 'buy') currentCash += (it.quantity * it.price + it.fees);
       if (it.type === 'sell') currentCash -= (it.quantity * it.price - it.fees);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((it as any).type === 'drip') currentCash += it.fees;
     });
 
     computedCash += currentCash;
@@ -117,8 +113,6 @@ watch(() => props.date, async (newDate) => {
       futureHoldingTxns.forEach(t => {
           if (t.type === 'buy') currentQty -= t.quantity;
           if (t.type === 'sell') currentQty += t.quantity;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if ((t as any).type === 'drip') currentQty -= t.quantity;
       });
       
       if (currentQty > 0) {

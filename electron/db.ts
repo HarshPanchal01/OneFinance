@@ -199,13 +199,13 @@ export function initializeDatabase(): void {
     )
   `);
 
-  // Investment Transactions - Track buys, sells, and drips
+  // Investment Transactions - Track buys and sells
   db.exec(`
     CREATE TABLE IF NOT EXISTS investment_transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       holdingId INTEGER NOT NULL,
       date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'drip')),
+      type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
       quantity REAL NOT NULL,
       price REAL NOT NULL,
       fees REAL DEFAULT 0,
@@ -1154,7 +1154,6 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
             SELECT SUM(CASE 
                 WHEN type = 'buy' THEN -(quantity * price + fees) 
                 WHEN type = 'sell' THEN (quantity * price - fees) 
-                WHEN type = 'drip' THEN -fees 
                 ELSE 0 END) as net 
             FROM investment_transactions
         )
