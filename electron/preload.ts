@@ -48,6 +48,8 @@ const electronAPI = {
     ipcRenderer.invoke("db:getGlobalInvestmentHistory"),
   replaceInvestmentHistory: (accountId: number, histories: {date: string, totalValue: number}[]): Promise<void> =>
     ipcRenderer.invoke("db:replaceInvestmentHistory", accountId, histories),
+  bulkUpsertInvestmentHistory: (accountId: number, histories: {date: string, totalValue: number}[]): Promise<void> =>
+    ipcRenderer.invoke("db:bulkUpsertInvestmentHistory", accountId, histories),
   createInvestmentHistoryEntry: (accountId: number, totalValue: number, date: string): Promise<InvestmentHistory> =>
     ipcRenderer.invoke("db:createInvestmentHistoryEntry", accountId, totalValue, date),
 

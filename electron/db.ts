@@ -1599,6 +1599,20 @@ export function replaceInvestmentHistory(accountId: number, histories: {date: st
   transaction();
 }
 
+export function bulkUpsertInvestmentHistory(accountId: number, histories: {date: string, totalValue: number}[]): void {
+  const deleteStmt = db.prepare("DELETE FROM investment_history WHERE accountId = ? AND date = ?");
+  const insertStmt = db.prepare("INSERT INTO investment_history (accountId, totalValue, date) VALUES (?, ?, ?)");
+
+  const transaction = db.transaction((data: {date: string, totalValue: number}[]) => {
+    for (const h of data) {
+      deleteStmt.run(accountId, h.date);
+      insertStmt.run(accountId, h.totalValue, h.date);
+    }
+  });
+
+  transaction(histories);
+}
+
 export function createInvestmentHistoryEntry(accountId: number, totalValue: number, date: string): InvestmentHistory {
   const existing = db.prepare("SELECT * FROM investment_history WHERE accountId = ? AND date = ?").get(accountId, date) as InvestmentHistory | undefined;
 

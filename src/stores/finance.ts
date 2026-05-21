@@ -867,57 +867,71 @@ export const useFinanceStore = defineStore("finance", () => {
         return type?.classification === 'investment';
       });
 
-      // BACKFILL LOGIC
+      // INCREMENTAL BACKFILL LOGIC
       const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
       const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
       const allHoldings = await window.electronAPI.getInvestmentHoldings();
       const allTransactions = await window.electronAPI.getAllTransactions();
+      const existingHistory = await window.electronAPI.getGlobalInvestmentHistory();
 
       const datesByAccount = new Map<number, string[]>();
-      let oldestDate = today;
+      let oldestRequiredDate = today;
 
       for (const acc of investmentAccounts) {
         if (!acc.id) continue;
         
-        // Find earliest date
+        // Find latest date in existing history for this account
+        const accHistory = existingHistory.filter(h => h.accountId === acc.id);
+        const lastDate = accHistory.length > 0 
+          ? accHistory.sort((a, b) => b.date.localeCompare(a.date))[0].date 
+          : null;
+
+        // Find earliest transaction date
         const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
         const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
         const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
         const hIds = accHoldings.map(h => h.id);
         const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
         
-        const dates = [
+        const txnDates = [
           ...accTxns.map(t => t.date),
           ...adjTxns.map(a => a.date),
           ...iTxns.map(t => t.date)
         ].sort();
 
-        const startDateStr = dates.length > 0 ? dates[0] : today;
-        if (startDateStr < oldestDate) oldestDate = startDateStr;
+        const earliestTxnDate = txnDates.length > 0 ? txnDates[0] : today;
+
+        // If we have history, we only need to refresh from that date to today.
+        // If we don't, we start from the beginning.
+        const startDateStr = lastDate || earliestTxnDate;
         
-        const allDates = [];
+        // We re-calculate the last recorded day anyway to ensure it has latest prices
+        if (startDateStr < oldestRequiredDate) oldestRequiredDate = startDateStr;
+        
+        const missingDates = [];
         const current = new Date(startDateStr);
         while (current.toISOString().split('T')[0] <= today) {
-          allDates.push(current.toISOString().split('T')[0]);
+          missingDates.push(current.toISOString().split('T')[0]);
           current.setDate(current.getDate() + 1);
         }
-        datesByAccount.set(acc.id, allDates);
+        datesByAccount.set(acc.id, missingDates);
       }
 
       if (datesByAccount.size > 0) {
+         // Optimization: Only fetch prices for the range we actually need
          const uniqueSymbols = [...new Set(allHoldings.map(h => h.symbol))];
          const priceMap = new Map<string, {date: string, close: number}[]>();
          
          for (const sym of uniqueSymbols) {
-            const history = await window.electronAPI.getHistoricalPrices(sym, oldestDate, today);
-            // Sort history by date ASC just in case
+            // Only fetch from the oldestRequiredDate
+            const history = await window.electronAPI.getHistoricalPrices(sym, oldestRequiredDate, today);
             history.sort((a, b) => a.date.localeCompare(b.date));
             priceMap.set(sym, history);
          }
 
          for (const [accountId, dates] of datesByAccount.entries()) {
             const acc = accounts.value.find(a => a.id === accountId);
-            if (!acc) continue;
+            if (!acc || dates.length === 0) continue;
 
             const accTxns = allTransactions.filter(t => t.accountId === acc.id || t.transferAccountId === acc.id);
             const adjTxns = adjustmentsRaw.filter(a => a.accountId === acc.id);
@@ -949,7 +963,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
             const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
 
-            const newHistories = [];
+            const updateHistories = [];
 
             for (const mDate of dates) {
                let pastCash = currentTrueCash;
@@ -998,11 +1012,10 @@ export const useFinanceStore = defineStore("finance", () => {
                }
 
                const totalValue = pastCash + holdingsValue;
-               
-               newHistories.push({ date: mDate, totalValue });
+               updateHistories.push({ date: mDate, totalValue });
             }
 
-            await window.electronAPI.replaceInvestmentHistory(acc.id, newHistories);
+            await window.electronAPI.bulkUpsertInvestmentHistory(acc.id, updateHistories);
          }
       }
 
