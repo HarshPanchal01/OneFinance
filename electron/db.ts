@@ -1350,8 +1350,8 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = insert.run(
@@ -1360,7 +1360,8 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.name,
     data.quantity,
     data.lastPrice,
-    data.lastUpdated
+    data.lastUpdated,
+    data.sectorWeightings || null
   );
   
   return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
@@ -1581,6 +1582,10 @@ export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'i
 
 export function getInvestmentHistory(accountId: number): InvestmentHistory[] {
   return db.prepare("SELECT * FROM investment_history WHERE accountId = ? ORDER BY date ASC").all(accountId) as InvestmentHistory[];
+}
+
+export function getGlobalInvestmentHistory(): InvestmentHistory[] {
+  return db.prepare("SELECT * FROM investment_history ORDER BY date ASC").all() as InvestmentHistory[];
 }
 
 export function replaceInvestmentHistory(accountId: number, histories: {date: string, totalValue: number}[]): void {

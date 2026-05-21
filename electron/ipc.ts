@@ -68,6 +68,7 @@ import {
   createInvestmentTransaction,
   adjustAccountCash,
   getInvestmentHistory,
+  getGlobalInvestmentHistory,
   replaceInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
@@ -346,6 +347,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:replaceInvestmentHistory", async (_event, accountId: number, histories: {date: string, totalValue: number}[]) => {
     return replaceInvestmentHistory(accountId, histories);
+  });
+
+  ipcMain.handle("db:getGlobalInvestmentHistory", async () => {
+    return getGlobalInvestmentHistory();
   });
 
   ipcMain.handle("db:createInvestmentHistoryEntry", async (_event, accountId: number, totalValue: number, date: string) => {

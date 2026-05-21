@@ -778,8 +778,12 @@ export const useFinanceStore = defineStore("finance", () => {
   }
 
   async function addInvestmentHolding(data: Omit<InvestmentHolding, 'id'>) {
-    // Fetch profile data (sectors)
-    const profile = await window.electronAPI.getAssetProfile(data.symbol);
+    // Fetch profile data (sectors) only if not provided (e.g. during import)
+    let profile = data.sectorWeightings;
+    if (!profile) {
+      profile = await window.electronAPI.getAssetProfile(data.symbol);
+    }
+
     const newHolding = await window.electronAPI.createInvestmentHolding({
         ...data,
         sectorWeightings: profile
@@ -1166,6 +1170,11 @@ export const useFinanceStore = defineStore("finance", () => {
     const importInvestmentTransactions = data.investmentTransactions || [];
     const importInvestmentHistory = data.investmentHistory || [];
 
+    // Fetch ALL existing data upfront for reliable duplicate detection
+    const allExistingInvestmentTransactions = await window.electronAPI.getAllInvestmentTransactions();
+    const allExistingInvestmentHistory = await window.electronAPI.getGlobalInvestmentHistory();
+    const allExistingInvestmentAdjustments = await window.electronAPI.getInvestmentAdjustments();
+
     const accountTypeIdMap = new Map<number, number>();
     const categoryTypeIdMap = new Map<number, number>();
     const accountIdMap = new Map<number, number>();
@@ -1431,7 +1440,7 @@ export const useFinanceStore = defineStore("finance", () => {
       for (const tx of importInvestmentTransactions) {
         if (!isReplace && skipDuplicates) {
           const mappedHoldingId = holdingIdMap.get(tx.holdingId);
-          const existing = investmentTransactions.value.find(t => 
+          const existing = allExistingInvestmentTransactions.find(t => 
             t.holdingId === mappedHoldingId && t.date === tx.date && t.type === tx.type && t.quantity === tx.quantity
           );
           if (existing) {
@@ -1468,7 +1477,7 @@ export const useFinanceStore = defineStore("finance", () => {
       for (const hist of importInvestmentHistory) {
         if (!isReplace && skipDuplicates) {
           const mappedAccountId = accountIdMap.get(hist.accountId);
-          const existing = investmentHistory.value.find(h => 
+          const existing = allExistingInvestmentHistory.find((h: InvestmentHistory) => 
             h.accountId === mappedAccountId && h.date === hist.date && h.totalValue === hist.totalValue
           );
           if (existing) {
@@ -1493,8 +1502,8 @@ export const useFinanceStore = defineStore("finance", () => {
       for (const adj of importInvestmentAdjustments) {
         if (!isReplace && skipDuplicates) {
           const mappedAccountId = accountIdMap.get(adj.accountId);
-          const existing = (await window.electronAPI.getInvestmentAdjustments(mappedAccountId)).find(a => 
-            a.date === adj.date && a.amount === adj.amount && a.type === adj.type && a.notes === adj.notes
+          const existing = allExistingInvestmentAdjustments.find(a => 
+            a.accountId === mappedAccountId && a.date === adj.date && a.amount === adj.amount && a.type === adj.type && a.notes === adj.notes
           );
           if (existing) {
             console.log(`Skipping inserting existing investment adjustment`);

@@ -139,7 +139,7 @@ async function handleTransactionSaved() {
 async function openYahooFinance(symbol: string) {
   const dontAsk = window.localStorage.getItem('hideYahooFinanceConfirm');
   if (dontAsk === 'true') {
-    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${symbol}`);
+    window.electronAPI.openExternal(`https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`);
     return;
   }
 
