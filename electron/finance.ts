@@ -8,6 +8,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHis
  */
 export async function getQuote(symbol: string) {
   try {
+    console.log(`[Yahoo API] Fetching quote for: ${symbol}`);
     const result = await yahooFinance.quote(symbol) as any;
     return {
       symbol: result.symbol,
@@ -30,6 +31,7 @@ export async function getQuotes(symbols: string[]) {
   if (symbols.length === 0) return [];
   
   try {
+    console.log(`[Yahoo API] Fetching batch quotes for ${symbols.length} symbols: ${symbols.join(', ')}`);
     const results = await yahooFinance.quote(symbols) as any;
     // If only one symbol is passed, yahooFinance.quote returns a single object
     const quotes = Array.isArray(results) ? results : [results];
@@ -53,6 +55,7 @@ export async function getQuotes(symbols: string[]) {
  */
 export async function getAssetProfile(symbol: string) {
   try {
+    console.log(`[Yahoo API] Fetching asset profile for: ${symbol}`);
     const summary = await yahooFinance.quoteSummary(symbol, { modules: ['topHoldings', 'summaryProfile'] });
     let sectorData: any = null;
 
@@ -84,6 +87,7 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
       d2.setDate(d2.getDate() + 1);
     }
 
+    console.log(`[Yahoo API] Fetching historical prices for ${symbol} from ${d1.toISOString().split('T')[0]} to ${d2.toISOString().split('T')[0]}`);
     const results = await yahooFinance.historical(symbol, {
       period1: d1,
       period2: d2,
@@ -104,6 +108,7 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
  */
 export async function searchSymbols(query: string) {
   try {
+    console.log(`[Yahoo API] Searching symbols for query: "${query}"`);
     const result = await yahooFinance.search(query) as any;
     return result.quotes.map((q: any) => ({
       symbol: q.symbol,

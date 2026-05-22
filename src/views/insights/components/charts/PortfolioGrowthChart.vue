@@ -206,10 +206,10 @@ const chartOptions = computed(() => {
         easing: "easeOutQuart" as const,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         from: (ctx: any) => {
-          if (ctx.chart.scales.y) {
+          if (!delayed.value && ctx.chart.scales.y) {
             return ctx.chart.scales.y.getPixelForValue(0);
           }
-          return 0;
+          return undefined;
         },
       },
     },

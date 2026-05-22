@@ -390,11 +390,8 @@ function seedDefaultAccountData(): void{
     {type: "Mortgage", classification: "liability"},
     {type: "Vehicle", classification: "asset"},
     {type: "House", classification: "asset"},
-    {type: "Investment", classification: "investment"},
-    {type: "TFSA", classification: "investment"},
-    {type: "RRSP", classification: "investment"},
-    {type: "FHSA", classification: "investment"},
-    {type: "Crypto", classification: "investment"},
+    {type: "Non-Registered", classification: "investment"},
+    {type: "Registered", classification: "investment"},
   ];
 
   const defaultAccounts = [
