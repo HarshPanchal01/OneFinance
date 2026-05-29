@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useFinanceStore } from '@/stores/finance'
+import { useSettingsStore } from '@/stores/settings'
+import { useFormatter } from '@/composables/useFormatter'
 import { computed, ref, watch } from 'vue';
 
 
@@ -14,6 +16,8 @@ import { computed, ref, watch } from 'vue';
     }
 
     const store = useFinanceStore();
+    const settingsStore = useSettingsStore();
+    const { formatCurrency } = useFormatter();
     const tileRef = ref<HTMLElement | null>(null);
 
     const emits = defineEmits<{
@@ -33,11 +37,19 @@ import { computed, ref, watch } from 'vue';
 
     const props = defineProps<Props>();
 
-    const accountType = computed(() =>
+    const accountTypeObj = computed(() =>
       props.accountTypeId != null
-        ? store.accountTypes.find((t) => t.id === props.accountTypeId)?.type ?? 'N/A'
-        : 'N/A'
+        ? store.accountTypes.find((t) => t.id === props.accountTypeId)
+        : null
     );
+
+    const accountType = computed(() => accountTypeObj.value?.type ?? 'N/A');
+    const accountClassification = computed(() => accountTypeObj.value?.classification ?? 'liquid');
+
+    const displayBalance = computed(() => {
+      const rawBalance = props.balance ?? props.startingBalance;
+      return accountClassification.value === 'liability' ? Math.abs(rawBalance) : rawBalance;
+    });
 
     watch(() => props.isHighlighted, (newVal) => {
       if (newVal && tileRef.value) {
@@ -50,49 +62,60 @@ import { computed, ref, watch } from 'vue';
 <template>
   <div
     ref="tileRef"
-    class="group flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-500"
+    class="grid grid-cols-[1fr_200px_150px_200px_120px] items-center px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
     :class="[
-      isHighlighted ? 'bg-primary-100 dark:bg-primary-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+      isHighlighted ? 'highlight-blink' : ''
     ]"
   >
-    <div class="flex flex-col">
-      <p class="font-medium text-gray-900 dark:text-white">
-        {{ props.accountName }}
-      </p>
-      <p class="text-sm text-gray-500 dark:text-gray-400">
-        {{ props.institutionName }} • Type: {{ accountType }} 
-        <span
-          v-if="props.isDefault"
-          class="ml-2 px-1.5 py-0.5 text-xs font-semibold text-white bg-primary-500 rounded"
-        >Default</span>
-      </p>
-      <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">
-        Balance: ${{ props.balance?.toFixed(2) ?? props.startingBalance.toFixed(2) }}
-      </p>
+    <div class="font-bold text-gray-900 dark:text-white flex items-center min-w-0">
+      <span class="truncate">{{ props.accountName }}</span>
+      <span
+        v-if="props.isDefault"
+        class="ml-2 px-1.5 py-0.5 text-[10px] uppercase font-bold text-white bg-primary-500 rounded shrink-0"
+      >Default</span>
     </div>
-
-    <div class="hidden group-hover:flex space-x-2">
+    <div class="text-gray-500 dark:text-gray-400 truncate pr-4">
+      {{ props.institutionName || '---' }}
+    </div>
+    <div class="text-gray-500 dark:text-gray-400 truncate pr-4">
+      {{ accountType }}
+    </div>
+    <div class="text-right font-semibold text-gray-900 dark:text-white">
+      <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(displayBalance) }}</span>
+    </div>
+    <div class="flex items-center justify-end space-x-2">
       <button
-        class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-primary-500 transition-colors"
+        class="p-1 text-gray-400 hover:text-primary-500 transition-colors"
         title="View Transactions"
         @click="emits('view-transactions')"
       >
-        <i class="pi pi-list text-sm" />
+        <i class="pi pi-list" />
       </button>
       <button
-        class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-primary-500 transition-colors"
+        class="p-1 text-gray-400 hover:text-primary-500 transition-colors"
         title="Edit"
         @click="handleEditClick"
       >
-        <i class="pi pi-pencil text-sm" />
+        <i class="pi pi-pencil" />
       </button>
       <button
-        class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 hover:text-expense transition-colors"
+        class="p-1 text-gray-400 hover:text-expense transition-colors"
         title="Delete"
         @click="handleDeleteClick"
       >
-        <i class="pi pi-trash text-sm" />
+        <i class="pi pi-trash" />
       </button>
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes highlight-fade {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(79, 157, 221, 0.4); }
+}
+
+.highlight-blink {
+  animation: highlight-fade 1s ease-in-out 3;
+}
+</style>

@@ -77,17 +77,49 @@ export function useDataManagement() {
 
   async function exportData(notificationModal: NotificationModalInstance | undefined) {
     const accountsValue = toRaw(store.accounts);
-    const transactionsValue = toRaw(store.transactions);
+    const transactionsValue = await window.electronAPI.getTransactions();
     const categoriesValue = toRaw(store.categories);
     const accountTypesValue = toRaw(store.accountTypes);
     const ledgerYearsValue = toRaw(store.ledgerYears);
+    const recurringTransactionsValue = await window.electronAPI.getRecurringTransactions();
+    const databaseVersion = toRaw(store.databaseVersion);
+    const investmentHoldingsValue = toRaw(store.investmentHoldings);
+    
+    // We need to fetch all investment transactions, history and adjustments for a complete export
+    let investmentTransactionsValue: any[] = [];
+    let investmentHistoryValue: any[] = [];
+    let investmentAdjustmentsValue: any[] = [];
+    
+    for (const holding of store.investmentHoldings) {
+        const txs = await window.electronAPI.getInvestmentTransactions(holding.id);
+        investmentTransactionsValue = investmentTransactionsValue.concat(txs);
+    }
+    
+    const investmentAccounts = store.accounts.filter(a => {
+        const type = store.accountTypes.find(at => at.id === a.accountTypeId);
+        return type?.classification === 'investment';
+    });
+    
+    for (const acc of investmentAccounts) {
+        const hist = await window.electronAPI.getInvestmentHistory(acc.id);
+        investmentHistoryValue = investmentHistoryValue.concat(hist);
+
+        const adj = await window.electronAPI.getInvestmentAdjustments(acc.id);
+        investmentAdjustmentsValue = investmentAdjustmentsValue.concat(adj);
+    }
 
     const data = {
+      databaseVersion: databaseVersion,
       accounts: accountsValue,
       transactions: transactionsValue,
       categories: categoriesValue,
       accountTypes: accountTypesValue,
       ledgerYears: ledgerYearsValue,
+      recurringTransactions: recurringTransactionsValue,
+      investmentHoldings: investmentHoldingsValue,
+      investmentTransactions: investmentTransactionsValue,
+      investmentHistory: investmentHistoryValue,
+      investmentAdjustments: investmentAdjustmentsValue,
     };
 
     const timestamp = new Date().toDateString();
@@ -121,12 +153,12 @@ export function useDataManagement() {
       return;
     }
 
-    const verified = verifyImportData(result.data);
+    const verification = verifyImportData(result.data, store.databaseVersion);
 
-    if (!verified) {
+    if (!verification.success) {
       return await errorModal?.openConfirmation({
         title: "Import Error",
-        message: "The selected file is not a valid OneFinance export file.",
+        message: verification.reason || "The selected file is not a valid OneFinance export file.",
         confirmText: "Okay",
       });
     }
@@ -140,7 +172,7 @@ export function useDataManagement() {
       if (response.action === "replace") {
         await store.deleteAllDataFromTables();
 
-        const success = await store.importDatabaseData(result.data, false);
+        const success = await store.importDatabaseData(result.data, false, true);
 
         if (!success) {
           return await errorModal?.openConfirmation({

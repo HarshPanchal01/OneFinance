@@ -30,27 +30,27 @@ const filteredTrends = computed(() => {
 const chartData = computed(() => {
   const displayTrends = filteredTrends.value;
   const labels = displayTrends.map((t) => getMonthName(t.month).slice(0, 3));
-  const data = displayTrends.map((t) => t.balance);
+  const dataTotal = displayTrends.map((t) => t.balance);
 
   return {
     labels,
     datasets: [
       {
-        label: "Net Worth",
-        data,
+        label: "Total Net Worth",
+        data: dataTotal,
         // Dynamic area fill: Green above 0, Red below 0
         fill: {
           target: "origin",
           above: "rgba(34, 197, 94, 0.25)",
           below: "rgba(239, 68, 68, 0.25)",
         },
-        borderColor: "#0ea5e9", // Primary Brand Blue
-        pointBackgroundColor: "#0ea5e9",
-        pointBorderColor: "#0ea5e9",
+        borderColor: "#3b82f6", // Neutral Blue
+        pointBackgroundColor: "#3b82f6",
+        pointBorderColor: "#3b82f6",
         tension: 0.4,
         pointRadius: 4,
         pointHoverRadius: 6,
-      },
+      }
     ],
   };
 });
@@ -104,7 +104,7 @@ const chartOptions = computed(() => {
         title: { display: true, text: 'Month(s)' }
       },
       y: {
-        title: { display: true, text: 'Total Balance ($)' }
+        title: { display: true, text: 'Total Balance' }
       }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

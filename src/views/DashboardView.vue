@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import { formatCurrency } from "@/utils";
+import { useSettingsStore } from "@/stores/settings";
+import { useFormatter } from "@/composables/useFormatter";
 import Popover from "primevue/popover";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
@@ -9,6 +10,8 @@ import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import { useTransactionActions } from "@/composables/useTransactionActions";
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
 onMounted(async () => {
   await store.fetchDashboardBreakdown();
@@ -55,7 +58,7 @@ void confirmModal;
         Dashboard
       </h1>
       <button
-        class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
+        class="inline-flex items-center px-5 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors"
         @click="emit('addTransaction')"
       >
         <i class="pi pi-plus mr-2" />
@@ -72,7 +75,10 @@ void confirmModal;
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
               Total Income
             </p>
-            <p class="text-2xl font-bold text-income">
+            <p
+              class="text-2xl font-bold text-income"
+              :class="{ 'privacy-blur': settingsStore.privacyMode }"
+            >
               {{ formatCurrency(store.periodSummary.totalIncome) }}
             </p>
           </div>
@@ -91,7 +97,10 @@ void confirmModal;
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
               Total Expenses
             </p>
-            <p class="text-2xl font-bold text-expense">
+            <p
+              class="text-2xl font-bold text-expense"
+              :class="{ 'privacy-blur': settingsStore.privacyMode }"
+            >
               {{ formatCurrency(store.periodSummary.totalExpenses) }}
             </p>
           </div>
@@ -112,11 +121,12 @@ void confirmModal;
             </p>
             <p
               class="text-2xl font-bold"
-              :class="
+              :class="[
                 store.periodSummary.balance >= 0
                   ? 'text-income'
-                  : 'text-expense'
-              "
+                  : 'text-expense',
+                { 'privacy-blur': settingsStore.privacyMode }
+              ]"
             >
               {{ formatCurrency(store.periodSummary.balance) }}
             </p>
@@ -185,7 +195,10 @@ void confirmModal;
               >
                 {{ item.categoryName }}
               </span>
-              <span class="text-sm font-semibold text-gray-900 dark:text-white">
+              <span
+                class="text-sm font-semibold text-gray-900 dark:text-white"
+                :class="{ 'privacy-blur': settingsStore.privacyMode }"
+              >
                 {{ formatCurrency(item.total) }}
               </span>
             </div>

@@ -6,20 +6,31 @@ const title = ref('Confirm');
 const message = ref('Are you sure?');
 const cancelText = ref('Cancel');
 const confirmText = ref('Confirm');
+const confirmButtonClass = ref('bg-red-500 dark:bg-red-900/40 text-white dark:text-red-300 hover:bg-red-600 dark:hover:bg-red-900/60');
+const showDontAskAgain = ref(false);
+const dontAskAgain = ref(false);
 
-let resolveCallback: ((confirmed: boolean) => void) | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let resolveCallback: ((result: any) => void) | null = null;
+let returnsObject = false;
 
 function openConfirmation(options: {
   title: string;
   message: string;
   cancelText?: string;
   confirmText?: string;
-}): Promise<boolean> {
+  confirmButtonClass?: string;
+  showDontAskAgain?: boolean;
+}): Promise<any> {
   title.value = options.title;
   message.value = options.message;
   cancelText.value = options.cancelText ?? 'Cancel';
   confirmText.value = options.confirmText ?? 'Confirm';
+  confirmButtonClass.value = options.confirmButtonClass ?? 'bg-red-500 hover:bg-red-600';
+  showDontAskAgain.value = options.showDontAskAgain ?? false;
+  dontAskAgain.value = false;
   isOpen.value = true;
+  returnsObject = options.showDontAskAgain ?? false;
 
   return new Promise((resolve) => {
     resolveCallback = resolve;
@@ -29,7 +40,11 @@ function openConfirmation(options: {
 function handleConfirm() {
   isOpen.value = false;
   if (resolveCallback) {
-    resolveCallback(true);
+    if (returnsObject) {
+      resolveCallback({ confirmed: true, dontAskAgain: dontAskAgain.value });
+    } else {
+      resolveCallback(true);
+    }
     resolveCallback = null;
   }
 }
@@ -37,7 +52,11 @@ function handleConfirm() {
 function handleCancel() {
   isOpen.value = false;
   if (resolveCallback) {
-    resolveCallback(false);
+    if (returnsObject) {
+      resolveCallback({ confirmed: false, dontAskAgain: dontAskAgain.value });
+    } else {
+      resolveCallback(false);
+    }
     resolveCallback = null;
   }
 }
@@ -57,15 +76,34 @@ defineExpose({ openConfirmation });
       <p class="text-gray-600 dark:text-gray-300 mb-6">
         {{ message }}
       </p>
-      <div class="flex justify-end space-x-2">
+
+      <div
+        v-if="showDontAskAgain"
+        class="mb-4 flex items-center"
+      >
+        <input 
+          id="dontAskAgain" 
+          v-model="dontAskAgain" 
+          type="checkbox"
+          class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+        />
+        <label
+          for="dontAskAgain"
+          class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300 cursor-pointer"
+        >
+          Don't ask again
+        </label>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-4">
         <button
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           @click="handleCancel"
         >
           {{ cancelText }}
         </button>
         <button
-          class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+          :class="['px-4 py-2 rounded-lg transition-colors', confirmButtonClass]"
           @click="handleConfirm"
         >
           {{ confirmText }}

@@ -77,7 +77,7 @@ const chartOptions = computed(() => ({
       title: { display: true, text: 'Month(s)' }
     },
     y: {
-      title: { display: true, text: 'Amount ($)' }
+      title: { display: true, text: 'Amount' }
     }
   },
   onHover: (_event: any, chartElement: any) => {

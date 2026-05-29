@@ -97,9 +97,8 @@ defineExpose({ openConfirmation });
               v-model="skipDuplicates"
               type="checkbox"
               :disabled="selectedAction !== 'append'"
-              class="w-4 h-4 mr-2 appearance-none rounded border border-gray-400 dark:border-gray-500 checked:bg-primary-500 checked:border-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center after:content-[''] checked:after:block checked:after:w-1.5 checked:after:h-2.5 checked:after:border-white checked:after:border-r-2 checked:after:border-b-2 checked:after:rotate-45 checked:after:-mt-0.5 disabled:opacity-50"
-            />
-            Skip duplicates when appending
+              class="w-4 h-4 mr-2 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 disabled:opacity-50"
+            />            Skip duplicates when appending
           </label>
         </div>
       </div>

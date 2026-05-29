@@ -49,7 +49,7 @@ const pacingData = computed(() => {
       {
         label: props.labelA,
         data: currentData,
-        borderColor: "#0ea5e9", // Primary Brand Blue
+        borderColor: "#3b82f6", // Neutral Blue
         tension: 0.4,
         pointHoverRadius: 6,
         pointHitRadius: 10
@@ -135,7 +135,7 @@ const pacingOptions = computed(() => {
                 title: { display: true, text: 'Day(s) of Month' }
             },
             y: {
-                title: { display: true, text: 'Cumulative Amount ($)' }
+                title: { display: true, text: 'Cumulative Amount' }
             }
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

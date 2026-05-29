@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useSettingsStore } from "@/stores/settings";
 import InsightTimeRangeSelector from "./InsightTimeRangeSelector.vue";
 import Popover from "primevue/popover";
+
+const settingsStore = useSettingsStore();
 
 defineProps<{
   title: string;
@@ -54,8 +57,8 @@ const toggle = (event: Event) => {
     
     <div class="mt-2 flex items-baseline gap-2">
       <div 
-        class="text-3xl font-bold transition-all duration-200 select-none"
-        :class="valueClass"
+        class="text-2xl font-bold transition-all duration-200 select-none"
+        :class="[valueClass, { 'privacy-blur': settingsStore.privacyMode }]"
       >
         {{ value }}
       </div>
@@ -72,7 +75,10 @@ const toggle = (event: Event) => {
             {{ formula }}
           </code>
         </div>
-        <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+        <p
+          class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-line"
+          :class="{ 'privacy-blur': settingsStore.privacyMode }"
+        >
           {{ calculation }}
         </p>
       </div>

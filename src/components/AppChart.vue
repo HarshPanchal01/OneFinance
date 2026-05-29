@@ -5,7 +5,7 @@ import type { TooltipItem, ChartOptions, ChartData } from "chart.js";
 import { useSettingsStore } from "@/stores/settings";
 
 interface Props {
-  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar";
+  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter";
   data: ChartData;
   options?: ChartOptions;
   height?: string;
@@ -23,6 +23,10 @@ const props = withDefaults(defineProps<Props>(), {
 const settingsStore = useSettingsStore();
 
 const defaultOptions = computed(() => {
+  // Track privacyMode for reactivity
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  settingsStore.privacyMode;
+  
   const textColor = settingsStore.isDark ? "#f3f4f6" : "#111827"; // gray-100 or gray-900
   const gridColor = settingsStore.isDark ? "#374151" : "#e5e7eb"; // gray-700 or gray-200
 
@@ -50,18 +54,27 @@ const defaultOptions = computed(() => {
 
   // Add Currency Formatting to Tooltips
   if (props.currencyFormat) {
-    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar">) {
+    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter">) {
         let label = context.dataset.label || '';
         if (label) {
             label += ': ';
         }
+        
+        if (settingsStore.privacyMode && props.type !== 'doughnut' && props.type !== 'pie') {
+            label += '***';
+            return label;
+        }
+
+        const localeParts = settingsStore.resolvedLocale.split('-');
+        const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
+
         if (context.parsed.y !== null && context.parsed.y !== undefined) {
              // For Bar/Line charts where data is x/y
-            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+            label += new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol' }).format(context.parsed.y);
         } else if (context.raw !== null && context.raw !== undefined && (props.type === 'doughnut' || props.type === 'pie')) {
             // For Doughnut/Pie where data is just a number in raw
             const val = context.raw as number;
-            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+            label += new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol' }).format(val);
             
             // Calculate percentage
             const meta = context.chart.getDatasetMeta(context.datasetIndex);
@@ -76,7 +89,7 @@ const defaultOptions = computed(() => {
   }
 
   // Add Scales Configuration (only for cartesian charts)
-  if (['bar', 'line'].includes(props.type)) {
+  if (['bar', 'line', 'scatter'].includes(props.type)) {
     base.scales = {
       x: {
         ticks: {
@@ -100,9 +113,14 @@ const defaultOptions = computed(() => {
         ticks: {
           color: textColor,
           callback: function(value: string | number) {
+              if (settingsStore.privacyMode) {
+                  return '***';
+              }
               if (props.currencyFormat) {
                 const val = typeof value === 'string' ? parseFloat(value) : value;
-                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumSignificantDigits: 3 }).format(val);
+                const localeParts = settingsStore.resolvedLocale.split('-');
+                const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
+                return new Intl.NumberFormat(forcedLocale, { style: 'currency', currency: settingsStore.currency, currencyDisplay: 'narrowSymbol', maximumSignificantDigits: 3 }).format(val);
               }
               return value;
           }

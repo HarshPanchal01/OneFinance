@@ -30,6 +30,28 @@ function showDatePicker() {
   const picker = datePickerRef.value;
   if (!picker) return;
 
+  // Force the calendar to always open downwards, overriding PrimeVue's automatic upward flip.
+  // This ensures it behaves like a standard dropdown and doesn't inflate or shift the layout.
+  if (picker.alignOverlay && !picker._patchedAlign) {
+    const originalAlign = picker.alignOverlay;
+    picker.alignOverlay = function() {
+      // Let PrimeVue calculate horizontal bounds and initial position
+      originalAlign.call(this);
+      // Immediately override the vertical placement to force it below the input
+      if (picker.overlay && picker.$el) {
+        const rect = picker.$el.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        picker.overlay.style.top = (rect.bottom + scrollTop + 4) + 'px'; // +4px for a visual gap
+        // Align the right edge of the calendar flush with the right edge of the select input
+        picker.overlay.style.left = (rect.right + scrollLeft - picker.overlay.offsetWidth) + 'px';
+        picker.overlay.style.transformOrigin = 'right top';
+      }
+    };
+    picker._patchedAlign = true;
+  }
+
   if (typeof picker.show === "function") {
     picker.show();
   } else if (typeof picker.showOverlay === "function") {
@@ -55,7 +77,8 @@ function onSelectChange(event: Event) {
   if (newVal === 'custom' || newVal === 'custom_edit') {
     // For custom, only use existing range if available, otherwise start empty.
     // For custom_edit, always use existing range.
-    tempCustomDate.value = (newVal === 'custom_edit' || props.customRange) ? props.customRange : null;
+    const existing = (newVal === 'custom_edit' || props.customRange) ? props.customRange : null;
+    tempCustomDate.value = existing ? [...existing] : null;
     nextTick(() => showDatePicker());
   } else {
     emit("update:modelValue", newVal);
@@ -95,7 +118,7 @@ function onDatePickerHide() {
     />
     <select 
       :value="localValue"
-      class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[8rem] z-10 relative"
+      class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[6.5rem] z-10 relative"
       @change="onSelectChange"
     >
       <option value="thisMonth">

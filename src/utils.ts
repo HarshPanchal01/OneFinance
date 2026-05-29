@@ -1,14 +1,15 @@
-import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown } from "@/types";
+import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
   endDate: Date;
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(amount: number, locale = 'en-US', currency = 'USD'): string {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency: currency,
+    currencyDisplay: 'narrowSymbol',
   }).format(amount);
 }
 
@@ -19,10 +20,10 @@ export function toIsoDateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string, locale = 'en-US'): string {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -42,22 +43,112 @@ export function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
 }
 
-export function verifyImportData(data: {
-  accounts?: Account[],
-  transactions?: TransactionWithCategory[],
-  categories?: Category[],
-  accountTypes?: AccountType[],
-  ledgerYears?: number[]
-}): boolean {
+export function getStringColor(str: string, customColors?: string[]): string {
+  // A palette specifically designed for high contrast and distinct adjacent colors
+  const defaultColors = [
+    '#3b82f6', // Blue
+    '#ef4444', // Red
+    '#10b981', // Green
+    '#f59e0b', // Yellow/Orange
+    '#8b5cf6', // Purple
+    '#06b6d4', // Cyan
+    '#ec4899', // Pink
+    '#84cc16', // Lime
+    '#f97316', // Orange
+    '#6366f1', // Indigo
+    '#14b8a6', // Teal
+    '#eab308', // Yellow
+    '#d946ef', // Fuchsia
+    '#0ea5e9', // Light Blue
+    '#22c55e', // Light Green
+  ];
+
+  const colors = customColors || defaultColors;
+
+  // Better hashing to spread similar strings to different colors
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  hash = Math.abs(hash);
+  
+  // Use a prime multiplier to further scatter the index
+  const index = (hash * 31) % colors.length;
+  return colors[index];
+}
+
+export function getSectorColor(sectorName: string): string {
+  const normalized = sectorName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Semantic color mapping for known sectors
+  switch (normalized) {
+    case 'technology': return '#3b82f6'; // Blue
+    case 'cashequivalents': return '#10b981'; // Green
+    case 'financialservices': return '#14b8a6'; // Teal
+    case 'healthcare': return '#ef4444'; // Red
+    case 'energy': return '#f59e0b'; // Yellow/Orange
+    case 'industrials': return '#6366f1'; // Indigo
+    case 'consumercyclical': return '#ec4899'; // Pink
+    case 'consumerdefensive': return '#8b5cf6'; // Purple
+    case 'communicationservices': return '#0ea5e9'; // Light Blue
+    case 'utilities': return '#f97316'; // Orange
+    case 'basicmaterials': return '#84cc16'; // Lime
+    case 'realestate': return '#a855f7'; // Lavender
+    case 'others': return '#9ca3af'; // Gray
+    default: return getStringColor(sectorName); // Fallback
+  }
+}
+
+export interface ImportData {
+  databaseVersion?: number;
+  accounts?: Account[];
+  transactions?: TransactionWithCategory[];
+  categories?: Category[];
+  accountTypes?: AccountType[];
+  ledgerYears?: number[];
+  recurringTransactions?: RecurringTransaction[];
+  investmentHoldings?: any[];
+  investmentTransactions?: any[];
+  investmentHistory?: any[];
+  investmentAdjustments?: any[];
+}
+
+export function verifyImportData(
+  data: ImportData,
+  currentDatabaseVersion: number
+): { success: boolean; reason?: string } {
   try {
+    const dbVersion = data.databaseVersion;
     const accounts = data.accounts;
     const transactions = data.transactions;
     const categories = data.categories;
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
+    const recurringTransactions = data.recurringTransactions;
+    const investmentHoldings = data.investmentHoldings;
+    const investmentTransactions = data.investmentTransactions;
+    const investmentHistory = data.investmentHistory;
+    const investmentAdjustments = data.investmentAdjustments;
 
-    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined) {
-      return false;
+    if (dbVersion === undefined) {
+      console.log("Import data is missing databaseVersion (v1.x export)");
+      return { success: false, reason: "The backup file is from an older version of OneFinance (v1.x). Please update the older app to v2.0+ and re-export your data." };
+    }
+
+    if (dbVersion > currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is newer than current version ${currentDatabaseVersion}`);
+      return { success: false, reason: `The backup file is from a newer version of OneFinance (v${dbVersion}). Please update your app to match before importing.` };
+    }
+
+    if (dbVersion < currentDatabaseVersion) {
+      console.log(`Import data database version ${dbVersion} is older than current version ${currentDatabaseVersion}`);
+      return { success: false, reason: `The backup file is from an older version of OneFinance (v${dbVersion}). Please update the older app and re-export your data.` };
+    }
+
+    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined || investmentHoldings == undefined || investmentTransactions == undefined || investmentHistory == undefined || investmentAdjustments == undefined) {
+      return { success: false, reason: "The selected file is not a valid OneFinance export file." };
     }
 
     let forEachResult = true;
@@ -111,12 +202,23 @@ export function verifyImportData(data: {
         forEachResult = false;
         return;
       }
+
+      // Check if transfer account provided in transaction is valid
+      if (value.type === "transfer") {
+        if (value.transferAccountId == undefined || accounts.find((accountValue) => accountValue.id === value.transferAccountId) == undefined) {
+          forEachResult = false;
+          return;
+        }
+      }
     });
 
     accountTypes.forEach((value) => {
       if (value.id == undefined || value.type == undefined) {
         forEachResult = false;
         return;
+      }
+      if (value.classification == undefined) {
+        value.classification = "liquid";
       }
     });
 
@@ -138,10 +240,10 @@ export function verifyImportData(data: {
       }
     });
 
-    return forEachResult;
+    return forEachResult ? { success: true } : { success: false, reason: "Invalid data format." };
   } catch (e) {
     console.log(`Error verifying import data ${e}`);
-    return false;
+    return { success: false, reason: "Failed to parse import data." };
   }
 }
 
@@ -221,8 +323,8 @@ export function getMetricsForRange(range: string, transactions: TransactionWithC
     return tDate >= startDate && tDate <= endDate;
   });
 
-  const income = filtered.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const expense = filtered.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const income = filtered.filter(t => t.type === 'income' || (t.type === 'transfer' && Boolean(t.isIncomeTransfer))).reduce((sum, t) => sum + t.amount, 0);
+  const expense = filtered.filter(t => t.type === 'expense' || (t.type === 'transfer' && Boolean(t.isExpenseTransfer))).reduce((sum, t) => sum + t.amount, 0);
 
   return { income, expense, days: daysDivisor };
 }
@@ -231,7 +333,7 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
   const { startDate, endDate } = getDateRange(range, transactions, customRange);
 
   const filtered = transactions.filter(t => {
-    if (t.type !== 'expense') return false;
+    if (t.type !== 'expense' && !(t.type === 'transfer' && Boolean(t.isExpenseTransfer))) return false;
     const [y, m, d] = t.date.split('-').map(Number);
     const tDate = new Date(y, m - 1, d);
     return tDate >= startDate && tDate <= endDate;
@@ -250,6 +352,39 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
         categoryId: t.categoryId,
         categoryName: t.categoryName || 'Uncategorized',
         categoryColor: t.categoryColor || '#9ca3af',
+        categoryIcon: t.categoryIcon || 'pi-tag',
+        total: t.amount,
+        count: 1
+      });
+    }
+  }
+
+  return Array.from(breakdownMap.values()).sort((a, b) => b.total - a.total);
+}
+
+export function getIncomeBreakdownForRange(range: string, transactions: TransactionWithCategory[], customRange?: DateRange): CategoryBreakdown[] {
+  const { startDate, endDate } = getDateRange(range, transactions, customRange);
+
+  const filtered = transactions.filter(t => {
+    if (t.type !== 'income' && !(t.type === 'transfer' && Boolean(t.isIncomeTransfer))) return false;
+    const [y, m, d] = t.date.split('-').map(Number);
+    const tDate = new Date(y, m - 1, d);
+    return tDate >= startDate && tDate <= endDate;
+  });
+
+  const breakdownMap = new Map<number, CategoryBreakdown>();
+
+  for (const t of filtered) {
+    const catId = t.categoryId || 0;
+    const entry = breakdownMap.get(catId);
+    if (entry) {
+      entry.total += t.amount;
+      entry.count += 1;
+    } else {
+      breakdownMap.set(catId, {
+        categoryId: t.categoryId,
+        categoryName: t.categoryName || 'Uncategorized',
+        categoryColor: t.categoryColor || '#22c55e',
         categoryIcon: t.categoryIcon || 'pi-tag',
         total: t.amount,
         count: 1

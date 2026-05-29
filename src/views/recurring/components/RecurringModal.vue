@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import type { Transaction } from "@/types";
+import { RecurringTransaction, RecurringFrequency } from "@/types";
 import AmountInput from "@/components/AmountInput.vue";
 
 const props = defineProps<{
   visible: boolean;
-  transaction?: Transaction | null;
-  defaultYear?: number;
-  defaultMonth?: number;
+  recurring?: RecurringTransaction | null;
 }>();
 
 const emit = defineEmits<{
@@ -37,87 +35,23 @@ onUnmounted(() => {
 const form = ref({
   title: "",
   amount: 0 as number | null,
-  date: (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })(),
   type: "expense" as "income" | "expense" | "transfer",
   categoryId: null as number | null,
   accountId: null as number | null,
   transferAccountId: null as number | null,
-  notes: "",
+  frequency: "monthly" as RecurringFrequency,
+  startDate: (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })(),
   isExpenseTransfer: false,
   isIncomeTransfer: false,
 });
 
-// Get default date based on current period or today
-function getDefaultDate(): string {
-  if (props.defaultYear && props.defaultMonth) {
-    // Use the 1st of the selected month as default
-    const day = new Date().getDate();
-    const maxDay = new Date(props.defaultYear, props.defaultMonth, 0).getDate();
-    const safeDay = Math.min(day, maxDay);
-    return `${props.defaultYear}-${String(props.defaultMonth).padStart(
-      2,
-      "0"
-    )}-${String(safeDay).padStart(2, "0")}`;
-  }
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const isEditing = computed(() => !!props.recurring);
+const modalTitle = computed(() => isEditing.value ? "Edit Schedule" : "New Schedule");
 
-// Reset form when modal opens
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) {
-      if (props.transaction) {
-        // Edit mode
-        form.value = {
-          title: props.transaction.title,
-          amount: props.transaction.amount,
-          date: props.transaction.date,
-          type: props.transaction.type,
-          categoryId: props.transaction.categoryId,
-          accountId: props.transaction.accountId,
-          transferAccountId: props.transaction.transferAccountId || null,
-          notes: props.transaction.notes || "",
-          isExpenseTransfer: !!props.transaction.isExpenseTransfer,
-          isIncomeTransfer: !!props.transaction.isIncomeTransfer,
-        };
-      } else {
-        // Create mode - use current period's month/year for date
-        // Find default account that is not an asset (since default type is expense)
-        const validAccounts = store.accounts.filter(a => {
-          const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
-          return typeObj?.classification !== 'asset' && typeObj?.classification !== 'investment';
-        });
-        const defaultAccount = validAccounts.find(a => a.isDefault);
-        
-        form.value = {
-          title: "",
-          amount: 0,
-          date: getDefaultDate(),
-          type: "expense",
-          categoryId: null,
-          accountId: defaultAccount ? defaultAccount.id : (validAccounts[0]?.id || null),
-          transferAccountId: null,
-          notes: "",
-          isExpenseTransfer: false,
-          isIncomeTransfer: false,
-        };
-      }
-    }
-  }
-);
-
-const isEditing = computed(() => !!props.transaction);
-
-const modalTitle = computed(() =>
-  isEditing.value ? "Edit Transaction" : "New Transaction"
-);
-
-// Filter categories by type (optional)
+// Filter categories by type
 const filteredCategories = computed(() => 
   store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense') || (form.value.type === 'transfer' && form.value.isIncomeTransfer && c.type === 'income'))
 );
@@ -148,6 +82,7 @@ function handleIncomeToggle() {
 function handleTypeChange(newType: "income" | "expense" | "transfer") {
   form.value.type = newType;
   if (newType !== 'transfer') {
+    form.value.categoryId = null;
     form.value.isExpenseTransfer = false;
     form.value.isIncomeTransfer = false;
     const isCurrentAccountValid = filteredAccounts.value.some(a => a.id === form.value.accountId);
@@ -157,57 +92,104 @@ function handleTypeChange(newType: "income" | "expense" | "transfer") {
   }
 }
 
-// Create another
-const createAnother = ref(false);
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      if (props.recurring) {
+        form.value = {
+          title: props.recurring.title,
+          amount: props.recurring.amount,
+          type: props.recurring.type,
+          categoryId: props.recurring.categoryId,
+          accountId: props.recurring.accountId,
+          transferAccountId: props.recurring.transferAccountId || null,
+          frequency: props.recurring.frequency,
+          startDate: props.recurring.startDate,
+          isExpenseTransfer: !!props.recurring.isExpenseTransfer,
+          isIncomeTransfer: !!props.recurring.isIncomeTransfer,
+        };
+      } else {
+        const validAccounts = store.accounts.filter(a => {
+          const typeObj = store.accountTypes.find(t => t.id === a.accountTypeId);
+          return typeObj?.classification !== 'asset' && typeObj?.classification !== 'investment';
+        });
+        const defaultAccount = validAccounts.find(a => a.isDefault);
 
-// Validation
-const isValid = computed(
-  () =>
-    form.value.title.trim().length > 0 &&
-    (form.value.amount ?? 0) > 0 &&
-    form.value.date &&
-    form.value.accountId !== null &&
-    (form.value.type !== 'transfer' || (form.value.transferAccountId !== null && form.value.transferAccountId !== form.value.accountId))
+        const d = new Date();
+        form.value = {
+          title: "",
+          amount: 0,
+          type: "expense",
+          categoryId: null,
+          accountId: defaultAccount ? defaultAccount.id : (validAccounts[0]?.id || null),
+          transferAccountId: null,
+          frequency: "monthly",
+          startDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          isExpenseTransfer: false,
+          isIncomeTransfer: false,
+        };
+      }
+    }
+  },
+  { immediate: true }
 );
 
-// Save transaction
+// Validation
+const isValid = computed(() =>
+  form.value.title.trim().length > 0 &&
+  (form.value.amount ?? 0) > 0 &&
+  form.value.startDate &&
+  form.value.accountId !== null &&
+  (form.value.type !== 'transfer' || (form.value.transferAccountId !== null && form.value.transferAccountId !== form.value.accountId))
+);
+
 async function save() {
   if (!isValid.value) return;
 
   try {
+    let nextRunDate = form.value.startDate;
+    if (isEditing.value && props.recurring) {
+      // If the user didn't touch the date or frequency, keep the current schedule
+      if (form.value.startDate === props.recurring.startDate && 
+          form.value.frequency === props.recurring.frequency) {
+        nextRunDate = props.recurring.nextRunDate;
+      } else {
+        // If they DID change it, and the chosen start date is in the past,
+        // we snap it to Today to ensure the new rule only applies going forward.
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (nextRunDate < todayStr) {
+          nextRunDate = todayStr;
+        }
+      }
+    }
+
     const payload = {
       title: form.value.title,
       amount: form.value.amount ?? 0,
-      date: form.value.date,
       type: form.value.type,
-      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer && !form.value.isIncomeTransfer) ? undefined : (form.value.categoryId ?? undefined),
+      categoryId: (form.value.type === 'transfer' && !form.value.isExpenseTransfer && !form.value.isIncomeTransfer) ? null : (form.value.categoryId ?? null),
       accountId: form.value.accountId!,
-      transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? undefined) : undefined,
-      notes: form.value.notes || undefined,
+      transferAccountId: form.value.type === 'transfer' ? (form.value.transferAccountId ?? null) : null,
+      frequency: form.value.frequency,
+      startDate: form.value.startDate,
+      nextRunDate: nextRunDate,
+      isActive: isEditing.value && props.recurring ? props.recurring.isActive : true,
       isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
       isIncomeTransfer: form.value.type === 'transfer' ? form.value.isIncomeTransfer : false,
     };
 
-    if (isEditing.value && props.transaction) {
-      await store.editTransaction(props.transaction.id, payload);
-      emit("saved");
-      emit("close");
+    if (isEditing.value && props.recurring) {
+      await store.editRecurringTransaction(props.recurring.id, payload);
     } else {
-      await store.addTransaction(payload);
-
-      if (createAnother.value) {
-        // Reset specific fields for the next transaction
-        form.value.title = "";
-        form.value.amount = 0;
-        form.value.notes = "";
-        // Keep date, type, account, and category as they are often repetitive
-      } else {
-        emit("saved");
-        emit("close");
-      }
+      await store.addRecurringTransaction(payload);
     }
+    
+    emit("saved");
+    emit("close");
   } catch (error) {
-    console.error("Failed to save transaction:", error);
+    console.error("Failed to save recurring transaction:", error);
   }
 }
 
@@ -254,13 +236,16 @@ function close() {
           <!-- Type Toggle -->
           <div
             class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+            :class="{ 'opacity-75 cursor-not-allowed': isEditing }"
           >
             <button
+              :disabled="isEditing"
               :class="[
                 'flex-1 py-2 text-sm font-medium transition-colors',
                 form.type === 'expense'
                   ? 'bg-expense text-white'
-                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                !isEditing && form.type !== 'expense' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
               ]"
               @click="handleTypeChange('expense')"
             >
@@ -268,11 +253,13 @@ function close() {
               Expense
             </button>
             <button
+              :disabled="isEditing"
               :class="[
                 'flex-1 py-2 text-sm font-medium transition-colors',
                 form.type === 'income'
                   ? 'bg-income text-white'
-                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                !isEditing && form.type !== 'income' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
               ]"
               @click="handleTypeChange('income')"
             >
@@ -280,11 +267,13 @@ function close() {
               Income
             </button>
             <button
+              :disabled="isEditing"
               :class="[
                 'flex-1 py-2 text-sm font-medium transition-colors',
                 form.type === 'transfer'
                   ? 'bg-primary-500 text-white'
-                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600',
+                  : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+                !isEditing && form.type !== 'transfer' ? 'hover:bg-gray-100 dark:hover:bg-gray-600' : ''
               ]"
               @click="handleTypeChange('transfer')"
             >
@@ -303,7 +292,7 @@ function close() {
             <input
               v-model="form.title"
               type="text"
-              placeholder="e.g., Grocery shopping"
+              placeholder="e.g., Netflix Subscription"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
@@ -322,18 +311,44 @@ function close() {
             />
           </div>
 
-          <!-- Date -->
-          <div>
-            <label
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Date
-            </label>
-            <input
-              v-model="form.date"
-              type="date"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+          <!-- Frequency & Start Date Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Frequency
+              </label>
+              <select
+                v-model="form.frequency"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer"
+              >
+                <option value="weekly">
+                  Weekly
+                </option>
+                <option value="bi-weekly">
+                  Bi-Weekly
+                </option>
+                <option value="monthly">
+                  Monthly
+                </option>
+                <option value="yearly">
+                  Yearly
+                </option>
+              </select>
+            </div>
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Start Date
+              </label>
+              <input
+                v-model="form.startDate"
+                type="date"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer"
+              />
+            </div>
           </div>
 
           <!-- Account -->
@@ -380,35 +395,35 @@ function close() {
             </div>
           </div>
 
-          <!-- Transfer Expense/Income Toggle -->
+          <!-- Transfer Expense Toggle -->
           <div
             v-if="form.type === 'transfer'"
             class="flex items-center space-x-6 pt-1 pb-1"
           >
             <div class="flex items-center space-x-2">
               <input
-                id="isExpenseTransfer"
+                id="isExpenseTransferRecurring"
                 v-model="form.isExpenseTransfer"
                 type="checkbox"
                 class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
                 @change="handleExpenseToggle"
               />
               <label
-                for="isExpenseTransfer"
+                for="isExpenseTransferRecurring"
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
               >Log as Expense</label>
             </div>
-            
+
             <div class="flex items-center space-x-2">
               <input
-                id="isIncomeTransfer"
+                id="isIncomeTransferRecurring"
                 v-model="form.isIncomeTransfer"
                 type="checkbox"
                 class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
                 @change="handleIncomeToggle"
               />
               <label
-                for="isIncomeTransfer"
+                for="isIncomeTransferRecurring"
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
               >Log as Income</label>
             </div>
@@ -437,55 +452,25 @@ function close() {
               </option>
             </select>
           </div>
-
-          <!-- Notes -->
-          <div>
-            <label
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Notes (optional)
-            </label>
-            <textarea
-              v-model="form.notes"
-              rows="2"
-              placeholder="Add any additional notes..."
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-            />
-          </div>
         </div>
 
         <!-- Footer -->
         <div
-          class="flex justify-between items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0"
+          class="flex justify-end items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-x-3"
         >
-          <div :class="{'w-full flex justify-end': isEditing}">
-            <label
-              v-if="!isEditing"
-              class="flex items-center text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
-            >
-              <input
-                v-model="createAnother"
-                type="checkbox"
-                class="w-4 h-4 mr-2 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
-              />
-              Create another
-            </label>
-          </div>
-          <div class="flex space-x-3">
-            <button
-              class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              @click="close"
-            >
-              Cancel
-            </button>
-            <button
-              :disabled="!isValid"
-              class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-              @click="save"
-            >
-              {{ isEditing ? "Update" : "Create" }}
-            </button>
-          </div>
+          <button
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            @click="close"
+          >
+            Cancel
+          </button>
+          <button
+            :disabled="!isValid"
+            class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            @click="save"
+          >
+            {{ isEditing ? "Update Schedule" : "Create Schedule" }}
+          </button>
         </div>
       </div>
     </div>

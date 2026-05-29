@@ -3,9 +3,11 @@ import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import DatePicker from "primevue/datepicker";
 import { toIsoDateString } from "@/utils";
+import AmountInput from "@/components/AmountInput.vue";
 
 const props = defineProps<{
   initialAccountId?: number | null;
+  initialRecurringId?: number | null;
 }>();
 
 const store = useFinanceStore();
@@ -15,12 +17,13 @@ const searchInput = ref<HTMLInputElement | null>(null);
 // Search State
 const selectedCategoryIds = ref<number[]>([]);
 const selectedAccountIds = ref<number[]>([]);
+const selectedRecurringId = ref<number | null>(null);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);
-const typeFilter = ref<'all' | 'income' | 'expense'>('all');
-const sortOrder = ref<'desc' | 'asc'>('desc');
+const typeFilter = ref<'all' | 'income' | 'expense' | 'transfer'>('all');
+const sortOrder = ref<'desc' | 'asc' | 'amount-desc' | 'amount-asc'>('desc');
 
 // Label Picker State
 const showLabelPicker = ref(false);
@@ -88,13 +91,13 @@ function applyAmountFilter() {
   showAmountPicker.value = false;
 }
 
-function selectType(type: 'all' | 'income' | 'expense') {
+function selectType(type: 'all' | 'income' | 'expense' | 'transfer') {
   typeFilter.value = type;
   handleSearch();
   showTypePicker.value = false;
 }
 
-function selectSort(order: 'desc' | 'asc') {
+function selectSort(order: 'desc' | 'asc' | 'amount-desc' | 'amount-asc') {
   sortOrder.value = order;
   handleSearch();
   showSortPicker.value = false;
@@ -185,6 +188,7 @@ async function handleSearch() {
     text: searchText.value,
     categoryIds: [...selectedCategoryIds.value],
     accountIds: [...selectedAccountIds.value],
+    recurringId: selectedRecurringId.value ?? undefined,
     fromDate,
     toDate,
     minAmount: minAmount.value,
@@ -198,6 +202,7 @@ function clear() {
   searchText.value = "";
   selectedCategoryIds.value = [];
   selectedAccountIds.value = [];
+  selectedRecurringId.value = null;
   dateRange.value = null;
   minAmount.value = null;
   maxAmount.value = null;
@@ -210,7 +215,9 @@ function clear() {
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   // Press '/' to focus search
-  if (e.key === "/" && document.activeElement !== searchInput.value && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
+  const isInputFocused = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+  
+  if (e.key === "/" && !isInputFocused && !showLabelPicker.value && !showAmountPicker.value && !showAccountPicker.value && !showTypePicker.value && !showSortPicker.value) {
     e.preventDefault();
     searchInput.value?.focus();
     return;
@@ -242,9 +249,17 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-async function checkInitialAccountId(id?: number | null) {
-  if (id) {
-    selectedAccountIds.value = [id];
+async function checkInitialFilters() {
+  let needsSearch = false;
+  if (props.initialAccountId) {
+    selectedAccountIds.value = [props.initialAccountId];
+    needsSearch = true;
+  }
+  if (props.initialRecurringId) {
+    selectedRecurringId.value = props.initialRecurringId;
+    needsSearch = true;
+  }
+  if (needsSearch) {
     await handleSearch();
   }
 }
@@ -260,6 +275,9 @@ onMounted(async () => {
   if (store.accounts.length === 0) {
     await store.fetchAccounts();
   }
+  if (store.recurringTransactions.length === 0) {
+    await store.fetchRecurringTransactions();
+  }
 
   // Sync state from store transactionFilter (if initiated from another view)
   if (store.transactionFilter) {
@@ -267,22 +285,27 @@ onMounted(async () => {
     if (f.text) searchText.value = f.text;
     if (f.categoryIds) selectedCategoryIds.value = [...f.categoryIds];
     if (f.accountIds) selectedAccountIds.value = [...f.accountIds];
+    if (f.recurringId) selectedRecurringId.value = f.recurringId;
     if (f.fromDate) {
       const start = new Date(f.fromDate + 'T00:00:00'); 
       const end = f.toDate ? new Date(f.toDate + 'T00:00:00') : new Date(start);
       dateRange.value = [start, end];
     }
-    if (f.minAmount !== undefined) minAmount.value = f.minAmount;
-    if (f.maxAmount !== undefined) maxAmount.value = f.maxAmount;
+    if (f.minAmount !== undefined && f.minAmount !== null) minAmount.value = f.minAmount;
+    if (f.maxAmount !== undefined && f.maxAmount !== null) maxAmount.value = f.maxAmount;
     if (f.type) typeFilter.value = f.type;
     if (f.sortOrder) sortOrder.value = f.sortOrder;
   }
 
-  checkInitialAccountId(props.initialAccountId);
+  checkInitialFilters();
 });
 
-watch(() => props.initialAccountId, (newId) => {
-  checkInitialAccountId(newId);
+watch(() => props.initialAccountId, () => {
+  checkInitialFilters();
+});
+
+watch(() => props.initialRecurringId, () => {
+  checkInitialFilters();
 });
 
 onUnmounted(() => {
@@ -352,11 +375,11 @@ onUnmounted(() => {
                 @click.stop="toggleAccount(account.id)"
               >
                 <!-- Checkbox visual -->
-                <div
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
-                  :class="isAccountSelected(account.id)
-                    ? 'bg-primary-500 border-primary-500 after:block'
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
+                <input
+                  type="checkbox"
+                  :checked="isAccountSelected(account.id)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 pointer-events-none"
+                  tabindex="-1"
                 />
                 <span class="text-gray-900 dark:text-white truncate flex-1">{{ account.accountName }}</span>
               </button>
@@ -417,11 +440,11 @@ onUnmounted(() => {
                 @click.stop="toggleCategory(category.id)"
               >
                 <!-- Checkbox visual -->
-                <div
-                  class="w-4 h-4 rounded border flex items-center justify-center transition-colors after:content-[''] after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:-mt-0.5"
-                  :class="isCategorySelected(category.id)
-                    ? 'bg-primary-500 border-primary-500 after:block'
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 after:hidden'"
+                <input
+                  type="checkbox"
+                  :checked="isCategorySelected(category.id)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 pointer-events-none"
+                  tabindex="-1"
                 />
                 <!-- Icon & Name -->
                 <i
@@ -492,24 +515,20 @@ onUnmounted(() => {
           >
             <div>
               <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Min Amount</label>
-              <input
-                v-model.number="minAmount"
-                type="number"
+              <AmountInput
+                v-model="minAmount"
                 placeholder="0.00"
-                class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all"
               />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Amount</label>
-              <input
-                v-model.number="maxAmount"
-                type="number"
+              <AmountInput
+                v-model="maxAmount"
                 placeholder="∞"
-                class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all"
               />
             </div>
             <button
-              class="w-1/2 mx-auto py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded transition-colors"
+              class="w-1/2 mx-auto py-1.5 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 text-sm font-medium rounded transition-colors"
               @click="applyAmountFilter"
             >
               Apply
@@ -564,6 +583,13 @@ onUnmounted(() => {
             >
               Expense
             </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="typeFilter === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectType('transfer')"
+            >
+              Transfer
+            </button>
           </div>
         </div>
 
@@ -580,7 +606,9 @@ onUnmounted(() => {
             <i
               class="pi"
               :class="[
-                sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt',
+                sortOrder === 'desc' ? 'pi-sort-amount-down' : 
+                sortOrder === 'asc' ? 'pi-sort-amount-up-alt' :
+                sortOrder === 'amount-desc' ? 'pi-sort-numeric-down-alt' : 'pi-sort-numeric-up',
                 sortOrder !== 'desc' ? 'text-primary-500' : ''
               ]"
             />
@@ -593,7 +621,7 @@ onUnmounted(() => {
           <!-- Sort Picker Dropdown -->
           <div
             v-if="showSortPicker"
-            class="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
+            class="absolute top-full left-0 mt-2 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden p-1 space-y-0.5"
             @click.stop
           >
             <button
@@ -609,6 +637,21 @@ onUnmounted(() => {
               @click="selectSort('asc')"
             >
               Oldest First
+            </button>
+            <div class="h-px bg-gray-100 dark:bg-gray-700 my-1" />
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'amount-desc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('amount-desc')"
+            >
+              Highest Amount
+            </button>
+            <button
+              class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              :class="sortOrder === 'amount-asc' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+              @click="selectSort('amount-asc')"
+            >
+              Lowest Amount
             </button>
           </div>
         </div>
