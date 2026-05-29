@@ -58,7 +58,7 @@ void confirmModal;
         Dashboard
       </h1>
       <button
-        class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
+        class="inline-flex items-center px-5 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors"
         @click="emit('addTransaction')"
       >
         <i class="pi pi-plus mr-2" />

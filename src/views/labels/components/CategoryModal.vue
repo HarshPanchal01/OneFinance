@@ -226,7 +226,7 @@ const colors = [
           </button>
           <button
             :disabled="!categoryForm.name.trim()"
-            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
             @click="$emit('saveCategory', categoryForm)"
           >
             {{ editingCategory.id != 0 ? "Update" : "Create" }}

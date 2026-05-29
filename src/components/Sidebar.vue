@@ -30,6 +30,17 @@ onMounted(async () => {
 // Track expanded years in the tree
 const expandedYears = ref<Set<number>>(new Set());
 
+// Track expanded navigation menus
+const expandedMenus = ref<Set<string>>(new Set());
+
+function toggleMenu(id: string) {
+  if (expandedMenus.value.has(id)) {
+    expandedMenus.value.delete(id);
+  } else {
+    expandedMenus.value.add(id);
+  }
+}
+
 // Context Menu State
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
@@ -44,14 +55,22 @@ const yearToDelete = ref<number | null>(null);
 // Navigation items
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: "pi-home" },
+  { id: "accounts", label: "Accounts", icon: "pi-wallet" },
+  { id: "investments", label: "Investments", icon: "pi-briefcase" },
   { id: "transactions", label: "Transactions", icon: "pi-list" },
   { id: "recurring", label: "Schedules", icon: "pi-sync" },
-  { id: "insights", label: "Insights", icon: "pi-chart-line" },
-  { id: "accounts", label: "Accounts", icon: "pi-wallet" },
+  {
+    id: "insights-parent",
+    label: "Insights",
+    icon: "pi-chart-line",
+    children: [
+      { id: "insights", label: "General", icon: "pi-chart-bar" },
+      { id: "investment-insights", label: "Portfolio", icon: "pi-chart-pie" },
+    ]
+  },
   { id: "categories", label: "Labels", icon: "pi-tags" },
   { id: "settings", label: "Settings", icon: "pi-cog" },
 ];
-
 // Build the tree structure
 interface YearNode {
   year: number;
@@ -217,21 +236,68 @@ async function requestDeleteYear() {
     <!-- Navigation -->
     <nav class="p-2 border-b border-gray-200 dark:border-gray-700">
       <div class="space-y-1">
-        <button
+        <template
           v-for="item in navItems"
           :key="item.id"
-          :class="[
-            'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            currentView === item.id &&
-              (!store.currentLedgerMonth || item.id !== 'transactions')
-              ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
-          ]"
-          @click="handleNavClick(item.id)"
         >
-          <i :class="['pi mr-3 text-base', item.icon]" />
-          {{ item.label }}
-        </button>
+          <!-- Parent Menu Item -->
+          <div
+            v-if="item.children"
+            class="space-y-1"
+          >
+            <button
+              :class="[
+                'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
+              ]"
+              @click="toggleMenu(item.id)"
+            >
+              <i :class="['pi mr-3 text-base', item.icon]" />
+              <span class="flex-1 text-left">{{ item.label }}</span>
+              <i :class="['pi text-[10px] transition-transform', expandedMenus.has(item.id) ? 'pi-chevron-down' : 'pi-chevron-right']" />
+            </button>
+            
+            <!-- Child Menu Items -->
+            <div
+              v-if="expandedMenus.has(item.id)"
+              class="ml-4 space-y-1"
+            >
+              <button
+                v-for="child in item.children"
+                :key="child.id"
+                :class="[
+                  'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  currentView === child.id
+                    ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
+                ]"
+                @click="handleNavClick(child.id)"
+              >
+                <i
+                  v-if="'icon' in child"
+                  :class="['pi mr-3 text-base', child.icon]"
+                />
+                {{ child.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Regular Menu Item -->
+          <button
+            v-else
+            :class="[
+              'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              currentView === item.id &&
+                (!store.currentLedgerMonth || item.id !== 'transactions')
+                ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
+            ]"
+            @click="handleNavClick(item.id)"
+          >
+            <i :class="['pi mr-3 text-base', item.icon]" />
+            {{ item.label }}
+          </button>
+        </template>
       </div>
     </nav>
 
@@ -363,7 +429,7 @@ async function requestDeleteYear() {
               Cancel
             </button>
             <button
-              class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+              class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors"
               @click="addYear"
             >
               Add Year

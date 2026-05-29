@@ -5,7 +5,7 @@ import type { TooltipItem, ChartOptions, ChartData } from "chart.js";
 import { useSettingsStore } from "@/stores/settings";
 
 interface Props {
-  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar";
+  type: "bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter";
   data: ChartData;
   options?: ChartOptions;
   height?: string;
@@ -23,6 +23,10 @@ const props = withDefaults(defineProps<Props>(), {
 const settingsStore = useSettingsStore();
 
 const defaultOptions = computed(() => {
+  // Track privacyMode for reactivity
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  settingsStore.privacyMode;
+  
   const textColor = settingsStore.isDark ? "#f3f4f6" : "#111827"; // gray-100 or gray-900
   const gridColor = settingsStore.isDark ? "#374151" : "#e5e7eb"; // gray-700 or gray-200
 
@@ -50,13 +54,13 @@ const defaultOptions = computed(() => {
 
   // Add Currency Formatting to Tooltips
   if (props.currencyFormat) {
-    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar">) {
+    base.plugins!.tooltip!.callbacks!.label = function(context: TooltipItem<"bar" | "line" | "doughnut" | "pie" | "polarArea" | "radar" | "scatter">) {
         let label = context.dataset.label || '';
         if (label) {
             label += ': ';
         }
         
-        if (settingsStore.privacyMode) {
+        if (settingsStore.privacyMode && props.type !== 'doughnut' && props.type !== 'pie') {
             label += '***';
             return label;
         }
@@ -85,7 +89,7 @@ const defaultOptions = computed(() => {
   }
 
   // Add Scales Configuration (only for cartesian charts)
-  if (['bar', 'line'].includes(props.type)) {
+  if (['bar', 'line', 'scatter'].includes(props.type)) {
     base.scales = {
       x: {
         ticks: {

@@ -31,7 +31,6 @@ const chartData = computed(() => {
   const displayTrends = filteredTrends.value;
   const labels = displayTrends.map((t) => getMonthName(t.month).slice(0, 3));
   const dataTotal = displayTrends.map((t) => t.balance);
-  const dataLiquid = displayTrends.map((t) => t.liquidBalance);
 
   return {
     labels,
@@ -45,24 +44,12 @@ const chartData = computed(() => {
           above: "rgba(34, 197, 94, 0.25)",
           below: "rgba(239, 68, 68, 0.25)",
         },
-        borderColor: "#0ea5e9", // Primary Brand Blue
-        pointBackgroundColor: "#0ea5e9",
-        pointBorderColor: "#0ea5e9",
+        borderColor: "#3b82f6", // Neutral Blue
+        pointBackgroundColor: "#3b82f6",
+        pointBorderColor: "#3b82f6",
         tension: 0.4,
         pointRadius: 4,
         pointHoverRadius: 6,
-      },
-      {
-        label: "Liquid Net Worth",
-        data: dataLiquid,
-        fill: false,
-        borderColor: "#22c55e", // Green
-        pointBackgroundColor: "#22c55e",
-        pointBorderColor: "#22c55e",
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        borderDash: [5, 5],
       }
     ],
   };

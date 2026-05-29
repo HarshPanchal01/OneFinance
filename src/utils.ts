@@ -43,16 +43,80 @@ export function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
 }
 
+export function getStringColor(str: string, customColors?: string[]): string {
+  // A palette specifically designed for high contrast and distinct adjacent colors
+  const defaultColors = [
+    '#3b82f6', // Blue
+    '#ef4444', // Red
+    '#10b981', // Green
+    '#f59e0b', // Yellow/Orange
+    '#8b5cf6', // Purple
+    '#06b6d4', // Cyan
+    '#ec4899', // Pink
+    '#84cc16', // Lime
+    '#f97316', // Orange
+    '#6366f1', // Indigo
+    '#14b8a6', // Teal
+    '#eab308', // Yellow
+    '#d946ef', // Fuchsia
+    '#0ea5e9', // Light Blue
+    '#22c55e', // Light Green
+  ];
+
+  const colors = customColors || defaultColors;
+
+  // Better hashing to spread similar strings to different colors
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  hash = Math.abs(hash);
+  
+  // Use a prime multiplier to further scatter the index
+  const index = (hash * 31) % colors.length;
+  return colors[index];
+}
+
+export function getSectorColor(sectorName: string): string {
+  const normalized = sectorName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Semantic color mapping for known sectors
+  switch (normalized) {
+    case 'technology': return '#3b82f6'; // Blue
+    case 'cashequivalents': return '#10b981'; // Green
+    case 'financialservices': return '#14b8a6'; // Teal
+    case 'healthcare': return '#ef4444'; // Red
+    case 'energy': return '#f59e0b'; // Yellow/Orange
+    case 'industrials': return '#6366f1'; // Indigo
+    case 'consumercyclical': return '#ec4899'; // Pink
+    case 'consumerdefensive': return '#8b5cf6'; // Purple
+    case 'communicationservices': return '#0ea5e9'; // Light Blue
+    case 'utilities': return '#f97316'; // Orange
+    case 'basicmaterials': return '#84cc16'; // Lime
+    case 'realestate': return '#a855f7'; // Lavender
+    case 'others': return '#9ca3af'; // Gray
+    default: return getStringColor(sectorName); // Fallback
+  }
+}
+
+export interface ImportData {
+  databaseVersion?: number;
+  accounts?: Account[];
+  transactions?: TransactionWithCategory[];
+  categories?: Category[];
+  accountTypes?: AccountType[];
+  ledgerYears?: number[];
+  recurringTransactions?: RecurringTransaction[];
+  investmentHoldings?: any[];
+  investmentTransactions?: any[];
+  investmentHistory?: any[];
+  investmentAdjustments?: any[];
+}
+
 export function verifyImportData(
-  data: {
-    databaseVersion?: number;
-    accounts?: Account[];
-    transactions?: TransactionWithCategory[];
-    categories?: Category[];
-    accountTypes?: AccountType[];
-    ledgerYears?: number[];
-    recurringTransactions?: RecurringTransaction[];
-  },
+  data: ImportData,
   currentDatabaseVersion: number
 ): { success: boolean; reason?: string } {
   try {
@@ -63,6 +127,10 @@ export function verifyImportData(
     const accountTypes = data.accountTypes;
     const ledgerYears = data.ledgerYears;
     const recurringTransactions = data.recurringTransactions;
+    const investmentHoldings = data.investmentHoldings;
+    const investmentTransactions = data.investmentTransactions;
+    const investmentHistory = data.investmentHistory;
+    const investmentAdjustments = data.investmentAdjustments;
 
     if (dbVersion === undefined) {
       console.log("Import data is missing databaseVersion (v1.x export)");
@@ -79,7 +147,7 @@ export function verifyImportData(
       return { success: false, reason: `The backup file is from an older version of OneFinance (v${dbVersion}). Please update the older app and re-export your data.` };
     }
 
-    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined) {
+    if (accounts == undefined || transactions == undefined || categories == undefined || accountTypes == undefined || ledgerYears == undefined || recurringTransactions == undefined || investmentHoldings == undefined || investmentTransactions == undefined || investmentHistory == undefined || investmentAdjustments == undefined) {
       return { success: false, reason: "The selected file is not a valid OneFinance export file." };
     }
 
@@ -255,7 +323,7 @@ export function getMetricsForRange(range: string, transactions: TransactionWithC
     return tDate >= startDate && tDate <= endDate;
   });
 
-  const income = filtered.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const income = filtered.filter(t => t.type === 'income' || (t.type === 'transfer' && Boolean(t.isIncomeTransfer))).reduce((sum, t) => sum + t.amount, 0);
   const expense = filtered.filter(t => t.type === 'expense' || (t.type === 'transfer' && Boolean(t.isExpenseTransfer))).reduce((sum, t) => sum + t.amount, 0);
 
   return { income, expense, days: daysDivisor };
@@ -284,6 +352,39 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
         categoryId: t.categoryId,
         categoryName: t.categoryName || 'Uncategorized',
         categoryColor: t.categoryColor || '#9ca3af',
+        categoryIcon: t.categoryIcon || 'pi-tag',
+        total: t.amount,
+        count: 1
+      });
+    }
+  }
+
+  return Array.from(breakdownMap.values()).sort((a, b) => b.total - a.total);
+}
+
+export function getIncomeBreakdownForRange(range: string, transactions: TransactionWithCategory[], customRange?: DateRange): CategoryBreakdown[] {
+  const { startDate, endDate } = getDateRange(range, transactions, customRange);
+
+  const filtered = transactions.filter(t => {
+    if (t.type !== 'income' && !(t.type === 'transfer' && Boolean(t.isIncomeTransfer))) return false;
+    const [y, m, d] = t.date.split('-').map(Number);
+    const tDate = new Date(y, m - 1, d);
+    return tDate >= startDate && tDate <= endDate;
+  });
+
+  const breakdownMap = new Map<number, CategoryBreakdown>();
+
+  for (const t of filtered) {
+    const catId = t.categoryId || 0;
+    const entry = breakdownMap.get(catId);
+    if (entry) {
+      entry.total += t.amount;
+      entry.count += 1;
+    } else {
+      breakdownMap.set(catId, {
+        categoryId: t.categoryId,
+        categoryName: t.categoryName || 'Uncategorized',
+        categoryColor: t.categoryColor || '#22c55e',
         categoryIcon: t.categoryIcon || 'pi-tag',
         total: t.amount,
         count: 1

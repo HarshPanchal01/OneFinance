@@ -75,7 +75,7 @@ function getAccountName(id: number) {
         </h2>
       </div>
       <button
-        class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors shadow-sm"
+        class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors shadow-sm"
         @click="handleNew"
       >
         <i class="pi pi-plus mr-2 text-sm" /> New Schedule
@@ -98,7 +98,7 @@ function getAccountName(id: number) {
           Automate your fixed cash flow like subscriptions, rent, and paychecks. They will be generated automatically when due.
         </p>
         <button 
-          class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors shadow-sm"
+          class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors shadow-sm"
           @click="handleNew"
         >
           <i class="pi pi-plus mr-2 text-sm" /> Add Your First Schedule

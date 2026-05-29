@@ -152,11 +152,18 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
 
 <template>
   <div class="space-y-6 pb-6 max-w-full overflow-x-hidden overflow-y-auto h-full pr-2">
-    <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
-        Insights
-      </h1>
-    </div>
+    <header class="flex items-center justify-between shrink-0">
+      <div>
+        <div class="flex items-center space-x-3">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            General Insights
+          </h1>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Analyze your spending trends and cash flow.
+        </p>
+      </div>
+    </header>
 
     <!-- Metrics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -368,22 +375,9 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
       <!-- Net Worth Trend -->
       <div class="card p-4 lg:col-span-2 flex flex-col">
         <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
-          <!-- Custom Legend (Left) -->
-          <div class="hidden xl:flex flex-row gap-4 absolute left-0">
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-[#0ea5e9] shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Total</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm border-2 border-dashed border-[#22c55e] shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Liquid</span>
-            </div>
-          </div>
-
           <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center">
             Net Worth Trend
           </h3>
-
           <div class="z-10">
             <select
               v-model="netWorthOption"

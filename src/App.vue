@@ -14,13 +14,15 @@ import TransactionsView from "@/views/TransactionsView.vue";
 import CategoriesView from "@/views/labels/LabelsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
-import InsightsView from "@/views/insights/InsightsView.vue";
+import SpendingInsightsView from "@/views/insights/SpendingInsightsView.vue";
 import RecurringView from "@/views/recurring/RecurringView.vue";
+import PortfolioView from "@/views/investments/PortfolioView.vue";
+import InvestmentInsightsView from "@/views/insights/InvestmentInsightsView.vue";
   
 const store = useFinanceStore();
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring";
+type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
@@ -87,6 +89,15 @@ onMounted(async () => {
 
   await store.initialize();
 
+  // Auto-fetch investment prices on startup
+  await store.fetchInvestmentHoldings();
+  store.refreshInvestmentPrices();
+
+  // Refresh investment prices every 30 minutes
+  window.setInterval(() => {
+    store.refreshInvestmentPrices();
+  }, 30 * 60 * 1000);
+
   // Listen for background recurring transactions
   window.electronAPI.onRecurringProcessed(async () => {
     console.log("Background recurring transactions processed, refreshing...");
@@ -122,7 +133,11 @@ function handleKeydown(e: KeyboardEvent) {
               break;
             case "i":
               e.preventDefault();
-              currentView.value = "insights";
+              if (e.shiftKey) {
+                currentView.value = "investments";
+              } else {
+                currentView.value = "insights";
+              }
               break;
             case "l":
               e.preventDefault();
@@ -141,7 +156,18 @@ function handleKeydown(e: KeyboardEvent) {
               } else {
                 currentView.value = "recurring";
               }
-              break;    }
+              break;
+            case "p":
+              e.preventDefault();
+              if (e.shiftKey) {
+                // Toggle privacy mode
+                const settingsStore = useSettingsStore();
+                settingsStore.togglePrivacyMode();
+              } else {
+                currentView.value = "investment-insights";
+              }
+              break;    
+    }
   }
 }
 </script>
@@ -204,7 +230,9 @@ function handleKeydown(e: KeyboardEvent) {
             :highlight-account-id="activeAccountId"
             @request-view-transactions="handleRequestViewTransactions"
           />
-          <InsightsView v-else-if="currentView === 'insights'" />
+          <SpendingInsightsView v-else-if="currentView === 'insights'" />
+          <PortfolioView v-else-if="currentView === 'investments'" />
+          <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
           <RecurringView 
             v-else-if="currentView === 'recurring'" 
             @request-view-transactions="handleRequestViewTransactions"

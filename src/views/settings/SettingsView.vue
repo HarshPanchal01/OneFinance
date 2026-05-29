@@ -19,6 +19,8 @@ const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 const settingsStore = useSettingsStore();
 
+const isDev = import.meta.env.DEV;
+
 const {
   openDbLocation: _openDbLocation,
   deleteDatabase: _deleteDatabase,
@@ -32,11 +34,14 @@ const shortcuts = [
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
   { keys: ["Ctrl", "S"], description: "Go to Schedules" },
-  { keys: ["Ctrl", "I"], description: "Go to Insights" },
+  { keys: ["Ctrl", "I"], description: "Go to General Insights" },
+  { keys: ["Ctrl", "P"], description: "Go to Portfolio Insights" },
   { keys: ["Ctrl", "L"], description: "Go to Labels" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
+  { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
-  { keys: ["/"], description: "Go to Search Bar" },
+  { keys: ["Ctrl", "Shift", "P"], description: "Toggle Privacy Mode" },
+  { keys: ["/"], description: "Go to Search Bar (While on Transactions Page)" },
 ];
 
 // Load DB path and platform logo on mount
@@ -262,7 +267,10 @@ async function importData() {
       </div>
 
       <!-- Developer Options -->
-      <div class="card p-6 border-2 border-dashed border-expense/30">
+      <div
+        v-if="isDev"
+        class="card p-6 border-2 border-dashed border-expense/30"
+      >
         <h3
           class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center"
         >

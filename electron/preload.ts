@@ -1,8 +1,77 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
 const electronAPI = {
+  // ============================================
+  // INVESTMENT
+  // ============================================
+
+  getInvestmentHoldings: (accountId?: number): Promise<InvestmentHolding[]> =>
+    ipcRenderer.invoke("db:getInvestmentHoldings", accountId),
+
+  createInvestmentHolding: (data: Omit<InvestmentHolding, 'id'>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:createInvestmentHolding", data),
+
+  updateInvestmentHolding: (id: number, data: Partial<InvestmentHolding>): Promise<InvestmentHolding> =>
+    ipcRenderer.invoke("db:updateInvestmentHolding", id, data),
+
+  deleteInvestmentHolding: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteInvestmentHolding", id),
+
+  getInvestmentTransactions: (holdingId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getInvestmentTransactions", holdingId),
+  getAllInvestmentTransactions: (): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getAllInvestmentTransactions"),
+  getAccountInvestmentTransactions: (accountId: number): Promise<InvestmentTransaction[]> =>
+    ipcRenderer.invoke("db:getAccountInvestmentTransactions", accountId),
+  getCombinedInvestmentHistory: (accountId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getCombinedInvestmentHistory", accountId),
+  getAllCombinedInvestmentHistory: (): Promise<any[]> =>
+    ipcRenderer.invoke("db:getAllCombinedInvestmentHistory"),
+  getInvestmentAdjustments: (accountId?: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getInvestmentAdjustments", accountId),
+  getCombinedCashHistory: (accountId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getCombinedCashHistory", accountId),
+  getAccountTransactions: (accountId: number): Promise<TransactionWithCategory[]> =>
+    ipcRenderer.invoke("db:getAccountTransactions", accountId),
+
+  createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
+    ipcRenderer.invoke("db:createInvestmentTransaction", data),
+
+  adjustAccountCash: (accountId: number, amount: number, notes: string): Promise<any> =>
+    ipcRenderer.invoke("db:adjustAccountCash", accountId, amount, notes),
+
+  getInvestmentHistory: (accountId: number): Promise<InvestmentHistory[]> =>
+    ipcRenderer.invoke("db:getInvestmentHistory", accountId),
+  getGlobalInvestmentHistory: (): Promise<InvestmentHistory[]> =>
+    ipcRenderer.invoke("db:getGlobalInvestmentHistory"),
+  replaceInvestmentHistory: (accountId: number, histories: {date: string, totalValue: number}[]): Promise<void> =>
+    ipcRenderer.invoke("db:replaceInvestmentHistory", accountId, histories),
+  bulkUpsertInvestmentHistory: (accountId: number, histories: {date: string, totalValue: number}[]): Promise<void> =>
+    ipcRenderer.invoke("db:bulkUpsertInvestmentHistory", accountId, histories),
+  createInvestmentHistoryEntry: (accountId: number, totalValue: number, date: string): Promise<InvestmentHistory> =>
+    ipcRenderer.invoke("db:createInvestmentHistoryEntry", accountId, totalValue, date),
+
+  // ============================================
+  // FINANCE
+  // ============================================
+
+  getQuote: (symbol: string): Promise<any> =>
+    ipcRenderer.invoke("finance:getQuote", symbol),
+
+  getQuotes: (symbols: string[]): Promise<any[]> =>
+    ipcRenderer.invoke("finance:getQuotes", symbols),
+
+  searchSymbols: (query: string): Promise<any[]> =>
+    ipcRenderer.invoke("finance:searchSymbols", query),
+
+  getAssetProfile: (symbol: string): Promise<string | null> =>
+    ipcRenderer.invoke("finance:getAssetProfile", symbol),
+
+  getHistoricalPrices: (symbol: string, period1: string, period2: string): Promise<{ date: string; close: number }[]> =>
+    ipcRenderer.invoke("finance:getHistoricalPrices", symbol, period1, period2),
+
   // ============================================
   // RECURRING TRANSACTIONS
   // ============================================
@@ -92,6 +161,9 @@ const electronAPI = {
   ): Promise<TransactionWithCategory[]> =>
     ipcRenderer.invoke("db:getTransactions", ledgerMonth, limit),
 
+  getAllTransactions: (): Promise<TransactionWithCategory[]> =>
+    ipcRenderer.invoke("db:getAllTransactions"),
+
   getTransactionById: (
     id: number
   ): Promise<TransactionWithCategory | undefined> =>
@@ -138,7 +210,7 @@ const electronAPI = {
   getTotalMonthSpend: (year: number, month: number): Promise<number> =>
     ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
 
-  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number, liquidBalance: number }[]> =>
+  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
     ipcRenderer.invoke("db:getNetWorthTrend"),
 
   getDatabaseVersion: (): Promise<number> =>
@@ -157,6 +229,9 @@ const electronAPI = {
 
   openDbLocation: (): Promise<void> =>
     ipcRenderer.invoke("system:openDbLocation"),
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke("system:openExternal", url),
 
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),

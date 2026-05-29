@@ -24,8 +24,24 @@ export function useFormatter() {
     return _formatDate(dateString, forcedLocale);
   };
 
+  const getCurrencySymbol = () => {
+    const localeParts = settingsStore.resolvedLocale.split('-');
+    const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
+    
+    const parts = new Intl.NumberFormat(forcedLocale, {
+      style: 'currency',
+      currency: settingsStore.currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).formatToParts(0);
+
+    const currencyPart = parts.find(part => part.type === 'currency');
+    return currencyPart ? currencyPart.value : '$';
+  };
+
   return {
     formatCurrency,
     formatDate,
+    getCurrencySymbol,
   };
 }
