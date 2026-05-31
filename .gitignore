@@ -41,6 +41,7 @@ dist*
 GEMINI.md
 PrimeVue.md
 DATABASE_MIGRATIONS.md
+INSIGHTS_CONTEXT.md
 
 # TypeScript incremental build info
 *.tsbuildinfo
