@@ -11,6 +11,7 @@ const { formatCurrency } = useFormatter();
 // Inputs
 const principal = ref<number | null>(300000);
 const interestRate = ref<number | null>(5.5);
+const inflationRate = ref<number | null>(2.5);
 const years = ref<number | null>(30);
 const extraPayment = ref<number | null>(0);
 
@@ -23,6 +24,8 @@ interface AmortizationResult {
   monthsSaved: number;
   baseCurve: number[];
   extraCurve: number[];
+  realBaseCurve: number[];
+  realExtraCurve: number[];
   actualMonths: number;
   termMonths: number;
 }
@@ -31,6 +34,7 @@ const amortizationData = ref<AmortizationResult | null>(null);
 const calculate = () => {
   const p = principal.value || 0;
   const rate = (interestRate.value || 0) / 100;
+  const infl = (inflationRate.value || 0) / 100;
   const i = rate / 12;
   const termMonths = (years.value || 0) * 12;
   const extra = extraPayment.value || 0;
@@ -44,6 +48,8 @@ const calculate = () => {
       monthsSaved: 0,
       baseCurve: [],
       extraCurve: [],
+      realBaseCurve: [],
+      realExtraCurve: [],
       actualMonths: 0,
       termMonths: 0
     };
@@ -56,6 +62,7 @@ const calculate = () => {
   let bal = p;
   let baseInterest = 0;
   const baseCurve = [bal];
+  const realBaseCurve = [bal];
 
   for (let m = 1; m <= termMonths; m++) {
     const interest = bal * i;
@@ -64,7 +71,9 @@ const calculate = () => {
     if (bal < pmt) pmt = bal;
     bal -= pmt;
     if (m % 12 === 0 || bal === 0) {
+      const currentYear = m / 12;
       baseCurve.push(bal);
+      realBaseCurve.push(bal / Math.pow(1 + infl, currentYear));
     }
   }
 
@@ -73,6 +82,7 @@ const calculate = () => {
   let actualInterest = 0;
   let actualMonths = 0;
   const extraCurve = [actualBal];
+  const realExtraCurve = [actualBal];
   const actualPmt = basePmt + extra;
 
   // Safeguard against infinite loops (max 100 years)
@@ -84,7 +94,9 @@ const calculate = () => {
     if (actualBal < pmt) pmt = actualBal;
     actualBal -= pmt;
     if (actualMonths % 12 === 0 || actualBal === 0) {
+      const currentYear = actualMonths / 12;
       extraCurve.push(actualBal);
+      realExtraCurve.push(actualBal / Math.pow(1 + infl, currentYear));
     }
   }
 
@@ -96,6 +108,8 @@ const calculate = () => {
     monthsSaved: Math.max(0, termMonths - actualMonths),
     baseCurve,
     extraCurve,
+    realBaseCurve,
+    realExtraCurve,
     actualMonths,
     termMonths
   };
@@ -133,7 +147,18 @@ const chartData = computed(() => {
       label: 'Balance (Base)',
       data: data.baseCurve,
       borderColor: '#9ca3af', // gray-400
-      backgroundColor: '#9ca3af',
+      backgroundColor: 'rgba(156, 163, 175, 0.1)',
+      borderDash: [5, 5],
+      tension: 0.1,
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 5
+    },
+    {
+      label: 'Real Balance (Base)',
+      data: data.realBaseCurve,
+      borderColor: '#f59e0b', // amber-500
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
       borderDash: [5, 5],
       tension: 0.1,
       fill: false,
@@ -153,12 +178,25 @@ const chartData = computed(() => {
       pointRadius: 0,
       pointHoverRadius: 5
     });
+    datasets.push({
+      label: 'Real Balance (With Extra)',
+      data: data.realExtraCurve,
+      borderColor: '#34d399', // emerald-400
+      backgroundColor: 'rgba(52, 211, 153, 0.1)',
+      tension: 0.1,
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 5
+    });
   } else {
     // If no extra payment, make the base curve the primary active line
     datasets[0].borderColor = '#3b82f6';
     datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.1)';
     datasets[0].borderDash = [];
     datasets[0].fill = true;
+    
+    // Also style the real curve to match
+    datasets[1].borderDash = [];
   }
 
   return { labels, datasets };
@@ -188,8 +226,7 @@ const chartOptions = computed(() => {
         intersect: false
       },
       legend: {
-        position: 'top',
-        align: 'end'
+        display: false
       }
     },
     interaction: {
@@ -242,6 +279,20 @@ const chartOptions = computed(() => {
             />
           </div>
         </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Est. Inflation Rate (%)</label>
+          <div class="relative group">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none group-focus-within:text-primary-500 transition-colors">%</span>
+            <input 
+              v-model.number="inflationRate" 
+              type="number" 
+              min="0"
+              step="0.1"
+              class="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none" 
+            />
+          </div>
+        </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Loan Term (Years)</label>
@@ -255,23 +306,24 @@ const chartOptions = computed(() => {
         </div>
 
         <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Extra Monthly Payment</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Monthly Payment</label>
           <AmountInput
             v-model="extraPayment"
             :show-currency="true"
             placeholder="0.00"
           />
-          <p class="text-xs text-gray-500 mt-1.5">
-            Additional principal paid each month to accelerate payoff.
+          <p class="text-xs text-gray-500 mt-1.5 mb-4">
+            Total principal paid each month to accelerate payoff.
           </p>
+          <div class="flex justify-center">
+            <button 
+              class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors w-full sm:w-auto"
+              @click="calculate"
+            >
+              Calculate
+            </button>
+          </div>
         </div>
-
-        <button 
-          class="w-full mt-4 bg-primary-500 hover:bg-primary-600 text-white dark:text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          @click="calculate"
-        >
-          Calculate
-        </button>
       </div>
 
       <!-- Results & Chart (3 Columns) -->
@@ -282,7 +334,7 @@ const chartOptions = computed(() => {
           class="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           <!-- Base Monthly Payment -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Base Monthly Payment
             </p>
@@ -294,7 +346,7 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Total Interest -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total Interest
             </p>
@@ -306,7 +358,7 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Interest Saved -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Interest Saved
             </p>
@@ -318,7 +370,7 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Time Saved -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Time Saved
             </p>
@@ -334,11 +386,31 @@ const chartOptions = computed(() => {
         <!-- Chart -->
         <div
           v-if="amortizationData"
-          class="card flex-1 w-full min-h-[350px] p-4 flex flex-col"
+          class="card flex-1 w-full min-h-[350px] p-4 flex flex-col relative"
         >
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 ml-2">
-            Amortization Curve
-          </h3>
+          <div class="relative flex items-center justify-end mb-4 shrink-0 min-h-[32px]">
+            <!-- Custom Legend (Left) -->
+            <div class="hidden xl:flex flex-row gap-4 absolute left-0">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2.5 h-0 border-t-2 border-gray-400 border-dashed shrink-0" />
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Balance (Base)</span>
+              </div>
+              <div
+                v-if="(extraPayment || 0) > 0"
+                class="flex items-center gap-1.5"
+              >
+                <div class="w-2.5 h-1.5 rounded-sm bg-emerald-500 shrink-0" />
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Balance (With Extra)</span>
+              </div>
+            </div>
+
+            <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none hidden sm:block">
+              Amortization Curve
+            </h3>
+            <h3 class="absolute left-0 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base text-center whitespace-nowrap pointer-events-none block sm:hidden">
+              Amortization Curve
+            </h3>
+          </div>
           <div class="flex-1 min-h-0">
             <AppChart
               v-if="amortizationData.baseCurve.length > 0"

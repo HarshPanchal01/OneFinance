@@ -170,8 +170,7 @@ const chartOptions = computed(() => {
         intersect: false
       },
       legend: {
-        position: 'top',
-        align: 'end'
+        display: false
       }
     },
     interaction: {
@@ -259,12 +258,14 @@ const chartOptions = computed(() => {
           />
         </div>
 
-        <button 
-          class="w-full mt-4 bg-primary-500 hover:bg-primary-600 text-white dark:text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          @click="calculate"
-        >
-          Calculate
-        </button>
+        <div class="pt-2 flex justify-center">
+          <button 
+            class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors w-full sm:w-auto"
+            @click="calculate"
+          >
+            Calculate
+          </button>
+        </div>
       </div>
 
       <!-- Results & Chart (3 Columns) -->
@@ -272,7 +273,7 @@ const chartOptions = computed(() => {
         <!-- Metrics Grid -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
           <!-- Future Value -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Future Value
             </p>
@@ -284,7 +285,7 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Real Future Value -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p
               class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
               title="Adjusted for inflation"
@@ -299,7 +300,7 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Total Contributions -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Contributions
             </p>
@@ -311,36 +312,59 @@ const chartOptions = computed(() => {
             </p>
           </div>
           <!-- Total Interest -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Total Interest
+              Total Interest Earned
             </p>
             <p
               class="text-xl font-bold text-emerald-600 dark:text-emerald-500"
               :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
-              +{{ formatCurrency(totalInterest) }}
+              {{ formatCurrency(totalInterest) }}
             </p>
           </div>
           <!-- Total Return % -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total Return
             </p>
             <p
-              class="text-xl font-bold text-primary-600 dark:text-primary-400"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
+              class="text-xl font-bold"
+              :class="[
+                totalReturn > 0 ? 'text-emerald-600 dark:text-emerald-500' : 
+                totalReturn < 0 ? 'text-red-600 dark:text-red-500' : 'text-gray-600 dark:text-gray-400',
+                { 'privacy-blur': settingsStore.privacyMode }
+              ]"
             >
-              +{{ totalReturn.toFixed(1) }}%
+              {{ totalReturn > 0 ? '+' : '' }}{{ totalReturn.toFixed(1) }}%
             </p>
           </div>
         </div>
 
         <!-- Chart -->
-        <div class="card flex-1 w-full min-h-[350px] p-4 flex flex-col">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 ml-2">
-            Investment Growth Over Time
-          </h3>
+        <div class="card flex-1 w-full min-h-[350px] p-4 flex flex-col relative">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 shrink-0 gap-4">
+            <!-- Custom Legend (Left) -->
+            <div class="flex flex-wrap gap-4">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2.5 h-0 border-t-2 border-amber-500 border-dashed shrink-0" />
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Real Value</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2.5 h-1.5 rounded-sm bg-blue-500 shrink-0" />
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Contributions</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2.5 h-1.5 rounded-sm bg-emerald-500 shrink-0" />
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Future Value</span>
+              </div>
+            </div>
+
+            <!-- Title (Right/Centered on small) -->
+            <h3 class="font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base whitespace-nowrap">
+              Investment Growth Over Time
+            </h3>
+          </div>
           <div class="flex-1 min-h-0">
             <AppChart
               v-if="projectionData.length > 0"
