@@ -14,6 +14,7 @@ const monthlyContribution = ref<number | null>(500);
 const interestRate = ref<number | null>(7);
 const inflationRate = ref<number | null>(2.5);
 const years = ref<number | null>(10);
+const xAxisScale = ref<'years' | 'months'>('years');
 
 // Calculated State
 interface ProjectionPoint {
@@ -55,16 +56,30 @@ const calculate = () => {
       accumulatedInterest += interestForMonth;
       balance += interestForMonth + pmt;
       totalContrib += pmt;
+      
+      if (xAxisScale.value === 'months') {
+        const monthIndex = (y - 1) * 12 + m + 1;
+        data.push({
+          year: y,
+          label: `Month ${monthIndex}`,
+          totalContributions: totalContrib,
+          totalInterest: accumulatedInterest,
+          balance: balance,
+          realBalance: balance / Math.pow(1 + infl, monthIndex / 12)
+        });
+      }
     }
     
-    data.push({
-      year: y,
-      label: `Year ${y}`,
-      totalContributions: totalContrib,
-      totalInterest: accumulatedInterest,
-      balance: balance,
-      realBalance: balance / Math.pow(1 + infl, y)
-    });
+    if (xAxisScale.value === 'years') {
+      data.push({
+        year: y,
+        label: `Year ${y}`,
+        totalContributions: totalContrib,
+        totalInterest: accumulatedInterest,
+        balance: balance,
+        realBalance: balance / Math.pow(1 + infl, y)
+      });
+    }
   }
   projectionData.value = data;
 };
@@ -247,14 +262,32 @@ const chartOptions = computed(() => {
           </div>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Years to Grow</label>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Years to Grow: {{ years }}</label>
+            <div class="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg border border-gray-200 dark:border-gray-600">
+              <button
+                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors"
+                :class="xAxisScale === 'years' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
+                @click="xAxisScale = 'years'; calculate()"
+              >
+                Years
+              </button>
+              <button
+                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors"
+                :class="xAxisScale === 'months' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
+                @click="xAxisScale = 'months'; calculate()"
+              >
+                Months
+              </button>
+            </div>
+          </div>
           <input 
             v-model.number="years" 
-            type="number" 
+            type="range" 
             min="1"
             max="100"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none" 
+            class="w-full accent-primary-500" 
           />
         </div>
 
@@ -343,9 +376,9 @@ const chartOptions = computed(() => {
 
         <!-- Chart -->
         <div class="card flex-1 w-full min-h-[350px] p-4 flex flex-col relative">
-          <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 shrink-0 gap-4">
+          <div class="relative flex items-center justify-between mb-4 shrink-0 min-h-[32px]">
             <!-- Custom Legend (Left) -->
-            <div class="flex flex-wrap gap-4">
+            <div class="hidden md:flex flex-wrap gap-4 z-10">
               <div class="flex items-center gap-1.5">
                 <div class="w-2.5 h-0 border-t-2 border-amber-500 border-dashed shrink-0" />
                 <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Real Value</span>
@@ -360,8 +393,8 @@ const chartOptions = computed(() => {
               </div>
             </div>
 
-            <!-- Title (Right/Centered on small) -->
-            <h3 class="font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base whitespace-nowrap">
+            <!-- Title (Centered) -->
+            <h3 class="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base whitespace-nowrap z-0">
               Investment Growth Over Time
             </h3>
           </div>
