@@ -11,10 +11,23 @@ const { formatCurrency } = useFormatter();
 // Inputs
 const principal = ref<number | null>(10000);
 const monthlyContribution = ref<number | null>(500);
+const contributionPeriod = ref<'annual' | 'monthly'>('monthly');
 const interestRate = ref<number | null>(7);
+const interestRatePeriod = ref<'annual' | 'monthly'>('annual');
 const inflationRate = ref<number | null>(2.5);
+const inflationRatePeriod = ref<'annual' | 'monthly'>('annual');
 const years = ref<number | null>(10);
 const xAxisScale = ref<'years' | 'months'>('years');
+
+const periodOptions = [
+  { label: 'Annual', value: 'annual' },
+  { label: 'Monthly', value: 'monthly' }
+];
+
+const durationOptions = [
+  { label: 'Years', value: 'years' },
+  { label: 'Months', value: 'months' }
+];
 
 // Calculated State
 interface ProjectionPoint {
@@ -25,21 +38,28 @@ interface ProjectionPoint {
   balance: number;
   realBalance: number;
 }
+ 
+
 const projectionData = ref<ProjectionPoint[]>([]);
 
 const calculate = () => {
   const data: ProjectionPoint[] = [];
   const p = principal.value || 0;
-  const pmt = monthlyContribution.value || 0;
-  const rate = (interestRate.value || 0) / 100;
-  const infl = (inflationRate.value || 0) / 100;
+  const contribRaw = monthlyContribution.value || 0;
+  const pmt = contributionPeriod.value === 'annual' ? contribRaw / 12 : contribRaw;
+  
+  const rateRaw = (interestRate.value || 0) / 100;
+  const rate = interestRatePeriod.value === 'monthly' ? rateRaw * 12 : rateRaw;
+  const inflRaw = (inflationRate.value || 0) / 100;
+  const infl = inflationRatePeriod.value === 'monthly' ? inflRaw * 12 : inflRaw;
+  
   const monthlyRate = rate / 12;
   const yCount = years.value || 0;
   
   // Year 0
   data.push({
     year: 0,
-    label: 'Year 0',
+    label: '0',
     totalContributions: p,
     totalInterest: 0,
     balance: p,
@@ -61,7 +81,7 @@ const calculate = () => {
         const monthIndex = (y - 1) * 12 + m + 1;
         data.push({
           year: y,
-          label: `Month ${monthIndex}`,
+          label: `${monthIndex}`,
           totalContributions: totalContrib,
           totalInterest: accumulatedInterest,
           balance: balance,
@@ -73,7 +93,7 @@ const calculate = () => {
     if (xAxisScale.value === 'years') {
       data.push({
         year: y,
-        label: `Year ${y}`,
+        label: `${y}`,
         totalContributions: totalContrib,
         totalInterest: accumulatedInterest,
         balance: balance,
@@ -93,7 +113,7 @@ const futureValue = computed(() => {
   return data.length > 0 ? data[data.length - 1].balance : 0;
 });
 
-const realFutureValue = computed(() => {
+const realValue = computed(() => {
   const data = projectionData.value;
   return data.length > 0 ? data[data.length - 1].realBalance : 0;
 });
@@ -108,10 +128,9 @@ const totalInterest = computed(() => {
   return data.length > 0 ? data[data.length - 1].totalInterest : 0;
 });
 
-const totalReturn = computed(() => {
-  const tc = totalContributions.value;
-  if (tc === 0) return 0;
-  return (totalInterest.value / tc) * 100;
+const totalReturnPercent = computed(() => {
+  if (totalContributions.value <= 0) return 0;
+  return (totalInterest.value / totalContributions.value) * 100;
 });
 
 // Chart Configuration
@@ -124,10 +143,10 @@ const chartData = computed(() => {
         type: 'line' as const,
         label: 'Real Value (Adjusted for Inflation)',
         data: data.map(d => d.realBalance),
-        borderColor: 'rgba(245, 158, 11, 0.8)', // amber-500
+        borderColor: '#f59e0b', // amber-500
         backgroundColor: 'rgba(245, 158, 11, 0.1)',
         borderDash: [5, 5],
-        borderWidth: 2,
+        borderWidth: 1.5,
         tension: 0.3,
         fill: false,
         pointRadius: 0,
@@ -153,7 +172,7 @@ const chartData = computed(() => {
         backgroundColor: 'rgba(16, 185, 129, 0.2)',
         borderWidth: 2,
         tension: 0.3,
-        fill: '-1', // Fill down to the contributions line
+        fill: true,
         pointRadius: 0,
         pointHoverRadius: 5
       }
@@ -168,7 +187,7 @@ const chartOptions = computed(() => {
         grid: { display: false },
         title: {
           display: true,
-          text: 'Years'
+          text: xAxisScale.value === 'months' ? 'Months' : 'Years'
         }
       },
       y: {
@@ -176,31 +195,47 @@ const chartOptions = computed(() => {
         title: {
           display: true,
           text: 'Amount'
+        },
+        ticks: {
+          callback: (value: any) => formatCurrency(value)
         }
       }
     },
     plugins: {
       tooltip: {
-        mode: 'index',
-        intersect: false
+        mode: 'index' as const,
+        intersect: false,
+        callbacks: {
+          label: (context: any) => {
+            let label = context.dataset.label || '';
+            if (label) label += ': ';
+            if (context.parsed.y !== null) {
+              label += formatCurrency(context.parsed.y);
+            }
+            return label;
+          }
+        }
       },
       legend: {
         display: false
       }
     },
     interaction: {
-      mode: 'nearest',
-      axis: 'x',
+      mode: 'nearest' as const,
+      axis: 'x' as const,
       intersect: false
-    }
-  } as any;
+    },
+    maintainAspectRatio: false,
+    responsive: true
+  };
 });
 </script>
 
 <template>
-  <section>
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+  <section class="flex flex-col h-full overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400">
         <i class="pi pi-chart-line text-xl" />
       </div>
       <div>
@@ -215,9 +250,9 @@ const chartOptions = computed(() => {
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <!-- Input Form (1 Column) -->
-      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 space-y-5">
+      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 space-y-5 flex flex-col">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Initial Principal</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Initial Principal:</label>
           <AmountInput
             v-model="principal"
             :show-currency="true"
@@ -225,73 +260,159 @@ const chartOptions = computed(() => {
           />
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Monthly Contribution</label>
-          <AmountInput
-            v-model="monthlyContribution"
-            :show-currency="true"
-            placeholder="0.00"
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Contribution:</label>
+              <div class="relative flex items-center group">
+                <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none group-focus-within:text-primary-500">$</span>
+                <input 
+                  v-model.number="monthlyContribution" 
+                  type="number" 
+                  min="0"
+                  step="10"
+                  class="pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all" 
+                  :style="{ width: (String(monthlyContribution).length + 7) + 'ch' }"
+                />
+              </div>
+            </div>
+            <select 
+              v-model="contributionPeriod"
+              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+              <option
+                v-for="opt in periodOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <input 
+            v-model.number="monthlyContribution" 
+            type="range" 
+            min="0"
+            max="5000"
+            step="50"
+            class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1" 
           />
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Est. Annual Return (%)</label>
-          <div class="relative group">
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none group-focus-within:text-primary-500 transition-colors">%</span>
-            <input 
-              v-model.number="interestRate" 
-              type="number" 
-              min="0"
-              step="0.1"
-              class="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none" 
-            />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Est. Inflation Rate (%)</label>
-          <div class="relative group">
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none group-focus-within:text-primary-500 transition-colors">%</span>
-            <input 
-              v-model.number="inflationRate" 
-              type="number" 
-              min="0"
-              step="0.1"
-              class="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none" 
-            />
-          </div>
         </div>
         
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Years to Grow: {{ years }}</label>
-            <div class="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg border border-gray-200 dark:border-gray-600">
-              <button
-                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors"
-                :class="xAxisScale === 'years' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
-                @click="xAxisScale = 'years'; calculate()"
-              >
-                Years
-              </button>
-              <button
-                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors"
-                :class="xAxisScale === 'months' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
-                @click="xAxisScale = 'months'; calculate()"
-              >
-                Months
-              </button>
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Return:</label>
+              <div class="relative flex items-center group">
+                <input 
+                  v-model.number="interestRate" 
+                  type="number" 
+                  min="0"
+                  step="0.1"
+                  class="pl-2 pr-5 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all" 
+                  :style="{ width: (String(interestRate).length + 7) + 'ch' }"
+                />
+                <span class="absolute right-2 text-[10px] text-gray-400 pointer-events-none group-focus-within:text-primary-500">%</span>
+              </div>
             </div>
+            <select 
+              v-model="interestRatePeriod"
+              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+              <option
+                v-for="opt in periodOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <input 
+            v-model.number="interestRate" 
+            type="range" 
+            min="0"
+            max="30"
+            step="0.1"
+            class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1" 
+          />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Inflation Rate:</label>
+              <div class="relative flex items-center group">
+                <input 
+                  v-model.number="inflationRate" 
+                  type="number" 
+                  min="0"
+                  step="0.1"
+                  class="pl-2 pr-5 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all" 
+                  :style="{ width: (String(inflationRate).length + 7) + 'ch' }"
+                />
+                <span class="absolute right-2 text-[10px] text-gray-400 pointer-events-none group-focus-within:text-primary-500">%</span>
+              </div>
+            </div>
+            <select 
+              v-model="inflationRatePeriod"
+              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+              <option
+                v-for="opt in periodOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <input 
+            v-model.number="inflationRate" 
+            type="range" 
+            min="0"
+            max="20"
+            step="0.1"
+            class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1" 
+          />
+        </div>
+        
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Time to Grow:</label>
+              <input 
+                v-model.number="years" 
+                type="number" 
+                min="1"
+                max="100"
+                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all" 
+                :style="{ width: (String(years).length + 7) + 'ch' }"
+              />
+            </div>
+            <select 
+              v-model="xAxisScale"
+              class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer"
+            >
+              <option
+                v-for="opt in durationOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
           </div>
           <input 
             v-model.number="years" 
             type="range" 
             min="1"
             max="100"
-            class="w-full accent-primary-500" 
+            class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1" 
           />
         </div>
 
-        <div class="pt-2 flex justify-center">
+        <div class="pt-2 flex justify-center mt-auto">
           <button 
             class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors w-full sm:w-auto"
             @click="calculate"
@@ -317,22 +438,19 @@ const chartOptions = computed(() => {
               {{ formatCurrency(futureValue) }}
             </p>
           </div>
-          <!-- Real Future Value -->
+          <!-- Real Value -->
           <div class="card p-4">
-            <p
-              class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
-              title="Adjusted for inflation"
-            >
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Real Value
             </p>
             <p
               class="text-xl font-bold text-amber-600 dark:text-amber-500"
               :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
-              {{ formatCurrency(realFutureValue) }}
+              {{ formatCurrency(realValue) }}
             </p>
           </div>
-          <!-- Total Contributions -->
+          <!-- Contributions -->
           <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Contributions
@@ -344,7 +462,7 @@ const chartOptions = computed(() => {
               {{ formatCurrency(totalContributions) }}
             </p>
           </div>
-          <!-- Total Interest -->
+          <!-- Interest -->
           <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total Interest Earned
@@ -356,27 +474,23 @@ const chartOptions = computed(() => {
               {{ formatCurrency(totalInterest) }}
             </p>
           </div>
-          <!-- Total Return % -->
+          <!-- Return -->
           <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total Return
             </p>
             <p
-              class="text-xl font-bold"
-              :class="[
-                totalReturn > 0 ? 'text-emerald-600 dark:text-emerald-500' : 
-                totalReturn < 0 ? 'text-red-600 dark:text-red-500' : 'text-gray-600 dark:text-gray-400',
-                { 'privacy-blur': settingsStore.privacyMode }
-              ]"
+              class="text-xl font-bold text-emerald-600 dark:text-emerald-500"
+              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
-              {{ totalReturn > 0 ? '+' : '' }}{{ totalReturn.toFixed(1) }}%
+              +{{ totalReturnPercent.toFixed(1) }}%
             </p>
           </div>
         </div>
 
-        <!-- Chart -->
-        <div class="card flex-1 w-full min-h-[350px] p-4 flex flex-col relative">
-          <div class="relative flex items-center justify-between mb-4 shrink-0 min-h-[32px]">
+        <!-- Chart Section -->
+        <div class="card p-6 flex-1 min-h-[400px] flex flex-col relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
             <!-- Custom Legend (Left) -->
             <div class="hidden md:flex flex-wrap gap-4 z-10">
               <div class="flex items-center gap-1.5">
@@ -385,11 +499,11 @@ const chartOptions = computed(() => {
               </div>
               <div class="flex items-center gap-1.5">
                 <div class="w-2.5 h-1.5 rounded-sm bg-blue-500 shrink-0" />
-                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Contributions</span>
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Contributions</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <div class="w-2.5 h-1.5 rounded-sm bg-emerald-500 shrink-0" />
-                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Future Value</span>
+                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Future Value</span>
               </div>
             </div>
 
@@ -398,6 +512,7 @@ const chartOptions = computed(() => {
               Investment Growth Over Time
             </h3>
           </div>
+
           <div class="flex-1 min-h-0">
             <AppChart
               v-if="projectionData.length > 0"
