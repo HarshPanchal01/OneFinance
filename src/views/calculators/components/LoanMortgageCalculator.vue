@@ -31,6 +31,9 @@ const durationOptions = [
 
 interface AmortizationResult {
   basePayment: number;
+  actualPayment: number;
+  hasCustomPayment: boolean;
+  xScale: 'years' | 'months';
   totalInterestBase: number;
   totalInterestActual: number;
   interestSaved: number;
@@ -39,7 +42,6 @@ interface AmortizationResult {
   extraCurve: number[];
   realBaseCurve: number[];
   realExtraCurve: number[];
-  // Cumulative interest paid at each plotted data point (for tooltips)
   baseInterestAtPoint: number[];
   extraInterestAtPoint: number[];
   actualMonths: number;
@@ -56,13 +58,17 @@ const calculate = () => {
   const inflRaw = Math.max(0, Math.min((inflationRate.value || 0), 100)) / 100;
   const infl = inflationRatePeriod.value === 'monthly' ? inflRaw * 12 : inflRaw;
   const i = rate / 12;
-  const termMonths = Math.max(1, Math.min(Math.floor(years.value || 1), 100)) * 12;
+  // years.value is the raw period count — months when scale is 'months', years when 'years'.
+  const termMonths = xAxisScale.value === 'months'
+    ? Math.max(1, Math.min(Math.floor(years.value || 1), 600))
+    : Math.max(1, Math.min(Math.floor(years.value || 1), 100)) * 12;
   const userPmtRaw = Math.max(0, customMonthlyPayment.value || 0);
   const userPmt = customMonthlyPaymentPeriod.value === 'annual' ? userPmtRaw / 12 : userPmtRaw;
 
   if (p <= 0 || termMonths <= 0) {
     amortizationData.value = {
-      basePayment: 0, totalInterestBase: 0, totalInterestActual: 0,
+      basePayment: 0, actualPayment: 0, hasCustomPayment: false, xScale: xAxisScale.value,
+      totalInterestBase: 0, totalInterestActual: 0,
       interestSaved: 0, monthsSaved: 0,
       baseCurve: [], extraCurve: [], realBaseCurve: [], realExtraCurve: [],
       baseInterestAtPoint: [], extraInterestAtPoint: [],
@@ -122,6 +128,9 @@ const calculate = () => {
 
   amortizationData.value = {
     basePayment: basePmt,
+    actualPayment: actualPmt,
+    hasCustomPayment: actualPmt > basePmt,
+    xScale: xAxisScale.value,
     totalInterestBase: baseInterest,
     totalInterestActual: actualInterest,
     interestSaved: Math.max(0, baseInterest - actualInterest),
@@ -145,11 +154,12 @@ const formatTime = (totalMonths: number) => {
   return `${y} yr, ${m} mo`;
 };
 
-// Milestone dots every 5 years (or every 60 months)
+// Milestone dots every 5 years (or every 60 months) — reads data.xScale (snapshot at Calculate time),
+// not xAxisScale, so toggling the scale select doesn't trigger chartData recomputation.
 const milestonePointRadii = computed(() => {
   const data = amortizationData.value;
   if (!data) return [];
-  const interval = xAxisScale.value === 'months' ? 60 : 5;
+  const interval = data.xScale === 'months' ? 60 : 5;
   return data.baseCurve.map((_, i) => (i > 0 && i % interval === 0 ? 4 : 0));
 });
 
@@ -180,7 +190,7 @@ const chartData = computed(() => {
   const maxLen = Math.max(data.baseCurve.length, data.extraCurve.length);
   const labels = Array.from({ length: maxLen }, (_, i) => `${i}`);
   const radii = milestonePointRadii.value;
-  const hasCustom = (customMonthlyPayment.value || 0) > 0;
+  const hasCustom = data.hasCustomPayment;
 
   const datasets: any[] = [
     {
@@ -254,8 +264,7 @@ const chartData = computed(() => {
 
 const chartOptions = computed(() => {
   const privacy = settingsStore.privacyMode;
-  const data = amortizationData.value;
-  const hasCustom = (customMonthlyPayment.value || 0) > 0;
+  const storedScale = amortizationData.value?.xScale ?? 'years';
 
   return {
     animations: {
@@ -268,7 +277,7 @@ const chartOptions = computed(() => {
     scales: {
       x: {
         grid: { display: false },
-        title: { display: true, text: xAxisScale.value === 'months' ? 'Months' : 'Years' }
+        title: { display: true, text: storedScale === 'months' ? 'Months' : 'Years' }
       },
       y: {
         beginAtZero: true,
@@ -285,28 +294,12 @@ const chartOptions = computed(() => {
         callbacks: {
           title: (items: any[]) => {
             if (!items.length) return '';
-            return xAxisScale.value === 'months' ? `Month ${items[0].label}` : `Year ${items[0].label}`;
+            return storedScale === 'months' ? `Month ${items[0].label}` : `Year ${items[0].label}`;
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
             const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
             return `${label}: ${value}`;
-          },
-          afterBody: (items: any[]) => {
-            if (privacy || !data || !items.length) return [];
-            const idx = items[0].dataIndex;
-            const lines: string[] = [];
-            const baseInterest = data.baseInterestAtPoint[idx];
-            if (baseInterest != null && baseInterest > 0) {
-              lines.push(`Interest Paid (Base): ${formatCurrency(baseInterest)}`);
-            }
-            if (hasCustom) {
-              const extraInterest = data.extraInterestAtPoint[idx];
-              if (extraInterest != null && extraInterest > 0) {
-                lines.push(`Interest Paid (Accelerated): ${formatCurrency(extraInterest)}`);
-              }
-            }
-            return lines;
           }
         }
       },
@@ -338,9 +331,9 @@ const chartOptions = computed(() => {
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <!-- Input Form -->
-      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 space-y-4">
+      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 flex flex-col gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Loan Amount (Principal):</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Loan Amount:</label>
           <AmountInput
             v-model="principal"
             :show-currency="true"
@@ -472,7 +465,7 @@ const chartOptions = computed(() => {
               v-model.number="years"
               type="number"
               min="1"
-              max="100"
+              :max="xAxisScale === 'months' ? 600 : 100"
               class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
               :style="{ width: Math.max(3, String(years ?? '').length) + 4 + 'ch' }"
             />
@@ -493,11 +486,11 @@ const chartOptions = computed(() => {
             v-model.number="years"
             type="range"
             min="1"
-            max="100"
+            :max="xAxisScale === 'months' ? 600 : 100"
             class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1"
           />
         </div>
-        <div class="flex justify-end mt-2">
+        <div class="flex justify-center my-auto">
           <button
             class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors font-medium text-sm"
             @click="onCalculate"
@@ -516,13 +509,13 @@ const chartOptions = computed(() => {
         >
           <div class="card p-4">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Base Monthly Payment
+              {{ amortizationData.hasCustomPayment ? 'Monthly Payment' : 'Base Monthly Payment' }}
             </p>
             <p
               class="text-lg font-bold text-blue-600 dark:text-blue-500 truncate"
               :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
-              {{ formatCurrency(amortizationData.basePayment) }}
+              {{ formatCurrency(amortizationData.hasCustomPayment ? amortizationData.actualPayment : amortizationData.basePayment) }}
             </p>
           </div>
           <div class="card p-4">
@@ -542,7 +535,7 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold truncate transition-colors"
-              :class="[(customMonthlyPayment || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600', { 'privacy-blur': settingsStore.privacyMode }]"
+              :class="[amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600', { 'privacy-blur': settingsStore.privacyMode }]"
             >
               {{ formatCurrency(amortizationData.interestSaved) }}
             </p>
@@ -553,7 +546,7 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold truncate transition-colors"
-              :class="(customMonthlyPayment || 0) > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600'"
+              :class="amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600'"
             >
               {{ formatTime(amortizationData.monthsSaved) }}
             </p>
@@ -567,7 +560,7 @@ const chartOptions = computed(() => {
               <div class="flex items-center gap-1.5">
                 <div
                   class="shrink-0"
-                  :class="(customMonthlyPayment || 0) > 0
+                  :class="amortizationData?.hasCustomPayment
                     ? 'w-2.5 h-0 border-t-2 border-dashed border-gray-400'
                     : 'w-2.5 h-1.5 rounded-sm bg-blue-500'"
                 />
@@ -577,7 +570,7 @@ const chartOptions = computed(() => {
                 <div class="w-2.5 h-0 border-t-2 border-amber-500 border-dashed shrink-0" />
                 <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Real Balance</span>
               </div>
-              <template v-if="(customMonthlyPayment || 0) > 0">
+              <template v-if="amortizationData?.hasCustomPayment">
                 <div class="flex items-center gap-1.5">
                   <div class="w-2.5 h-1.5 rounded-sm bg-emerald-500 shrink-0" />
                   <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Accelerated</span>

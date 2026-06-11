@@ -53,7 +53,11 @@ const calculate = () => {
   const infl = inflationRatePeriod.value === 'monthly' ? inflRaw * 12 : inflRaw;
 
   const monthlyRate = rate / 12;
-  const yCount = Math.max(1, Math.min(Math.floor(years.value || 1), 100));
+  // years.value is the raw period count — months when scale is 'months', years when 'years'.
+  // Never multiply by 12 here; do it only in years mode.
+  const totalMonths = xAxisScale.value === 'months'
+    ? Math.max(1, Math.min(Math.floor(years.value || 1), 600))
+    : Math.max(1, Math.min(Math.floor(years.value || 1), 100)) * 12;
 
   data.push({ year: 0, label: '0', totalContributions: p, totalInterest: 0, balance: p, realBalance: p });
 
@@ -61,45 +65,43 @@ const calculate = () => {
   let accumulatedInterest = 0;
   let balance = p;
 
-  for (let y = 1; y <= yCount; y++) {
-    for (let m = 0; m < 12; m++) {
-      const interestForMonth = balance * monthlyRate;
-      accumulatedInterest += interestForMonth;
-      balance += interestForMonth + pmt;
-      totalContrib += pmt;
+  for (let m = 1; m <= totalMonths; m++) {
+    const interestForMonth = balance * monthlyRate;
+    accumulatedInterest += interestForMonth;
+    balance += interestForMonth + pmt;
+    totalContrib += pmt;
 
-      if (xAxisScale.value === 'months') {
-        const monthIndex = (y - 1) * 12 + m + 1;
-        data.push({
-          year: y,
-          label: `${monthIndex}`,
-          totalContributions: totalContrib,
-          totalInterest: accumulatedInterest,
-          balance,
-          realBalance: balance / Math.pow(1 + infl, monthIndex / 12)
-        });
-      }
-    }
-
-    if (xAxisScale.value === 'years') {
+    if (xAxisScale.value === 'months') {
       data.push({
-        year: y,
-        label: `${y}`,
+        year: Math.ceil(m / 12),
+        label: `${m}`,
         totalContributions: totalContrib,
         totalInterest: accumulatedInterest,
         balance,
-        realBalance: balance / Math.pow(1 + infl, y)
+        realBalance: balance / Math.pow(1 + infl, m / 12)
+      });
+    } else if (m % 12 === 0) {
+      data.push({
+        year: m / 12,
+        label: `${m / 12}`,
+        totalContributions: totalContrib,
+        totalInterest: accumulatedInterest,
+        balance,
+        realBalance: balance / Math.pow(1 + infl, m / 12)
       });
     }
   }
   projectionData.value = data;
 };
 
-// Populate data before first render so AppChart mounts with real data immediately.
-// Subsequent recalculations are triggered by the Calculate button (chartKey remounts AppChart).
+// Snapshot of xAxisScale at the time Calculate was last clicked.
+// Prevents milestonePointRadii and chartOptions from reacting to the scale toggle directly.
+const calculatedScale = ref<'years' | 'months'>('years');
+
 calculate();
+calculatedScale.value = xAxisScale.value;
 const chartKey = ref(0);
-const onCalculate = () => { calculate(); chartKey.value++; };
+const onCalculate = () => { calculate(); calculatedScale.value = xAxisScale.value; chartKey.value++; };
 
 const futureValue = computed(() => projectionData.value.at(-1)?.balance ?? 0);
 const realValue = computed(() => projectionData.value.at(-1)?.realBalance ?? 0);
@@ -109,9 +111,10 @@ const totalReturnPercent = computed(() =>
   totalContributions.value > 0 ? (totalInterest.value / totalContributions.value) * 100 : 0
 );
 
-// Milestone dots every 5 years (or every 60 months)
+// Milestone dots every 5 years (or every 60 months) — reads calculatedScale, not xAxisScale,
+// so toggling the scale select doesn't trigger chartData recomputation before Calculate is clicked.
 const milestonePointRadii = computed(() => {
-  const interval = xAxisScale.value === 'months' ? 60 : 5;
+  const interval = calculatedScale.value === 'months' ? 60 : 5;
   return projectionData.value.map((_, i) => (i > 0 && i % interval === 0 ? 4 : 0));
 });
 
@@ -203,7 +206,7 @@ const chartOptions = computed(() => {
     scales: {
       x: {
         grid: { display: false },
-        title: { display: true, text: xAxisScale.value === 'months' ? 'Months' : 'Years' }
+        title: { display: true, text: calculatedScale.value === 'months' ? 'Months' : 'Years' }
       },
       y: {
         beginAtZero: true,
@@ -220,20 +223,12 @@ const chartOptions = computed(() => {
         callbacks: {
           title: (items: any[]) => {
             if (!items.length) return '';
-            return xAxisScale.value === 'months' ? `Month ${items[0].label}` : `Year ${items[0].label}`;
+            return calculatedScale.value === 'months' ? `Month ${items[0].label}` : `Year ${items[0].label}`;
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
             const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
             return `${label}: ${value}`;
-          },
-          afterBody: (items: any[]) => {
-            if (privacy || !items.length) return [];
-            const futureVal = items.find(i => i.datasetIndex === 2)?.parsed.y ?? 0;
-            const contrib = items.find(i => i.datasetIndex === 1)?.parsed.y ?? 0;
-            const interest = futureVal - contrib;
-            if (interest <= 0) return [];
-            return [`Interest Earned: ${formatCurrency(interest)}`];
           }
         }
       },
@@ -265,7 +260,7 @@ const chartOptions = computed(() => {
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <!-- Input Form -->
-      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 space-y-4">
+      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 flex flex-col gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Initial Principal:</label>
           <AmountInput
@@ -277,7 +272,7 @@ const chartOptions = computed(() => {
 
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Contribution:</label>
+            <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Contribution Plan:</label>
             <div class="relative flex items-center group">
               <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none group-focus-within:text-primary-500">$</span>
               <input
@@ -314,7 +309,7 @@ const chartOptions = computed(() => {
 
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Return:</label>
+            <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Return Rate:</label>
             <div class="relative flex items-center group">
               <input
                 v-model.number="interestRate"
@@ -393,7 +388,7 @@ const chartOptions = computed(() => {
               v-model.number="years"
               type="number"
               min="1"
-              max="100"
+              :max="xAxisScale === 'months' ? 600 : 100"
               class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
               :style="{ width: Math.max(3, String(years ?? '').length) + 4 + 'ch' }"
             />
@@ -414,11 +409,11 @@ const chartOptions = computed(() => {
             v-model.number="years"
             type="range"
             min="1"
-            max="100"
+            :max="xAxisScale === 'months' ? 600 : 100"
             class="w-full h-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary-500 [&::-webkit-slider-thumb]:dark:bg-primary-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-primary-500 [&::-moz-range-thumb]:dark:bg-primary-300 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md mt-1"
           />
         </div>
-        <div class="flex justify-end mt-2">
+        <div class="flex justify-center my-auto">
           <button
             class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors font-medium text-sm"
             @click="onCalculate"
