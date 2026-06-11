@@ -42,6 +42,7 @@ GEMINI.md
 PrimeVue.md
 DATABASE_MIGRATIONS.md
 INSIGHTS_CONTEXT.md
+CLAUDE.md
 
 # TypeScript incremental build info
 *.tsbuildinfo
