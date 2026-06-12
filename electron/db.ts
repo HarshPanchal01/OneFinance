@@ -136,6 +136,9 @@ export function initializeDatabase(): void {
       startingBalance REAL NOT NULL,
       accountTypeId INTEGER,
       isDefault BOOLEAN NOT NULL,
+      interestRate REAL DEFAULT NULL,
+      interestCompounding TEXT DEFAULT NULL,
+      nextInterestDate TEXT DEFAULT NULL,
       FOREIGN KEY (accountTypeId) REFERENCES accountType(id) ON DELETE SET NULL
     )
   `);
@@ -261,6 +264,7 @@ export function initializeDatabase(): void {
   `);
 
   processRecurringTransactions();
+  processSavingsInterest();
 
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
 }
@@ -351,6 +355,124 @@ export function processRecurringTransactions(): boolean {
   } catch (e) {
     if (db.inTransaction) db.exec('ROLLBACK');
     console.error('[DB] Error processing recurring transactions:', e);
+    return false;
+  }
+}
+
+function advanceInterestDate(dateStr: string, compounding: string): string {
+  const parts = dateStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const date = new Date(year, month, day);
+
+  const monthsMap: Record<string, number> = {
+    monthly: 1,
+    quarterly: 3,
+    'semi-annually': 6,
+    annually: 12,
+  };
+  const monthsToAdd = monthsMap[compounding] ?? 1;
+  const targetMonth = date.getMonth() + monthsToAdd;
+  date.setMonth(targetMonth);
+  if (date.getMonth() !== targetMonth % 12) {
+    date.setDate(0);
+  }
+
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+
+function periodsPerYear(compounding: string): number {
+  if (compounding === 'monthly') return 12;
+  if (compounding === 'quarterly') return 4;
+  if (compounding === 'semi-annually') return 2;
+  if (compounding === 'annually') return 1;
+  return 12;
+}
+
+/**
+ * Processes savings interest for all eligible accounts.
+ * Calculates balance as-of each period date so compounding is accurate,
+ * and backfills all missed periods (same catch-up pattern as recurring transactions).
+ * @returns boolean - true if any interest transactions were created
+ */
+export function processSavingsInterest(): boolean {
+  try {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const dueAccounts = db.prepare(`
+      SELECT * FROM accounts
+      WHERE interestRate IS NOT NULL AND interestRate > 0
+        AND interestCompounding IS NOT NULL
+        AND nextInterestDate IS NOT NULL
+        AND nextInterestDate <= ?
+    `).all(todayStr) as Account[];
+
+    if (dueAccounts.length === 0) return false;
+
+    const otherCat = db.prepare("SELECT id FROM categories WHERE name = 'Other' LIMIT 1").get() as { id: number } | undefined;
+    const interestCategoryId: number | null = otherCat?.id ?? null;
+
+    db.exec('BEGIN TRANSACTION');
+
+    const getBalanceAsOf = db.prepare(`
+      SELECT a.startingBalance + COALESCE(SUM(
+        CASE
+          WHEN t.type = 'income' THEN t.amount
+          WHEN t.type = 'expense' THEN -t.amount
+          WHEN t.type = 'transfer' AND t.accountId = a.id THEN -t.amount
+          WHEN t.type = 'transfer' AND t.transferAccountId = a.id THEN t.amount
+          ELSE 0
+        END
+      ), 0) AS balance
+      FROM accounts a
+      LEFT JOIN transactions t ON (t.accountId = a.id OR t.transferAccountId = a.id) AND t.date <= ?
+      WHERE a.id = ?
+    `);
+
+    const insertTx = db.prepare(`
+      INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId, recurringId, isExpenseTransfer, isIncomeTransfer)
+      VALUES ('Interest', ?, ?, 'income', 'Savings interest', ?, ?, NULL, NULL, 0, 0)
+    `);
+
+    const updateAccount = db.prepare(`
+      UPDATE accounts SET nextInterestDate = ? WHERE id = ?
+    `);
+
+    let anyCreated = false;
+
+    for (const account of dueAccounts) {
+      let currentDateStr = account.nextInterestDate!;
+      const periods = periodsPerYear(account.interestCompounding!);
+      const periodRate = account.interestRate! / periods;
+
+      while (currentDateStr <= todayStr) {
+        const row = getBalanceAsOf.get(currentDateStr, account.id) as { balance: number };
+        const balance = row?.balance ?? 0;
+
+        if (balance > 0) {
+          const interest = Math.round(balance * periodRate * 100) / 100;
+          if (interest >= 0.01) {
+            insertTx.run(interest, currentDateStr, interestCategoryId, account.id);
+            anyCreated = true;
+          }
+        }
+
+        currentDateStr = advanceInterestDate(currentDateStr, account.interestCompounding!);
+      }
+
+      updateAccount.run(currentDateStr, account.id);
+    }
+
+    db.exec('COMMIT');
+    if (anyCreated) console.log('[DB] Processed savings interest.');
+    return anyCreated;
+  } catch (e) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('[DB] Error processing savings interest:', e);
     return false;
   }
 }
@@ -514,10 +636,12 @@ export function insertAccount(account: Account): number | null{
       resetDefault();
     }
   
-    const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)");
-    const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
+    const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault, interestRate, interestCompounding, nextInterestDate) VALUES (?,?,?,?,?,?,?,?)");
+    const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault), account.interestRate ?? null, account.interestCompounding ?? null, account.nextInterestDate ?? null);
 
-    return Number(result.lastInsertRowid);
+    const newId = Number(result.lastInsertRowid);
+    processSavingsInterest();
+    return newId;
   } catch {
     return null;
   }
@@ -560,16 +684,23 @@ export function editAccount(account: Account): void {
         institutionName = ?,
         startingBalance = ?,
         accountTypeId = ?,
-        isDefault = ?
+        isDefault = ?,
+        interestRate = ?,
+        interestCompounding = ?,
+        nextInterestDate = ?
       WHERE id = ?
     `).run(
       account.accountName,
       account.institutionName,
       account.startingBalance,
       account.accountTypeId,
-      account.isDefault ? 1 : 0, 
+      account.isDefault ? 1 : 0,
+      account.interestRate ?? null,
+      account.interestCompounding ?? null,
+      account.nextInterestDate ?? null,
       account.id
     );
+    processSavingsInterest();
   } catch(e){
     console.log(e);
   }

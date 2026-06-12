@@ -95,6 +95,10 @@ const electronAPI = {
     ipcRenderer.on("recurring-processed", callback);
   },
 
+  onSavingsInterestProcessed: (callback: () => void) => {
+    ipcRenderer.on("savings-interest-processed", callback);
+  },
+
   // ============================================
   // LEDGER YEARS
   // ============================================
