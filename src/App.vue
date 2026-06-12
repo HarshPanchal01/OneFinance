@@ -108,6 +108,14 @@ onMounted(async () => {
     store.fetchPeriodSummarySync();
   });
 
+  // Listen for background savings interest
+  window.electronAPI.onSavingsInterestProcessed(async () => {
+    console.log("Background savings interest processed, refreshing...");
+    await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+    await store.fetchAccounts();
+    store.fetchPeriodSummarySync();
+  });
+
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
 });

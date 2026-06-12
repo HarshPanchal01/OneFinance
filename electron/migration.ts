@@ -214,5 +214,31 @@ function migrate1to2(db: any): void {
   } catch (e) {
     console.error('[Migration] Migration error creating investment tables:', e);
   }
+
+  // Add savings account interest fields
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN interestRate REAL DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding interestRate to accounts:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN interestCompounding TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding interestCompounding to accounts:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN nextInterestDate TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding nextInterestDate to accounts:', error);
+    }
+  }
 }
 

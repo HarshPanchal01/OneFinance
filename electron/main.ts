@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { initializeDatabase, processRecurringTransactions } from './db'
+import { initializeDatabase, processRecurringTransactions, processSavingsInterest } from './db'
 import { registerIpcHandlers } from './ipc'
 import fs from 'fs'
 
@@ -131,12 +131,15 @@ if (isDev) {
   console.log(`[Main] Running in dev mode. UserData: ${devUserDataPath}`);
 }
 
-// Background task to check for due recurring transactions
+// Background task to check for due recurring transactions and savings interest
 function startRecurringTransactionsTask() {
   // Check every 1 minute
   setInterval(() => {
     if (processRecurringTransactions()) {
       BrowserWindow.getAllWindows().forEach(w => w.webContents.send('recurring-processed'));
+    }
+    if (processSavingsInterest()) {
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('savings-interest-processed'));
     }
   }, 60 * 1000);
 }

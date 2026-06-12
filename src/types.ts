@@ -32,6 +32,9 @@ export interface Account{
   balance?: number
   accountTypeId: number
   isDefault: boolean
+  interestRate?: number | null
+  interestCompounding?: string | null
+  nextInterestDate?: string | null
 }
 
 export interface InvestmentHolding {

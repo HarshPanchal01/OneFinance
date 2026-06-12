@@ -412,153 +412,152 @@ const chartOptions = computed(() => {
     >
       <!-- Left column: input + post-calculate explanation -->
       <div class="lg:col-span-2 flex flex-col gap-4">
-      <!-- Input Panel -->
-      <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 flex flex-col gap-4">
-        <!-- Debt Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <th class="text-left pb-2 pr-2">
-                  Debt Name
-                </th>
-                <th class="text-left pb-2 pr-2">
-                  Balance
-                </th>
-                <th class="text-left pb-2 pr-2">
-                  Rate %
-                </th>
-                <th class="text-left pb-2 pr-2">
-                  Min. Payment
-                </th>
-                <th class="pb-2 w-6" />
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-700/60">
-              <tr
-                v-for="debt in debts"
-                :key="debt.id"
-              >
-                <td class="py-1.5 pr-2">
-                  <input
-                    v-model="debt.name"
-                    type="text"
-                    placeholder="e.g. Credit Card"
-                    class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  />
-                </td>
-                <td class="py-1.5 pr-2">
-                  <div class="relative flex items-center">
-                    <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
+        <!-- Input Panel -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 flex flex-col gap-4">
+          <!-- Debt Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th class="text-left pb-2 pr-2">
+                    Debt Name
+                  </th>
+                  <th class="text-left pb-2 pr-2">
+                    Balance
+                  </th>
+                  <th class="text-left pb-2 pr-2">
+                    Rate %
+                  </th>
+                  <th class="text-left pb-2 pr-2">
+                    Min. Payment
+                  </th>
+                  <th class="pb-2 w-6" />
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-700/60">
+                <tr
+                  v-for="debt in debts"
+                  :key="debt.id"
+                >
+                  <td class="py-1.5 pr-2">
                     <input
-                      v-model.number="debt.balance"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      class="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      v-model="debt.name"
+                      type="text"
+                      placeholder="e.g. Credit Card"
+                      class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     />
-                  </div>
-                </td>
-                <td class="py-1.5 pr-2">
-                  <div class="relative flex items-center">
-                    <input
-                      v-model.number="debt.rate"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      placeholder="0.0"
-                      class="w-full pl-2 pr-5 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    />
-                    <span class="absolute right-2 text-[10px] text-gray-400 pointer-events-none">%</span>
-                  </div>
-                </td>
-                <td class="py-1.5 pr-2">
-                  <div class="relative flex items-center">
-                    <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
-                    <input
-                      v-model.number="debt.minPayment"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      class="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                </td>
-                <td class="py-1.5 text-center">
-                  <button
-                    :disabled="debts.length <= 1"
-                    class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                    @click="removeDebt(debt.id)"
-                  >
-                    <i class="pi pi-times text-xs" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <button
-            class="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium flex items-center gap-1 transition-colors"
-            @click="addDebt"
-          >
-            <i class="pi pi-plus text-[10px]" />
-            Add Debt
-          </button>
-        </div>
-
-        <!-- Extra Payment -->
-        <div>
-          <div class="flex items-center gap-2">
-            <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Extra Monthly Payment:</label>
-            <div class="relative flex items-center">
-              <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
-              <input
-                v-model.number="extraPayment"
-                type="number"
-                min="0"
-                step="50"
-                placeholder="0"
-                class="pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
-                :style="{ width: Math.max(4, String(extraPayment ?? '').length) + 5 + 'ch' }"
-              />
-            </div>
+                  </td>
+                  <td class="py-1.5 pr-2">
+                    <div class="relative flex items-center">
+                      <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
+                      <input
+                        v-model.number="debt.balance"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        class="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </td>
+                  <td class="py-1.5 pr-2">
+                    <div class="relative flex items-center">
+                      <input
+                        v-model.number="debt.rate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="0.0"
+                        class="w-full pl-2 pr-5 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      />
+                      <span class="absolute right-2 text-[10px] text-gray-400 pointer-events-none">%</span>
+                    </div>
+                  </td>
+                  <td class="py-1.5 pr-2">
+                    <div class="relative flex items-center">
+                      <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
+                      <input
+                        v-model.number="debt.minPayment"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        class="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </td>
+                  <td class="py-1.5 text-center">
+                    <button
+                      :disabled="debts.length <= 1"
+                      class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      @click="removeDebt(debt.id)"
+                    >
+                      <i class="pi pi-times text-xs" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <button
+              class="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium flex items-center gap-1 transition-colors"
+              @click="addDebt"
+            >
+              <i class="pi pi-plus text-[10px]" />
+              Add Debt
+            </button>
           </div>
-          <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-            Amount above all minimums — both strategies share the same total budget
-          </p>
+
+          <!-- Extra Payment -->
+          <div>
+            <div class="flex items-center gap-2">
+              <label class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">Extra Monthly Payment:</label>
+              <div class="relative flex items-center">
+                <span class="absolute left-2 text-[10px] text-gray-400 pointer-events-none">$</span>
+                <input
+                  v-model.number="extraPayment"
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="0"
+                  class="pl-5 pr-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                  :style="{ width: Math.max(4, String(extraPayment ?? '').length) + 5 + 'ch' }"
+                />
+              </div>
+            </div>
+            <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+              Amount above all minimums — both strategies share the same total budget
+            </p>
+          </div>
+
+          <div class="flex justify-center">
+            <button
+              class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors font-medium text-sm"
+              @click="onCalculate"
+            >
+              Calculate
+            </button>
+          </div>
         </div>
 
-        <div class="flex justify-center">
-          <button
-            class="px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg transition-colors font-medium text-sm"
-            @click="onCalculate"
-          >
-            Calculate
-          </button>
+        <!-- Strategy explanation (post-calculate) -->
+        <div
+          v-if="hasCalculated && strategyBreakdown"
+          class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-start gap-3"
+        >
+          <i
+            class="pi mt-0.5 shrink-0 text-base"
+            :class="strategyBreakdown.kind === 'equal'
+              ? 'pi-info-circle text-gray-400 dark:text-gray-500'
+              : 'pi-lightbulb text-blue-500 dark:text-blue-400'"
+          />
+          <div>
+            <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              {{ strategyBreakdown.kind === 'equal' ? 'Why both strategies are equal' : 'Why Avalanche is recommended' }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              {{ strategyBreakdown.message }}
+            </p>
+          </div>
         </div>
-      </div>
-
-      <!-- Strategy explanation (post-calculate) -->
-      <div
-        v-if="hasCalculated && strategyBreakdown"
-        class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-start gap-3"
-      >
-        <i
-          class="pi mt-0.5 shrink-0 text-base"
-          :class="strategyBreakdown.kind === 'equal'
-            ? 'pi-info-circle text-gray-400 dark:text-gray-500'
-            : 'pi-lightbulb text-blue-500 dark:text-blue-400'"
-        />
-        <div>
-          <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-            {{ strategyBreakdown.kind === 'equal' ? 'Why both strategies are equal' : 'Why Avalanche is recommended' }}
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-            {{ strategyBreakdown.message }}
-          </p>
-        </div>
-      </div>
-
       </div><!-- end left column -->
 
       <!-- Placeholder before first calculation -->
