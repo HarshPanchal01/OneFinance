@@ -4,18 +4,20 @@ import { useSettingsStore } from '@/stores/settings';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
 import AppChart from '@/components/AppChart.vue';
+import ErrorModal from '@/components/ErrorModal.vue';
 
 const settingsStore = useSettingsStore();
 const { formatCurrency } = useFormatter();
+const errorModal = ref<InstanceType<typeof ErrorModal> | null>(null);
 
-// Inputs
-const principal = ref<number | null>(300000);
-const interestRate = ref<number | null>(5.5);
+// Inputs — all null on startup; state is preserved across navigation via v-show in App.vue
+const principal = ref<number | null>(null);
+const interestRate = ref<number | null>(null);
 const interestRatePeriod = ref<'annual' | 'monthly'>('annual');
-const inflationRate = ref<number | null>(2.5);
+const inflationRate = ref<number | null>(null);
 const inflationRatePeriod = ref<'annual' | 'monthly'>('annual');
-const years = ref<number | null>(30);
-const customMonthlyPayment = ref<number | null>(0);
+const years = ref<number | null>(null);
+const customMonthlyPayment = ref<number | null>(null);
 const customMonthlyPaymentPeriod = ref<'annual' | 'monthly'>('monthly');
 const xAxisScale = ref<'years' | 'months'>('years');
 
@@ -141,9 +143,36 @@ const calculate = () => {
   };
 };
 
-calculate();
+const hasCalculated = ref(false);
 const chartKey = ref(0);
-const onCalculate = () => { calculate(); chartKey.value++; };
+
+const showError = (message: string) => {
+  errorModal.value?.openConfirmation({ title: 'Invalid Input', message });
+};
+
+const onCalculate = () => {
+  const p = principal.value ?? 0;
+  const rate = interestRate.value ?? 0;
+  const infl = inflationRate.value ?? 0;
+  const y = years.value ?? 0;
+  const customPmt = customMonthlyPayment.value ?? 0;
+
+  if (p <= 0) {
+    showError('Loan Amount must be greater than zero.');
+    return;
+  }
+  if (rate < 0) { showError('Interest rate cannot be negative.'); return; }
+  if (infl < 0) { showError('Inflation rate cannot be negative.'); return; }
+  if (y <= 0) {
+    showError(`Loan Term must be greater than zero ${xAxisScale.value}.`);
+    return;
+  }
+  if (customPmt < 0) { showError('Payment Plan amount cannot be negative.'); return; }
+
+  calculate();
+  hasCalculated.value = true;
+  chartKey.value++;
+};
 
 const formatTime = (totalMonths: number) => {
   if (totalMonths <= 0) return '0 mo';
@@ -314,6 +343,7 @@ const chartOptions = computed(() => {
 
 <template>
   <section class="flex flex-col">
+    <ErrorModal ref="errorModal" />
     <!-- Header -->
     <div class="flex items-center gap-4 mb-6">
       <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
@@ -500,8 +530,24 @@ const chartOptions = computed(() => {
         </div>
       </div>
 
+      <!-- Placeholder before first calculation -->
+      <div
+        v-if="!hasCalculated"
+        class="lg:col-span-3 flex items-center justify-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700"
+      >
+        <div class="text-center py-12">
+          <i class="pi pi-home text-4xl text-gray-300 dark:text-gray-600 mb-3 block" />
+          <p class="text-sm text-gray-400 dark:text-gray-500">
+            Enter your details and click Calculate to see your amortization schedule
+          </p>
+        </div>
+      </div>
+
       <!-- Results & Chart -->
-      <div class="lg:col-span-3 flex flex-col gap-4">
+      <div
+        v-else
+        class="lg:col-span-3 flex flex-col gap-4"
+      >
         <!-- Metrics Grid -->
         <div
           v-if="amortizationData"

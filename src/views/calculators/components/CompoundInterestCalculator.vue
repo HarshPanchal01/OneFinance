@@ -4,19 +4,21 @@ import { useSettingsStore } from '@/stores/settings';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
 import AppChart from '@/components/AppChart.vue';
+import ErrorModal from '@/components/ErrorModal.vue';
 
 const settingsStore = useSettingsStore();
 const { formatCurrency } = useFormatter();
+const errorModal = ref<InstanceType<typeof ErrorModal> | null>(null);
 
-// Inputs
-const principal = ref<number | null>(10000);
-const monthlyContribution = ref<number | null>(500);
+// Inputs — all null on startup; state is preserved across navigation via v-show in App.vue
+const principal = ref<number | null>(null);
+const monthlyContribution = ref<number | null>(null);
 const contributionPeriod = ref<'annual' | 'monthly'>('monthly');
-const interestRate = ref<number | null>(7);
+const interestRate = ref<number | null>(null);
 const interestRatePeriod = ref<'annual' | 'monthly'>('annual');
-const inflationRate = ref<number | null>(2.5);
+const inflationRate = ref<number | null>(null);
 const inflationRatePeriod = ref<'annual' | 'monthly'>('annual');
-const years = ref<number | null>(10);
+const years = ref<number | null>(null);
 const xAxisScale = ref<'years' | 'months'>('years');
 
 const periodOptions = [
@@ -97,11 +99,38 @@ const calculate = () => {
 // Snapshot of xAxisScale at the time Calculate was last clicked.
 // Prevents milestonePointRadii and chartOptions from reacting to the scale toggle directly.
 const calculatedScale = ref<'years' | 'months'>('years');
-
-calculate();
-calculatedScale.value = xAxisScale.value;
+const hasCalculated = ref(false);
 const chartKey = ref(0);
-const onCalculate = () => { calculate(); calculatedScale.value = xAxisScale.value; chartKey.value++; };
+
+const showError = (message: string) => {
+  errorModal.value?.openConfirmation({ title: 'Invalid Input', message });
+};
+
+const onCalculate = () => {
+  const p = principal.value ?? 0;
+  const contrib = monthlyContribution.value ?? 0;
+  const rate = interestRate.value ?? 0;
+  const infl = inflationRate.value ?? 0;
+  const y = years.value ?? 0;
+
+  if (p < 0) { showError('Initial Principal cannot be negative.'); return; }
+  if (contrib < 0) { showError('Contribution amount cannot be negative.'); return; }
+  if (rate < 0) { showError('Return rate cannot be negative.'); return; }
+  if (infl < 0) { showError('Inflation rate cannot be negative.'); return; }
+  if (y <= 0) {
+    showError(`${xAxisScale.value === 'months' ? 'Months' : 'Years'} to grow must be greater than zero.`);
+    return;
+  }
+  if (p === 0 && contrib === 0) {
+    showError('Enter an Initial Principal or a Contribution amount to project growth.');
+    return;
+  }
+
+  calculate();
+  calculatedScale.value = xAxisScale.value;
+  hasCalculated.value = true;
+  chartKey.value++;
+};
 
 const futureValue = computed(() => projectionData.value.at(-1)?.balance ?? 0);
 const realValue = computed(() => projectionData.value.at(-1)?.realBalance ?? 0);
@@ -243,6 +272,7 @@ const chartOptions = computed(() => {
 
 <template>
   <section class="flex flex-col">
+    <ErrorModal ref="errorModal" />
     <!-- Header -->
     <div class="flex items-center gap-4 mb-6">
       <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400">
@@ -423,8 +453,24 @@ const chartOptions = computed(() => {
         </div>
       </div>
 
+      <!-- Placeholder before first calculation -->
+      <div
+        v-if="!hasCalculated"
+        class="lg:col-span-3 flex items-center justify-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700"
+      >
+        <div class="text-center py-12">
+          <i class="pi pi-chart-line text-4xl text-gray-300 dark:text-gray-600 mb-3 block" />
+          <p class="text-sm text-gray-400 dark:text-gray-500">
+            Enter your details and click Calculate to see projections
+          </p>
+        </div>
+      </div>
+
       <!-- Results & Chart -->
-      <div class="lg:col-span-3 flex flex-col gap-4">
+      <div
+        v-else
+        class="lg:col-span-3 flex flex-col gap-4"
+      >
         <!-- Metrics Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           <div class="card p-4">

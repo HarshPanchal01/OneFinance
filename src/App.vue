@@ -220,26 +220,27 @@ function handleKeydown(e: KeyboardEvent) {
             @add-transaction="showQuickAddModal = true"
             @request-edit-account="handleRequestEditAccount"
           />
-          <TransactionsView 
-            v-else-if="currentView === 'transactions'" 
+          <TransactionsView
+            v-else-if="currentView === 'transactions'"
             @request-edit-account="handleRequestEditAccount"
           />
           <CategoriesView v-else-if="currentView === 'categories'" />
           <SettingsView v-else-if="currentView === 'settings'" />
-          <AccountsView 
-            v-else-if="currentView === 'accounts'" 
+          <AccountsView
+            v-else-if="currentView === 'accounts'"
             :highlight-account-id="activeAccountId"
             @request-view-transactions="handleRequestViewTransactions"
           />
           <SpendingInsightsView v-else-if="currentView === 'insights'" />
           <PortfolioView v-else-if="currentView === 'investments'" />
           <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
-          <CalculatorsView v-else-if="currentView === 'calculators'" />
-          <RecurringView 
-            v-else-if="currentView === 'recurring'" 
+          <RecurringView
+            v-else-if="currentView === 'recurring'"
             @request-view-transactions="handleRequestViewTransactions"
             @request-edit-account="handleRequestEditAccount"
           />
+          <!-- Always mounted so user inputs survive navigation between views -->
+          <CalculatorsView v-show="currentView === 'calculators'" />
         </template>
       </main>
     </div>
