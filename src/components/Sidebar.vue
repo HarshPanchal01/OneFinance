@@ -68,6 +68,7 @@ const navItems = [
       { id: "investment-insights", label: "Portfolio", icon: "pi-chart-pie" },
     ]
   },
+  { id: "calculators", label: "Calculators", icon: "pi-calculator" },
   { id: "categories", label: "Labels", icon: "pi-tags" },
   { id: "settings", label: "Settings", icon: "pi-cog" },
 ];

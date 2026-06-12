@@ -51,6 +51,7 @@ export default tseslint.config(
         Node: "readonly",
         Event: "readonly",
         MouseEvent: "readonly",
+        ResizeObserver: "readonly",
       },
     },
   },

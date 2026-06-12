@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, nextTick } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 
 const model = defineModel<number | null>({ default: 0 });
@@ -35,8 +35,28 @@ const updateSymbolWidth = () => {
   }
 };
 
-onMounted(() => {
+// When this component mounts inside a v-show parent (e.g. CalculatorsView), the parent
+// has display:none, making offsetWidth = 0. A ResizeObserver on the input fires once the
+// parent becomes visible and layout is established, letting us re-measure correctly.
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(async () => {
+  await nextTick();
   updateSymbolWidth();
+  if (props.showCurrency && inputRef.value && (symbolRef.value?.offsetWidth ?? 0) === 0) {
+    resizeObserver = new ResizeObserver(() => {
+      if ((symbolRef.value?.offsetWidth ?? 0) > 0) {
+        updateSymbolWidth();
+        resizeObserver?.disconnect();
+        resizeObserver = null;
+      }
+    });
+    resizeObserver.observe(inputRef.value);
+  }
+});
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
 });
 
 watch(currencySymbol, () => {
