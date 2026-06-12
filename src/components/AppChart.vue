@@ -204,6 +204,7 @@ const chartOptions = computed(() => {
 
   return merged;
 });
+
 </script>
 
 <template>
