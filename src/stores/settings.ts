@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, watch, computed } from 'vue';
 
+export type BackupFrequency = 'daily' | 'weekly';
+
 export type AppearanceMode = 'light' | 'dark' | 'system';
 
 export const regionalSettings = [
@@ -22,6 +24,14 @@ export const useSettingsStore = defineStore('settings', () => {
   const isDark = ref(false);
   const privacyMode = ref(false);
   const region = ref('system');
+
+  // Automated backup settings — persisted via IPC to backup-settings.json in main process
+  const backupEnabled = ref(false);
+  const backupFolder = ref<string | null>(null);
+  const backupFrequency = ref<BackupFrequency>('daily');
+  const lastBackupDate = ref<string | null>(null); // read-only; stamped by main process
+  const hasSeenBackupPrompt = ref(false);
+  let _backupSettingsLoaded = false;
 
   const resolvedRegion = computed(() => {
     return region.value === 'system' ? navigator.language : region.value;
@@ -70,6 +80,22 @@ export const useSettingsStore = defineStore('settings', () => {
     applyAppearance();
   };
 
+  const loadBackupSettings = async () => {
+    const settings = await window.electronAPI.getBackupSettings();
+    _backupSettingsLoaded = false;
+    backupEnabled.value = settings.enabled;
+    backupFolder.value = settings.folder;
+    backupFrequency.value = settings.frequency as BackupFrequency;
+    lastBackupDate.value = settings.lastBackupDate;
+    hasSeenBackupPrompt.value = settings.hasSeenBackupPrompt;
+    _backupSettingsLoaded = true;
+  };
+
+  const refreshLastBackupDate = async () => {
+    const settings = await window.electronAPI.getBackupSettings();
+    lastBackupDate.value = settings.lastBackupDate;
+  };
+
   const togglePrivacyMode = () => {
     privacyMode.value = !privacyMode.value;
   };
@@ -87,6 +113,16 @@ export const useSettingsStore = defineStore('settings', () => {
     localStorage.setItem('region', newVal);
   });
 
+  watch([backupEnabled, backupFolder, backupFrequency, hasSeenBackupPrompt], ([enabled, folder, frequency, seenPrompt]) => {
+    if (!_backupSettingsLoaded) return;
+    window.electronAPI.saveBackupSettings({
+      enabled,
+      folder,
+      frequency: frequency as BackupFrequency,
+      hasSeenBackupPrompt: seenPrompt,
+    });
+  });
+
   return {
     appearance,
     isDark,
@@ -96,6 +132,14 @@ export const useSettingsStore = defineStore('settings', () => {
     resolvedLocale: resolvedRegion,
     loadSettings,
     applyAppearance,
-    togglePrivacyMode
+    togglePrivacyMode,
+    // Backup
+    backupEnabled,
+    backupFolder,
+    backupFrequency,
+    lastBackupDate,
+    hasSeenBackupPrompt,
+    loadBackupSettings,
+    refreshLastBackupDate,
   };
 });

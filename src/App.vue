@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/stores/settings";
 import Sidebar from "@/components/Sidebar.vue";
 import TopBar from "@/components/TopBar.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
+import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -43,6 +44,7 @@ watch(
 
 // Quick add transaction modal
 const showQuickAddModal = ref(false);
+const backupSetupModal = ref<InstanceType<typeof BackupSetupModal>>();
 
 // Navigate to view
 function navigateTo(view: string) {
@@ -81,6 +83,19 @@ function handleRequestViewTransactions(id: number, type: 'account' | 'recurring'
 onMounted(async () => {
   const settingsStore = useSettingsStore();
   settingsStore.loadSettings();
+  await settingsStore.loadBackupSettings();
+
+  window.electronAPI.onSilentBackupComplete(() => {
+    settingsStore.refreshLastBackupDate();
+  });
+
+  if (!settingsStore.hasSeenBackupPrompt) {
+    settingsStore.hasSeenBackupPrompt = true;
+    const didEnable = await backupSetupModal.value?.open();
+    if (didEnable) {
+      await settingsStore.loadBackupSettings();
+    }
+  }
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (settingsStore.appearance === 'system') {
@@ -261,5 +276,8 @@ function handleKeydown(e: KeyboardEvent) {
       @close="showQuickAddModal = false"
       @saved="showQuickAddModal = false"
     />
+
+    <!-- First-run backup setup prompt -->
+    <BackupSetupModal ref="backupSetupModal" />
   </div>
 </template>

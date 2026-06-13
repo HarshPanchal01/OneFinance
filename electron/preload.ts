@@ -1,4 +1,5 @@
 import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import type { BackupSettings } from "./backup";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
@@ -253,6 +254,29 @@ const electronAPI = {
     recurringTransactions?: RecurringTransaction[]
   }}> =>
     ipcRenderer.invoke("import-file"),
+
+  // ============================================
+  // AUTOMATED BACKUPS
+  // ============================================
+
+  getBackupSettings: (): Promise<BackupSettings> =>
+    ipcRenderer.invoke('backup:getSettings'),
+
+  saveBackupSettings: (partial: Partial<Pick<BackupSettings, 'enabled' | 'folder' | 'frequency' | 'hasSeenBackupPrompt'>>): Promise<BackupSettings> =>
+    ipcRenderer.invoke('backup:saveSettings', partial),
+
+  selectBackupFolder: (): Promise<{ canceled?: boolean; folder?: string }> =>
+    ipcRenderer.invoke('backup:selectFolder'),
+
+  runBackupNow: (type: 'auto' | 'manual', override: boolean): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('backup:runNow', type, override),
+
+  getLatestManualBackup: (): Promise<{ exists: boolean; filename: string | null }> =>
+    ipcRenderer.invoke('backup:getLatestManualBackup'),
+
+  onSilentBackupComplete: (callback: () => void) => {
+    ipcRenderer.on('silent-backup-complete', callback);
+  },
 
   // ============================================
   // GENERIC IPC (for future use)
