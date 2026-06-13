@@ -60,7 +60,7 @@ defineExpose({ open });
       <div class="px-6 py-5 space-y-3">
         <div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
           <i class="pi pi-check-circle text-green-500 mt-0.5 flex-shrink-0" />
-          <span>Files overwritten — no storage bloat</span>
+          <span>Rotates through up to 5 automated backup files</span>
         </div>
         <div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
           <i class="pi pi-check-circle text-green-500 mt-0.5 flex-shrink-0" />

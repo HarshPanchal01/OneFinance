@@ -115,12 +115,12 @@ export const useSettingsStore = defineStore('settings', () => {
 
   watch([backupEnabled, backupFolder, backupFrequency, hasSeenBackupPrompt], ([enabled, folder, frequency, seenPrompt]) => {
     if (!_backupSettingsLoaded) return;
-    window.electronAPI.saveBackupSettings({
+    void window.electronAPI.saveBackupSettings({
       enabled,
       folder,
       frequency: frequency as BackupFrequency,
       hasSeenBackupPrompt: seenPrompt,
-    });
+    }).catch(console.error);
   });
 
   return {

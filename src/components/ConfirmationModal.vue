@@ -64,7 +64,9 @@ function handleCancel() {
 function handleDismiss() {
   isOpen.value = false;
   if (resolveCallback) {
-    resolveCallback(null);
+    // Object-mode callers (showDontAskAgain) expect result.confirmed to exist — give them a safe cancel shape.
+    // Simple-mode callers (backup override) use null to distinguish X from the Cancel button option.
+    resolveCallback(returnsObject ? { confirmed: false, dontAskAgain: false } : null);
     resolveCallback = null;
   }
 }

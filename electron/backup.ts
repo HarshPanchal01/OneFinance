@@ -42,7 +42,9 @@ function getSettingsPath(): string {
 export function loadSettings(): BackupSettings {
   try {
     const raw = fs.readFileSync(getSettingsPath(), 'utf-8');
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    if (!['daily', 'weekly'].includes(parsed.frequency)) parsed.frequency = DEFAULTS.frequency;
+    return { ...DEFAULTS, ...parsed };
   } catch {
     return { ...DEFAULTS };
   }
