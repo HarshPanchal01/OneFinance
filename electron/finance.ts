@@ -2,6 +2,10 @@ import YahooFinance from 'yahoo-finance2';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
 
+// Quote types the app can actually track + price. Excludes indices (e.g. ^GSPE),
+// currencies, futures, etc., which have no tradeable holding and break price fetch.
+const INVESTABLE_QUOTE_TYPES = ['EQUITY', 'ETF', 'MUTUALFUND', 'CRYPTOCURRENCY'];
+
 /**
  * Fetch current quote for a given symbol
 
@@ -9,7 +13,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHis
 export async function getQuote(symbol: string) {
   try {
     console.log(`[Yahoo API] Fetching quote for: ${symbol}`);
-    const result = await yahooFinance.quote(symbol) as any;
+    const result = await yahooFinance.quote(symbol, {}, { validateResult: false }) as any;
     return {
       symbol: result.symbol,
       price: result.regularMarketPrice,
@@ -33,7 +37,7 @@ export async function getQuotes(symbols: string[]) {
   
   try {
     console.log(`[Yahoo API] Fetching batch quotes for ${symbols.length} symbols: ${symbols.join(', ')}`);
-    const results = await yahooFinance.quote(symbols) as any;
+    const results = await yahooFinance.quote(symbols, {}, { validateResult: false }) as any;
     // If only one symbol is passed, yahooFinance.quote returns a single object
     const quotes = Array.isArray(results) ? results : [results];
     
@@ -58,7 +62,7 @@ export async function getQuotes(symbols: string[]) {
 export async function getAssetProfile(symbol: string) {
   try {
     console.log(`[Yahoo API] Fetching asset profile for: ${symbol}`);
-    const summary = await yahooFinance.quoteSummary(symbol, { modules: ['topHoldings', 'summaryProfile'] });
+    const summary = await yahooFinance.quoteSummary(symbol, { modules: ['topHoldings', 'summaryProfile'] }, { validateResult: false }) as any;
     let sectorData: any = null;
 
     if (summary.topHoldings && summary.topHoldings.sectorWeightings) {
@@ -111,13 +115,17 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
 export async function searchSymbols(query: string) {
   try {
     console.log(`[Yahoo API] Searching symbols for query: "${query}"`);
-    const result = await yahooFinance.search(query) as any;
-    return result.quotes.map((q: any) => ({
-      symbol: q.symbol,
-      name: q.shortname || q.longname || q.exchange,
-      type: q.quoteType,
-      exchange: q.exchange
-    }));
+    // validateResult:false — Yahoo's search payload often drifts from the library's
+    // schema, which would otherwise throw and break search entirely.
+    const result = await yahooFinance.search(query, {}, { validateResult: false }) as any;
+    return (result.quotes ?? [])
+      .filter((q: any) => q.symbol && INVESTABLE_QUOTE_TYPES.includes(q.quoteType))
+      .map((q: any) => ({
+        symbol: q.symbol,
+        name: q.shortname || q.longname || q.exchange,
+        type: q.quoteType,
+        exchange: q.exchange
+      }));
   } catch (error) {
     console.error(`[Finance] Error searching symbols for "${query}":`, error);
     throw error;
