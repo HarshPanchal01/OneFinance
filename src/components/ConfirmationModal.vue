@@ -61,6 +61,16 @@ function handleCancel() {
   }
 }
 
+function handleDismiss() {
+  isOpen.value = false;
+  if (resolveCallback) {
+    // Object-mode callers (showDontAskAgain) expect result.confirmed to exist — give them a safe cancel shape.
+    // Simple-mode callers (backup override) use null to distinguish X from the Cancel button option.
+    resolveCallback(returnsObject ? { confirmed: false, dontAskAgain: false } : null);
+    resolveCallback = null;
+  }
+}
+
 defineExpose({ openConfirmation });
 </script>
 
@@ -69,8 +79,14 @@ defineExpose({ openConfirmation });
     v-if="isOpen"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
   >
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg">
-      <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 shadow-lg relative">
+      <button
+        class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+        @click="handleDismiss"
+      >
+        <i class="pi pi-times text-sm" />
+      </button>
+      <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white pr-6">
         {{ title }}
       </h2>
       <p class="text-gray-600 dark:text-gray-300 mb-6">
@@ -97,7 +113,7 @@ defineExpose({ openConfirmation });
 
       <div class="flex justify-end space-x-3 pt-4">
         <button
-          class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           @click="handleCancel"
         >
           {{ cancelText }}

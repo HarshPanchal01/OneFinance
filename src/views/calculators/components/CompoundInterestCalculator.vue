@@ -224,7 +224,6 @@ const chartData = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  const privacy = settingsStore.privacyMode;
   return {
     animations: {
       y: {
@@ -242,7 +241,7 @@ const chartOptions = computed(() => {
         beginAtZero: true,
         title: { display: true, text: 'Amount' },
         ticks: {
-          callback: (value: any) => privacy ? '****' : formatCurrency(value)
+          callback: (value: any) => formatCurrency(value)
         }
       }
     },
@@ -257,8 +256,7 @@ const chartOptions = computed(() => {
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
-            const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
-            return `${label}: ${value}`;
+            return `${label}: ${formatCurrency(context.parsed.y ?? 0)}`;
           }
         }
       },
@@ -491,7 +489,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-gray-900 dark:text-white truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(futureValue) }}
             </p>
@@ -502,7 +499,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-amber-600 dark:text-amber-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(realValue) }}
             </p>
@@ -513,7 +509,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-blue-600 dark:text-blue-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(totalContributions) }}
             </p>
@@ -524,7 +519,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-emerald-600 dark:text-emerald-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(totalInterest) }}
             </p>
@@ -535,7 +529,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-emerald-600 dark:text-emerald-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               +{{ totalReturnPercent.toFixed(1) }}%
             </p>
@@ -576,6 +569,7 @@ const chartOptions = computed(() => {
               :data="chartData"
               :options="chartOptions"
               :plugins="chartPlugins"
+              :disable-privacy="true"
               height="100%"
             />
           </div>

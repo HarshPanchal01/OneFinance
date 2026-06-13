@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initializeDatabase, processRecurringTransactions, processSavingsInterest } from './db'
 import { registerIpcHandlers } from './ipc'
+import { checkAndRunBackup } from './backup'
 import fs from 'fs'
 
 
@@ -77,6 +78,19 @@ ipcMain.handle('save-file', async (_event, {data, defaultName}) => {
   }
 );
 
+ipcMain.handle('backup:selectFolder', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select Backup Folder',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return { canceled: true };
+  }
+
+  return { folder: filePaths[0] };
+});
+
 ipcMain.handle('import-file', async() => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     title: "Import Data",
@@ -131,7 +145,7 @@ if (isDev) {
   console.log(`[Main] Running in dev mode. UserData: ${devUserDataPath}`);
 }
 
-// Background task to check for due recurring transactions and savings interest
+// Background task to check for due recurring transactions, savings interest, and automated backups
 function startRecurringTransactionsTask() {
   // Check every 1 minute
   setInterval(() => {
@@ -140,6 +154,9 @@ function startRecurringTransactionsTask() {
     }
     if (processSavingsInterest()) {
       BrowserWindow.getAllWindows().forEach(w => w.webContents.send('savings-interest-processed'));
+    }
+    if (checkAndRunBackup()) {
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
     }
   }, 60 * 1000);
 }
@@ -162,9 +179,14 @@ if (app.isPackaged) {
       // Initialize database and IPC handlers before creating window
       initializeDatabase();
       registerIpcHandlers();
-      
+
       createWindow();
       startRecurringTransactionsTask();
+
+      // Catch-up check: run backup immediately if one was missed while the app was closed
+      if (checkAndRunBackup()) {
+        BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
+      }
     });
   }
 } else {
@@ -172,8 +194,13 @@ if (app.isPackaged) {
   app.whenReady().then(() => {
     initializeDatabase();
     registerIpcHandlers();
-    
+
     createWindow();
     startRecurringTransactionsTask();
+
+    // Catch-up check: run backup immediately if one was missed while the app was closed
+    if (checkAndRunBackup()) {
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
+    }
   });
 }

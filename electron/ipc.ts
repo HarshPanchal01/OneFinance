@@ -1,5 +1,6 @@
 import { ipcMain, shell } from "electron";
 import fs from "node:fs";
+import { loadSettings, saveSettings, runBackup, getLatestManualBackup, BackupSettings } from "./backup";
 import {
   // Ledger Years
   getLedgerYears,
@@ -433,6 +434,28 @@ export function registerIpcHandlers(): void {
       console.error("[IPC] Failed to delete database:", error);
       return false;
     }
+  });
+
+  // ============================================
+  // AUTOMATED BACKUP HANDLERS
+  // ============================================
+
+  ipcMain.handle("backup:getSettings", async () => {
+    return loadSettings();
+  });
+
+  ipcMain.handle("backup:saveSettings", async (_event, partial: Partial<BackupSettings>) => {
+    return saveSettings(partial);
+  });
+
+  ipcMain.handle("backup:runNow", async (_event, type: 'auto' | 'manual', override: boolean) => {
+    return runBackup(type, override);
+  });
+
+  ipcMain.handle("backup:getLatestManualBackup", async () => {
+    const settings = loadSettings();
+    if (!settings.folder) return { exists: false, filename: null };
+    return getLatestManualBackup(settings.folder);
   });
 
   console.log("[IPC] All database handlers registered");

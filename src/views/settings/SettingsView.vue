@@ -10,6 +10,11 @@ import Select from "primevue/select";
 import iconSvg from "@/assets/icon.svg";
 import logoPng from "@/assets/logo.png";
 
+const backupFrequencyOptions = [
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+];
+
 const appVersion = "2.0.0";
 const logoUrl = ref(iconSvg);
 const dbPath = ref("");
@@ -78,6 +83,46 @@ async function importData() {
     actionModal.value,
     notificationModal.value,
   );
+}
+
+async function chooseBackupFolder() {
+  const result = await window.electronAPI.selectBackupFolder();
+  if (!result.canceled && result.folder) {
+    settingsStore.backupFolder = result.folder;
+  }
+}
+
+async function runBackupNow() {
+  const { exists } = await window.electronAPI.getLatestManualBackup();
+
+  let override = false;
+  if (exists) {
+    const confirmed = await confirmModal.value?.openConfirmation({
+      title: 'Manual Backup',
+      message: 'You already have a manual backup saved. Override it, or keep it and save a new file alongside it?',
+      confirmText: 'Override',
+      cancelText: 'Keep',
+      confirmButtonClass: 'bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60',
+    });
+    if (confirmed === null || confirmed === undefined) return;
+    override = confirmed === true;
+  }
+
+  const result = await window.electronAPI.runBackupNow('manual', override);
+  if (result.success) {
+    await notificationModal.value?.openConfirmation({
+      title: 'Backup Saved',
+      message: 'Your data has been backed up successfully.',
+      confirmText: 'Okay',
+    });
+    await settingsStore.refreshLastBackupDate();
+  } else {
+    await errorModal.value?.openConfirmation({
+      title: 'Backup Failed',
+      message: 'Could not write to the backup folder. Please check that the folder exists and is writable.',
+      confirmText: 'Okay',
+    });
+  }
 }
 </script>
 
@@ -262,6 +307,120 @@ async function importData() {
               <i class="pi pi-upload mr-2" />
               Import Data
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Automated Backups -->
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center">
+          <i class="pi pi-history mr-2 text-gray-700 dark:text-white" />
+          Automated Backups
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Schedule automatic exports of your data to a local folder. Automated backups rotate through up to 5 files. Manual backups can be kept separately.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+          <!-- Enable toggle + Backup Now -->
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                <i class="pi pi-history text-primary-500" />
+                Auto Backup
+              </div>
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="settingsStore.backupEnabled"
+                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                :class="settingsStore.backupEnabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                @click="settingsStore.backupEnabled = !settingsStore.backupEnabled"
+              >
+                <span
+                  aria-hidden="true"
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  :class="settingsStore.backupEnabled ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+              Periodically save a full copy of your data
+            </p>
+            <div class="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <button
+                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                :disabled="!settingsStore.backupFolder"
+                @click="runBackupNow"
+              >
+                <i class="pi pi-save mr-1.5" />
+                Backup Now
+              </button>
+              <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <template v-if="settingsStore.lastBackupDate">{{ settingsStore.lastBackupDate }}</template>
+                <template v-else>Never backed up</template>
+              </span>
+            </div>
+          </div>
+
+          <!-- Backup Folder -->
+          <div
+            class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
+            :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
+          >
+            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+              <i class="pi pi-folder text-primary-500" />
+              Backup Folder
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+              <span
+                v-if="settingsStore.backupFolder"
+                class="font-mono break-all"
+              >{{ settingsStore.backupFolder }}</span>
+              <span
+                v-else
+                class="italic"
+              >No folder selected</span>
+            </p>
+            <div class="mt-auto flex items-center gap-2">
+              <button
+                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                @click="chooseBackupFolder"
+              >
+                <i class="pi pi-folder-open mr-1.5" />
+                Choose Folder
+              </button>
+              <span
+                v-if="settingsStore.backupEnabled && !settingsStore.backupFolder"
+                class="text-[10px] text-amber-500 dark:text-amber-400 flex items-center gap-1"
+              >
+                <i class="pi pi-exclamation-triangle" />
+                Required
+              </span>
+            </div>
+          </div>
+
+          <!-- Frequency -->
+          <div
+            class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
+            :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
+          >
+            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+              <i class="pi pi-calendar text-primary-500" />
+              Frequency
+            </div>
+            <p class="text-xs text-gray-500 mb-4">
+              How often to save a backup
+            </p>
+            <div class="mt-auto">
+              <Select
+                v-model="settingsStore.backupFrequency"
+                :options="backupFrequencyOptions"
+                option-label="label"
+                option-value="value"
+                class="w-full"
+              />
+            </div>
           </div>
         </div>
       </div>
