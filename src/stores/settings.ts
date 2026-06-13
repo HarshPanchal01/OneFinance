@@ -33,6 +33,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const hasSeenBackupPrompt = ref(false);
   let _backupSettingsLoaded = false;
 
+  // App preferences — persisted via IPC to app-preferences.json in main process
+  const minimizeToTray = ref(false);
+  const openAtLogin = ref(false);
+  let _appPreferencesLoaded = false;
+
   const resolvedRegion = computed(() => {
     return region.value === 'system' ? navigator.language : region.value;
   });
@@ -96,6 +101,14 @@ export const useSettingsStore = defineStore('settings', () => {
     lastBackupDate.value = settings.lastBackupDate;
   };
 
+  const loadAppPreferences = async () => {
+    const prefs = await window.electronAPI.getAppPreferences();
+    _appPreferencesLoaded = false;
+    minimizeToTray.value = prefs.minimizeToTray;
+    openAtLogin.value = prefs.openAtLogin;
+    _appPreferencesLoaded = true;
+  };
+
   const togglePrivacyMode = () => {
     privacyMode.value = !privacyMode.value;
   };
@@ -123,6 +136,14 @@ export const useSettingsStore = defineStore('settings', () => {
     }).catch(console.error);
   });
 
+  watch([minimizeToTray, openAtLogin], ([tray, login]) => {
+    if (!_appPreferencesLoaded) return;
+    void window.electronAPI.saveAppPreferences({
+      minimizeToTray: tray,
+      openAtLogin: login,
+    }).catch(console.error);
+  });
+
   return {
     appearance,
     isDark,
@@ -141,5 +162,9 @@ export const useSettingsStore = defineStore('settings', () => {
     hasSeenBackupPrompt,
     loadBackupSettings,
     refreshLastBackupDate,
+    // App preferences
+    minimizeToTray,
+    openAtLogin,
+    loadAppPreferences,
   };
 });

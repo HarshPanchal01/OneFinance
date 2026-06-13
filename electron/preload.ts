@@ -1,5 +1,6 @@
 import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
 import type { BackupSettings } from "./backup";
+import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
@@ -99,6 +100,27 @@ const electronAPI = {
   onSavingsInterestProcessed: (callback: () => void) => {
     ipcRenderer.on("savings-interest-processed", callback);
   },
+
+  onReminderNotified: (callback: () => void) => {
+    ipcRenderer.on("reminder-notified", callback);
+  },
+
+  onNavigateReminders: (callback: () => void) => {
+    ipcRenderer.on("navigate-reminders", callback);
+  },
+
+  setReminderLocale: (locale: string, currency: string): Promise<void> =>
+    ipcRenderer.invoke("reminders:setLocale", locale, currency),
+
+  // ============================================
+  // APP PREFERENCES (tray / launch on login)
+  // ============================================
+
+  getAppPreferences: (): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:get"),
+
+  saveAppPreferences: (partial: Partial<AppPreferences>): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:set", partial),
 
   // ============================================
   // LEDGER YEARS

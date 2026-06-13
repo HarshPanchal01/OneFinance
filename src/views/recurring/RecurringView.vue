@@ -146,8 +146,13 @@ function getAccountName(id: number) {
                     <span class="mx-0.5">•</span>
                     {{ item.type === 'transfer' ? 'Transfer' : getCategoryName(item.categoryId) }}
                   </p>
-                  <p class="text-xs text-gray-400 mt-0.5">
-                    Next: {{ formatDate(item.nextRunDate) }}
+                  <p class="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
+                    <span>Next: {{ formatDate(item.nextRunDate) }}</span>
+                    <i
+                      v-if="item.reminderEnabled"
+                      class="pi pi-bell text-[10px] text-primary-500"
+                      :title="`Reminder ${item.reminderDaysBefore ?? 0} day(s) before`"
+                    />
                   </p>
                 </div>
               </div>
