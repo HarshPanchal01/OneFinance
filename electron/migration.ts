@@ -240,5 +240,31 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error adding nextInterestDate to accounts:', error);
     }
   }
+
+  // Add payment reminder fields to recurring transactions
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN reminderEnabled BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding reminderEnabled to recurring_transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN reminderDaysBefore INTEGER DEFAULT 1");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding reminderDaysBefore to recurring_transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN lastNotifiedDate TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding lastNotifiedDate to recurring_transactions:', error);
+    }
+  }
 }
 

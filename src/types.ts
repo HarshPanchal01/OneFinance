@@ -83,6 +83,9 @@ export interface RecurringTransaction {
   isActive: boolean;
   isExpenseTransfer?: boolean;
   isIncomeTransfer?: boolean;
+  reminderEnabled?: boolean;
+  reminderDaysBefore?: number;
+  lastNotifiedDate?: string | null;
 }
 
 export interface Transaction {

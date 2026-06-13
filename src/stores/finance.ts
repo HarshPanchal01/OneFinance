@@ -1343,6 +1343,9 @@ export const useFinanceStore = defineStore("finance", () => {
           nextRunDate: recurring.nextRunDate,
           isActive: recurring.isActive,
           isExpenseTransfer: recurring.isExpenseTransfer,
+          reminderEnabled: recurring.reminderEnabled,
+          reminderDaysBefore: recurring.reminderDaysBefore,
+          lastNotifiedDate: null,
         });
 
         console.log(`Inserting recurring transaction ${recurring.title} completed`);
