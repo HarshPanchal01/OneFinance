@@ -6,6 +6,7 @@ import { InvestmentHolding } from '@/types';
 import AddHoldingModal from './components/AddHoldingModal.vue';
 import TransactionHoldingModal from './components/TransactionHoldingModal.vue';
 import TradeHistoryModal from './components/TradeHistoryModal.vue';
+import PriceAlertModal from './components/PriceAlertModal.vue';
 import AdjustCashModal from './components/AdjustCashModal.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import { useFormatter } from '@/composables/useFormatter';
@@ -58,6 +59,18 @@ const historyIsCash = ref(false);
 const showAdjustCashModal = ref(false);
 const adjustCashAccountId = ref<number | null>(null);
 const adjustCashCurrentValue = ref(0);
+
+const showPriceAlertModal = ref(false);
+const priceAlertHolding = ref<InvestmentHolding | null>(null);
+
+function openPriceAlerts(holding: InvestmentHolding) {
+  priceAlertHolding.value = holding;
+  showPriceAlertModal.value = true;
+}
+
+function hasAlerts(holding: InvestmentHolding) {
+  return holding.alertDailyPct != null || holding.alertWeeklyPct != null || holding.alertMonthlyPct != null;
+}
 
 onMounted(async () => {
   await store.fetchAccounts();
@@ -369,15 +382,23 @@ function getAccountCashBalance(accountId: number) {
                         Sell
                       </button>
                       <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
-                      <button 
-                        class="p-1 text-gray-400 hover:text-primary-500 transition-colors" 
+                      <button
+                        class="p-1 text-gray-400 hover:text-primary-500 transition-colors"
                         title="Trade History"
                         @click="openHistoryModal(holding)"
                       >
                         <i class="pi pi-history" />
                       </button>
-                      <button 
-                        class="p-1 text-gray-400 hover:text-red-500 transition-colors" 
+                      <button
+                        class="p-1 transition-colors"
+                        :class="hasAlerts(holding) ? 'text-primary-500 hover:text-primary-600' : 'text-gray-400 hover:text-primary-500'"
+                        :title="hasAlerts(holding) ? 'Edit Price Alerts' : 'Set Price Alerts'"
+                        @click="openPriceAlerts(holding)"
+                      >
+                        <i class="pi pi-bell" />
+                      </button>
+                      <button
+                        class="p-1 text-gray-400 hover:text-red-500 transition-colors"
                         title="Remove Holding"
                         @click="removeHolding(holding.id)"
                       >
@@ -490,6 +511,12 @@ function getAccountCashBalance(accountId: number) {
       :current-cash="adjustCashCurrentValue"
       @close="showAdjustCashModal = false"
       @saved="() => { showAdjustCashModal = false; store.fetchAccounts(); }"
+    />
+
+    <PriceAlertModal
+      :visible="showPriceAlertModal"
+      :holding="priceAlertHolding"
+      @close="showPriceAlertModal = false"
     />
 
     <ConfirmationModal ref="confirmModal" />

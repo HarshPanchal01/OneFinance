@@ -46,6 +46,28 @@ export interface InvestmentHolding {
   lastPrice: number | null;
   lastUpdated: string | null;
   sectorWeightings?: string | null;
+  // Price-change alert thresholds (percent; null = off)
+  alertDailyPct?: number | null;
+  alertWeeklyPct?: number | null;
+  alertMonthlyPct?: number | null;
+  // Cached week/month-ago closes + the date they were fetched (daily ref is the live quote)
+  refClose1w?: number | null;
+  refClose1m?: number | null;
+  refDate?: string | null;
+  // Last date we notified per timeframe (spam guard)
+  alertDailyNotified?: string | null;
+  alertWeeklyNotified?: string | null;
+  alertMonthlyNotified?: string | null;
+}
+
+export type PriceAlertTimeframe = 'daily' | 'weekly' | 'monthly';
+
+export interface PriceAlert {
+  symbol: string;
+  timeframe: PriceAlertTimeframe;
+  pct: number;        // signed percent change
+  fromPrice: number;  // reference price
+  toPrice: number;    // current price
 }
 
 export type InvestmentTransactionType = 'buy' | 'sell';

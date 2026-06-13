@@ -266,5 +266,28 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error adding lastNotifiedDate to recurring_transactions:', error);
     }
   }
+
+  // Add investment price-change alert fields to holdings
+  const holdingAlertColumns = [
+    "ALTER TABLE investment_holdings ADD COLUMN alertDailyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertWeeklyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertMonthlyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refClose1w REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refClose1m REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refDate TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertDailyNotified TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertWeeklyNotified TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertMonthlyNotified TEXT DEFAULT NULL",
+  ];
+  for (const sql of holdingAlertColumns) {
+    try {
+      db.exec(sql);
+    } catch (e) {
+      const error = e as any;
+      if (!error?.message?.includes('duplicate column name')) {
+        console.error('[Migration] Migration error adding holding alert column:', error);
+      }
+    }
+  }
 }
 

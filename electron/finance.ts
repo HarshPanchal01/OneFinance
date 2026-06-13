@@ -13,6 +13,7 @@ export async function getQuote(symbol: string) {
     return {
       symbol: result.symbol,
       price: result.regularMarketPrice,
+      previousClose: result.regularMarketPreviousClose,
       name: result.shortName || result.longName,
       currency: result.currency,
       exchange: result.fullExchangeName,
@@ -39,6 +40,7 @@ export async function getQuotes(symbols: string[]) {
     return quotes.map((result: any) => ({
       symbol: result.symbol,
       price: result.regularMarketPrice,
+      previousClose: result.regularMarketPreviousClose,
       name: result.shortName || result.longName,
       currency: result.currency,
       exchange: result.fullExchangeName,

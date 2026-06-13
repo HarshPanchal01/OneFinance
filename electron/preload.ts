@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -111,6 +111,13 @@ const electronAPI = {
 
   setReminderLocale: (locale: string, currency: string): Promise<void> =>
     ipcRenderer.invoke("reminders:setLocale", locale, currency),
+
+  showPriceAlerts: (alerts: PriceAlert[]): Promise<void> =>
+    ipcRenderer.invoke("notifications:showPriceAlerts", alerts),
+
+  onNavigateInvestments: (callback: () => void) => {
+    ipcRenderer.on("navigate-investments", callback);
+  },
 
   // ============================================
   // APP PREFERENCES (tray / launch on login)
@@ -262,6 +269,9 @@ const electronAPI = {
 
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),
+
+  quitApp: (): Promise<void> =>
+    ipcRenderer.invoke("app:quit"),
 
   exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
     ipcRenderer.invoke("save-file", payload),

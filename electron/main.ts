@@ -192,6 +192,13 @@ ipcMain.handle('prefs:set', (_event, partial: Partial<AppPreferences>) => {
   return appPreferences;
 });
 
+// Explicit full quit — bypasses the close-to-tray handler (used e.g. after
+// deleting the database, where the app must actually exit, not hide to tray).
+ipcMain.handle('app:quit', () => {
+  isQuitting = true;
+  app.quit();
+});
+
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -255,6 +262,46 @@ function formatDuePhrase(dateStr: string): string {
   if (n === 14) return 'due in 2 weeks';
   return `due in ${n} days`;
 }
+
+interface PriceAlertPayload {
+  symbol: string;
+  timeframe: 'daily' | 'weekly' | 'monthly';
+  pct: number;
+  fromPrice: number;
+  toPrice: number;
+}
+
+const TIMEFRAME_LABEL: Record<PriceAlertPayload['timeframe'], string> = {
+  daily: 'past day',
+  weekly: 'past week',
+  monthly: 'past month',
+};
+
+// Shows a native notification per investment price-change alert. The renderer
+// (refreshInvestmentPrices) computes crossings and hands them off here so the
+// notification + click-to-navigate stays consistent with payment reminders.
+ipcMain.handle('notifications:showPriceAlerts', (_event, alerts: PriceAlertPayload[]) => {
+  if (!Array.isArray(alerts) || alerts.length === 0) return;
+
+  for (const a of alerts) {
+    const arrow = a.pct >= 0 ? '▲' : '▼';
+    const verb = a.pct >= 0 ? 'Rose' : 'Fell';
+    const notification = new Notification({
+      title: `${a.symbol} ${arrow} ${Math.abs(a.pct).toFixed(1)}% (${TIMEFRAME_LABEL[a.timeframe]})`,
+      body: `${verb} from ${formatReminderAmount(a.fromPrice)} to ${formatReminderAmount(a.toPrice)}`,
+      icon: APP_ICON,
+    });
+    notification.on('click', () => {
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+        win.webContents.send('navigate-investments');
+      }
+    });
+    notification.show();
+  }
+});
 
 // Fires native desktop notifications for any payment reminders that are due.
 // Runs before processRecurringTransactions so a "0 days before" (due-date)

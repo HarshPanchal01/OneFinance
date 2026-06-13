@@ -201,6 +201,15 @@ export function initializeDatabase(): void {
       lastPrice REAL,
       lastUpdated TEXT,
       sectorWeightings TEXT,
+      alertDailyPct REAL DEFAULT NULL,
+      alertWeeklyPct REAL DEFAULT NULL,
+      alertMonthlyPct REAL DEFAULT NULL,
+      refClose1w REAL DEFAULT NULL,
+      refClose1m REAL DEFAULT NULL,
+      refDate TEXT DEFAULT NULL,
+      alertDailyNotified TEXT DEFAULT NULL,
+      alertWeeklyNotified TEXT DEFAULT NULL,
+      alertMonthlyNotified TEXT DEFAULT NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -1529,10 +1538,10 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  
+
   const result = insert.run(
     data.accountId,
     data.symbol,
@@ -1540,7 +1549,16 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.quantity,
     data.lastPrice,
     data.lastUpdated,
-    data.sectorWeightings || null
+    data.sectorWeightings || null,
+    data.alertDailyPct ?? null,
+    data.alertWeeklyPct ?? null,
+    data.alertMonthlyPct ?? null,
+    data.refClose1w ?? null,
+    data.refClose1m ?? null,
+    data.refDate ?? null,
+    data.alertDailyNotified ?? null,
+    data.alertWeeklyNotified ?? null,
+    data.alertMonthlyNotified ?? null
   );
   
   return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
@@ -1550,11 +1568,14 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   const current = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
   
   const update = db.prepare(`
-    UPDATE investment_holdings 
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?
+    UPDATE investment_holdings
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?,
+        alertDailyPct = ?, alertWeeklyPct = ?, alertMonthlyPct = ?,
+        refClose1w = ?, refClose1m = ?, refDate = ?,
+        alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?
     WHERE id = ?
   `);
-  
+
   update.run(
     data.symbol ?? current.symbol,
     data.name !== undefined ? data.name : current.name,
@@ -1562,6 +1583,15 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
     data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
+    data.alertDailyPct !== undefined ? data.alertDailyPct : current.alertDailyPct,
+    data.alertWeeklyPct !== undefined ? data.alertWeeklyPct : current.alertWeeklyPct,
+    data.alertMonthlyPct !== undefined ? data.alertMonthlyPct : current.alertMonthlyPct,
+    data.refClose1w !== undefined ? data.refClose1w : current.refClose1w,
+    data.refClose1m !== undefined ? data.refClose1m : current.refClose1m,
+    data.refDate !== undefined ? data.refDate : current.refDate,
+    data.alertDailyNotified !== undefined ? data.alertDailyNotified : current.alertDailyNotified,
+    data.alertWeeklyNotified !== undefined ? data.alertWeeklyNotified : current.alertWeeklyNotified,
+    data.alertMonthlyNotified !== undefined ? data.alertMonthlyNotified : current.alertMonthlyNotified,
     id
   );
   

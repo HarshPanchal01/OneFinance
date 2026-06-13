@@ -142,6 +142,11 @@ onMounted(async () => {
     currentView.value = "recurring";
   });
 
+  // Clicking a price-alert notification navigates to the Investments view
+  window.electronAPI.onNavigateInvestments(() => {
+    currentView.value = "investments";
+  });
+
   // Mirror locale/currency to the main process so reminder notifications match the user's region
   const syncReminderLocale = () => {
     void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);

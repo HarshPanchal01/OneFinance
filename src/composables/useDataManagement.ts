@@ -64,7 +64,8 @@ export function useDataManagement() {
             "Database deleted. Please restart the application (run npm run dev).\n",
           confirmText: "Okay",
         });
-        window.close();
+        // Fully quit (not hide-to-tray) so the DB is recreated on next launch
+        await window.electronAPI.quitApp();
       } else {
         await errorModal?.openConfirmation({
           title: "Error",
