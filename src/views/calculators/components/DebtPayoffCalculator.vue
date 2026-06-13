@@ -330,7 +330,6 @@ const chartData = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  const privacy = settingsStore.privacyMode;
   return {
     animations: {
       y: {
@@ -348,7 +347,7 @@ const chartOptions = computed(() => {
         beginAtZero: true,
         title: { display: true, text: 'Total Remaining Balance' },
         ticks: {
-          callback: (value: any) => privacy ? '****' : formatCurrency(value),
+          callback: (value: any) => formatCurrency(value),
         },
       },
     },
@@ -364,8 +363,7 @@ const chartOptions = computed(() => {
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
-            const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
-            return `${label}: ${value}`;
+            return `${label}: ${formatCurrency(context.parsed.y ?? 0)}`;
           },
         },
       },
@@ -593,7 +591,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-base font-bold text-red-600 dark:text-red-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(payoffResult.avalancheTotalInterest) }}
             </p>
@@ -618,7 +615,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-base font-bold text-red-600 dark:text-red-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(payoffResult.snowballTotalInterest) }}
             </p>
@@ -638,7 +634,6 @@ const chartOptions = computed(() => {
             <template v-if="payoffResult.avalancheTotalInterest !== payoffResult.snowballTotalInterest">
               <p
                 class="text-lg font-bold text-emerald-600 dark:text-emerald-500 truncate"
-                :class="{ 'privacy-blur': settingsStore.privacyMode }"
               >
                 {{ formatCurrency(Math.abs(payoffResult.snowballTotalInterest - payoffResult.avalancheTotalInterest)) }}
                 <span class="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">
@@ -699,6 +694,7 @@ const chartOptions = computed(() => {
               :data="chartData"
               :options="chartOptions"
               :plugins="chartPlugins"
+              :disable-privacy="true"
               height="280px"
             />
           </div>

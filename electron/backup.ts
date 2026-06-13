@@ -138,7 +138,8 @@ export function runBackup(type: 'auto' | 'manual', override = false): { success:
     const backupPath = path.join(settings.folder, filename);
     fs.writeFileSync(backupPath, JSON.stringify(buildExportPayload(), null, 2), 'utf-8');
 
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     saveSettings({ lastBackupDate: today });
 
     console.log('[Backup] Written:', backupPath);
@@ -155,7 +156,8 @@ export function checkAndRunBackup(): boolean {
 
     if (!settings.enabled || !settings.folder) return false;
 
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const last = settings.lastBackupDate;
 
     let isDue = false;

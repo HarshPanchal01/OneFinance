@@ -293,7 +293,6 @@ const chartData = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  const privacy = settingsStore.privacyMode;
   const storedScale = amortizationData.value?.xScale ?? 'years';
 
   return {
@@ -313,7 +312,7 @@ const chartOptions = computed(() => {
         beginAtZero: true,
         title: { display: true, text: 'Remaining Balance' },
         ticks: {
-          callback: (value: any) => privacy ? '****' : formatCurrency(value)
+          callback: (value: any) => formatCurrency(value)
         }
       }
     },
@@ -328,8 +327,7 @@ const chartOptions = computed(() => {
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
-            const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
-            return `${label}: ${value}`;
+            return `${label}: ${formatCurrency(context.parsed.y ?? 0)}`;
           }
         }
       },
@@ -571,7 +569,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-blue-600 dark:text-blue-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(amortizationData.hasCustomPayment ? amortizationData.actualPayment : amortizationData.basePayment) }}
             </p>
@@ -582,7 +579,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-red-600 dark:text-red-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(amortizationData.totalInterestActual) }}
             </p>
@@ -593,7 +589,7 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold truncate transition-colors"
-              :class="[amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600', { 'privacy-blur': settingsStore.privacyMode }]"
+              :class="amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600'"
             >
               {{ formatCurrency(amortizationData.interestSaved) }}
             </p>
@@ -652,6 +648,7 @@ const chartOptions = computed(() => {
               :data="chartData"
               :options="chartOptions"
               :plugins="chartPlugins"
+              :disable-privacy="true"
               height="100%"
             />
           </div>
