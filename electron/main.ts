@@ -244,13 +244,14 @@ function formatLongDate(dateStr: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-// Whole-day difference between today and an ISO date, in local time.
+// Whole-day difference between today and an ISO date. Uses UTC date-only values
+// so DST transitions (23/25-hour local days) don't cause off-by-one phrases.
 function daysUntil(dateStr: string): number {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const target = new Date(y, m - 1, d);
+  const target = Date.UTC(y, m - 1, d);
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target - today) / (24 * 60 * 60 * 1000));
 }
 
 function formatDuePhrase(dateStr: string): string {
@@ -319,6 +320,7 @@ function runReminderCheck() {
     notification.on('click', () => {
       if (win) {
         if (win.isMinimized()) win.restore();
+        win.show();
         win.focus();
         win.webContents.send('navigate-reminders');
       }

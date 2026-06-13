@@ -185,7 +185,7 @@ async function save() {
       isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
       isIncomeTransfer: form.value.type === 'transfer' ? form.value.isIncomeTransfer : false,
       reminderEnabled: form.value.reminderEnabled,
-      reminderDaysBefore: form.value.reminderEnabled ? Math.max(0, Math.round(form.value.reminderDaysBefore ?? 1)) : 1,
+      reminderDaysBefore: form.value.reminderEnabled ? Math.min(30, Math.max(0, Math.round(form.value.reminderDaysBefore ?? 1))) : 1,
     };
 
     if (isEditing.value && props.recurring) {
