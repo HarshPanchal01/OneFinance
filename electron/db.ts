@@ -159,6 +159,9 @@ export function initializeDatabase(): void {
       isActive BOOLEAN NOT NULL DEFAULT 1,
       isExpenseTransfer BOOLEAN DEFAULT 0,
       isIncomeTransfer BOOLEAN DEFAULT 0,
+      reminderEnabled BOOLEAN DEFAULT 0,
+      reminderDaysBefore INTEGER DEFAULT 1,
+      lastNotifiedDate TEXT DEFAULT NULL,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
       FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
@@ -198,6 +201,15 @@ export function initializeDatabase(): void {
       lastPrice REAL,
       lastUpdated TEXT,
       sectorWeightings TEXT,
+      alertDailyPct REAL DEFAULT NULL,
+      alertWeeklyPct REAL DEFAULT NULL,
+      alertMonthlyPct REAL DEFAULT NULL,
+      refClose1w REAL DEFAULT NULL,
+      refClose1m REAL DEFAULT NULL,
+      refDate TEXT DEFAULT NULL,
+      alertDailyNotified TEXT DEFAULT NULL,
+      alertWeeklyNotified TEXT DEFAULT NULL,
+      alertMonthlyNotified TEXT DEFAULT NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -357,6 +369,50 @@ export function processRecurringTransactions(): boolean {
     console.error('[DB] Error processing recurring transactions:', e);
     return false;
   }
+}
+
+/**
+ * Subtracts a number of days from an ISO date string, using local-time
+ * construction to avoid UTC off-by-one errors.
+ */
+function subtractDays(dateStr: string, days: number): string {
+  const parts = dateStr.split('-');
+  const date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  date.setDate(date.getDate() - days);
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+
+/**
+ * Returns active recurring schedules whose payment reminder is due to fire
+ * (today is within the per-schedule lead time before nextRunDate, and we have
+ * not already notified for this cycle). Stamps lastNotifiedDate so each cycle
+ * notifies at most once; the schedule becomes eligible again once
+ * processRecurringTransactions advances nextRunDate to the next cycle.
+ */
+export function getDueReminders(): RecurringTransaction[] {
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+  const candidates = db.prepare(`
+    SELECT * FROM recurring_transactions
+    WHERE isActive = 1 AND reminderEnabled = 1
+  `).all() as RecurringTransaction[];
+
+  const due = candidates.filter(rec => {
+    const remindDate = subtractDays(rec.nextRunDate, rec.reminderDaysBefore ?? 0);
+    return todayStr >= remindDate && rec.lastNotifiedDate !== rec.nextRunDate;
+  });
+
+  if (due.length > 0) {
+    const stamp = db.prepare("UPDATE recurring_transactions SET lastNotifiedDate = ? WHERE id = ?");
+    for (const rec of due) {
+      stamp.run(rec.nextRunDate, rec.id);
+    }
+  }
+
+  return due;
 }
 
 function advanceInterestDate(dateStr: string, compounding: string): string {
@@ -1382,12 +1438,13 @@ export function getRecurringTransactions(): RecurringTransaction[] {
 
 export function createRecurringTransaction(data: Omit<RecurringTransaction, 'id'>): RecurringTransaction {
   const insert = db.prepare(`
-    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive, isExpenseTransfer, isIncomeTransfer)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive, isExpenseTransfer, isIncomeTransfer, reminderEnabled, reminderDaysBefore, lastNotifiedDate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = insert.run(
     data.title, data.amount, data.type, data.categoryId, data.accountId, data.transferAccountId,
-    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0, data.isExpenseTransfer ? 1 : 0, data.isIncomeTransfer ? 1 : 0
+    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0, data.isExpenseTransfer ? 1 : 0, data.isIncomeTransfer ? 1 : 0,
+    data.reminderEnabled ? 1 : 0, data.reminderDaysBefore ?? 1, data.lastNotifiedDate ?? null
   );
 
   // Process immediately in case the start date is in the past
@@ -1401,7 +1458,7 @@ export function updateRecurringTransaction(id: number, data: Partial<RecurringTr
 
   const update = db.prepare(`
     UPDATE recurring_transactions
-    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?, isExpenseTransfer = ?, isIncomeTransfer = ?
+    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?, isExpenseTransfer = ?, isIncomeTransfer = ?, reminderEnabled = ?, reminderDaysBefore = ?, lastNotifiedDate = ?
     WHERE id = ?
   `);
 
@@ -1418,6 +1475,9 @@ export function updateRecurringTransaction(id: number, data: Partial<RecurringTr
     data.isActive !== undefined ? (data.isActive ? 1 : 0) : current.isActive,
     data.isExpenseTransfer !== undefined ? (data.isExpenseTransfer ? 1 : 0) : (current.isExpenseTransfer ? 1 : 0),
     data.isIncomeTransfer !== undefined ? (data.isIncomeTransfer ? 1 : 0) : (current.isIncomeTransfer ? 1 : 0),
+    data.reminderEnabled !== undefined ? (data.reminderEnabled ? 1 : 0) : (current.reminderEnabled ? 1 : 0),
+    data.reminderDaysBefore !== undefined ? data.reminderDaysBefore : (current.reminderDaysBefore ?? 1),
+    data.lastNotifiedDate !== undefined ? data.lastNotifiedDate : (current.lastNotifiedDate ?? null),
     id
   );
   // Process immediately in case the nextRunDate was changed to the past
@@ -1478,10 +1538,10 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  
+
   const result = insert.run(
     data.accountId,
     data.symbol,
@@ -1489,7 +1549,16 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.quantity,
     data.lastPrice,
     data.lastUpdated,
-    data.sectorWeightings || null
+    data.sectorWeightings || null,
+    data.alertDailyPct ?? null,
+    data.alertWeeklyPct ?? null,
+    data.alertMonthlyPct ?? null,
+    data.refClose1w ?? null,
+    data.refClose1m ?? null,
+    data.refDate ?? null,
+    data.alertDailyNotified ?? null,
+    data.alertWeeklyNotified ?? null,
+    data.alertMonthlyNotified ?? null
   );
   
   return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
@@ -1499,11 +1568,14 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   const current = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
   
   const update = db.prepare(`
-    UPDATE investment_holdings 
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?
+    UPDATE investment_holdings
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?,
+        alertDailyPct = ?, alertWeeklyPct = ?, alertMonthlyPct = ?,
+        refClose1w = ?, refClose1m = ?, refDate = ?,
+        alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?
     WHERE id = ?
   `);
-  
+
   update.run(
     data.symbol ?? current.symbol,
     data.name !== undefined ? data.name : current.name,
@@ -1511,6 +1583,15 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
     data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
+    data.alertDailyPct !== undefined ? data.alertDailyPct : current.alertDailyPct,
+    data.alertWeeklyPct !== undefined ? data.alertWeeklyPct : current.alertWeeklyPct,
+    data.alertMonthlyPct !== undefined ? data.alertMonthlyPct : current.alertMonthlyPct,
+    data.refClose1w !== undefined ? data.refClose1w : current.refClose1w,
+    data.refClose1m !== undefined ? data.refClose1m : current.refClose1m,
+    data.refDate !== undefined ? data.refDate : current.refDate,
+    data.alertDailyNotified !== undefined ? data.alertDailyNotified : current.alertDailyNotified,
+    data.alertWeeklyNotified !== undefined ? data.alertWeeklyNotified : current.alertWeeklyNotified,
+    data.alertMonthlyNotified !== undefined ? data.alertMonthlyNotified : current.alertMonthlyNotified,
     id
   );
   

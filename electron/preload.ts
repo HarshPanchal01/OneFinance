@@ -1,5 +1,6 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert } from "@/types";
 import type { BackupSettings } from "./backup";
+import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
@@ -99,6 +100,34 @@ const electronAPI = {
   onSavingsInterestProcessed: (callback: () => void) => {
     ipcRenderer.on("savings-interest-processed", callback);
   },
+
+  onReminderNotified: (callback: () => void) => {
+    ipcRenderer.on("reminder-notified", callback);
+  },
+
+  onNavigateReminders: (callback: () => void) => {
+    ipcRenderer.on("navigate-reminders", callback);
+  },
+
+  setReminderLocale: (locale: string, currency: string): Promise<void> =>
+    ipcRenderer.invoke("reminders:setLocale", locale, currency),
+
+  showPriceAlerts: (alerts: PriceAlert[]): Promise<void> =>
+    ipcRenderer.invoke("notifications:showPriceAlerts", alerts),
+
+  onNavigateInvestments: (callback: () => void) => {
+    ipcRenderer.on("navigate-investments", callback);
+  },
+
+  // ============================================
+  // APP PREFERENCES (tray / launch on login)
+  // ============================================
+
+  getAppPreferences: (): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:get"),
+
+  saveAppPreferences: (partial: Partial<AppPreferences>): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:set", partial),
 
   // ============================================
   // LEDGER YEARS
@@ -240,6 +269,9 @@ const electronAPI = {
 
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),
+
+  quitApp: (): Promise<void> =>
+    ipcRenderer.invoke("app:quit"),
 
   exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
     ipcRenderer.invoke("save-file", payload),

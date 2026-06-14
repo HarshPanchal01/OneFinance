@@ -46,6 +46,8 @@ const form = ref({
   })(),
   isExpenseTransfer: false,
   isIncomeTransfer: false,
+  reminderEnabled: false,
+  reminderDaysBefore: 1 as number | null,
 });
 
 const isEditing = computed(() => !!props.recurring);
@@ -108,6 +110,8 @@ watch(
           startDate: props.recurring.startDate,
           isExpenseTransfer: !!props.recurring.isExpenseTransfer,
           isIncomeTransfer: !!props.recurring.isIncomeTransfer,
+          reminderEnabled: !!props.recurring.reminderEnabled,
+          reminderDaysBefore: props.recurring.reminderDaysBefore ?? 1,
         };
       } else {
         const validAccounts = store.accounts.filter(a => {
@@ -128,6 +132,8 @@ watch(
           startDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
           isExpenseTransfer: false,
           isIncomeTransfer: false,
+          reminderEnabled: false,
+          reminderDaysBefore: 1,
         };
       }
     }
@@ -178,6 +184,8 @@ async function save() {
       isActive: isEditing.value && props.recurring ? props.recurring.isActive : true,
       isExpenseTransfer: form.value.type === 'transfer' ? form.value.isExpenseTransfer : false,
       isIncomeTransfer: form.value.type === 'transfer' ? form.value.isIncomeTransfer : false,
+      reminderEnabled: form.value.reminderEnabled,
+      reminderDaysBefore: form.value.reminderEnabled ? Math.min(30, Math.max(0, Math.round(form.value.reminderDaysBefore ?? 1))) : 1,
     };
 
     if (isEditing.value && props.recurring) {
@@ -451,6 +459,49 @@ function close() {
                 {{ category.name }}
               </option>
             </select>
+          </div>
+
+          <!-- Payment Reminder -->
+          <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Payment Reminder
+                </label>
+                <span class="text-xs text-gray-400">
+                  Get a desktop notification before this is due.
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="form.reminderEnabled"
+                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                :class="form.reminderEnabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                @click="form.reminderEnabled = !form.reminderEnabled"
+              >
+                <span
+                  aria-hidden="true"
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  :class="form.reminderEnabled ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
+            <div
+              v-if="form.reminderEnabled"
+              class="mt-3 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+            >
+              <span>Remind me</span>
+              <input
+                v-model.number="form.reminderDaysBefore"
+                type="number"
+                min="0"
+                max="30"
+                class="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <span>day(s) before</span>
+            </div>
           </div>
         </div>
 

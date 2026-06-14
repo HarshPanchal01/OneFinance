@@ -84,6 +84,7 @@ onMounted(async () => {
   const settingsStore = useSettingsStore();
   settingsStore.loadSettings();
   await settingsStore.loadBackupSettings();
+  await settingsStore.loadAppPreferences();
 
   window.electronAPI.onSilentBackupComplete(() => {
     settingsStore.refreshLastBackupDate();
@@ -130,6 +131,28 @@ onMounted(async () => {
     await store.fetchAccounts();
     store.fetchPeriodSummarySync();
   });
+
+  // Refresh schedules when a payment reminder notification fires (keeps lastNotifiedDate in sync)
+  window.electronAPI.onReminderNotified(async () => {
+    await store.fetchRecurringTransactions();
+  });
+
+  // Clicking a reminder notification navigates to the Schedules view
+  window.electronAPI.onNavigateReminders(() => {
+    currentView.value = "recurring";
+  });
+
+  // Clicking a price-alert notification navigates to the Investments view
+  window.electronAPI.onNavigateInvestments(() => {
+    currentView.value = "investments";
+  });
+
+  // Mirror locale/currency to the main process so reminder notifications match the user's region
+  const syncReminderLocale = () => {
+    void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);
+  };
+  syncReminderLocale();
+  watch(() => [settingsStore.resolvedLocale, settingsStore.currency], syncReminderLocale);
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
