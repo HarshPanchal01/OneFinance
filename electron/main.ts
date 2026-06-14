@@ -29,11 +29,14 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
 // App icon for the window, tray, and reminder notifications. Tray/Notification
-// use nativeImage, which only decodes raster formats (PNG/ICO) — not SVG — so we
-// use logo.png (the brand F-logo) on every OS. Resolves from <root>/assets in dev
-// and inside the asar when packaged (included via electron-builder `files`).
-// Per-OS .icns/.ico/.png remain installer icons, configured in electron-builder.json.
-const APP_ICON = path.join(process.env.APP_ROOT, 'assets', 'logo.png');
+// use nativeImage (raster only — PNG/ICO, not SVG): Windows uses logo.png, macOS
+// and Linux use icon.png (the rasterized brand logo). Resolves from <root>/assets
+// in dev and inside the asar when packaged (included via electron-builder `files`).
+const APP_ICON = path.join(
+  process.env.APP_ROOT,
+  'assets',
+  process.platform === 'win32' ? 'logo.png' : 'icon.png',
+);
 
 let win: BrowserWindow | null;
 let tray: Tray | null = null;
