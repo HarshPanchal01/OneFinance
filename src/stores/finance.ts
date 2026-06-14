@@ -17,6 +17,7 @@ import type {
   InvestmentHolding,
   InvestmentTransaction,
   InvestmentHistory,
+  PriceAlert,
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
@@ -835,10 +836,52 @@ export const useFinanceStore = defineStore("finance", () => {
     const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
     try {
       const quotes = await window.electronAPI.getQuotes(symbols);
-      
+
+      // --- Price-change alert setup ---
+      // Note: alerts are evaluated every day including weekends so 24/7 markets
+      // (crypto) are covered. Closed markets (stocks) self-suppress — price is
+      // static, so the percent change is ~0 and nothing fires.
+      const todayStr = new Date().toISOString().split('T')[0];
+      const isoDaysAgo = (n: number) => {
+        const d = new Date();
+        d.setDate(d.getDate() - n);
+        return d.toISOString().split('T')[0];
+      };
+      const closeOnOrBefore = (history: { date: string; close: number }[], dateStr: string): number | null => {
+        const eligible = history.filter(h => h.date <= dateStr && h.close != null);
+        if (eligible.length === 0) return null;
+        return eligible.reduce((a, b) => (a.date >= b.date ? a : b)).close;
+      };
+      const alertQueue: PriceAlert[] = [];
+
       for (const quote of quotes) {
         // Update all holdings with this symbol in DB
         const holdingsToUpdate = investmentHoldings.value.filter(h => h.symbol === quote.symbol);
+
+        // Refresh weekly/monthly reference closes at most once per symbol per day.
+        // (Daily reference is the live quote's previousClose — no extra API call.)
+        let ref1w: number | null = null;
+        let ref1m: number | null = null;
+        let refDate: string | null = null;
+        const symbolHasAlerts = holdingsToUpdate.some(
+          h => h.alertDailyPct != null || h.alertWeeklyPct != null || h.alertMonthlyPct != null
+        );
+        if (symbolHasAlerts) {
+          const fresh = holdingsToUpdate.find(h => h.refDate === todayStr && h.refClose1w != null && h.refClose1m != null);
+          if (fresh) {
+            ref1w = fresh.refClose1w ?? null;
+            ref1m = fresh.refClose1m ?? null;
+            refDate = fresh.refDate ?? null;
+          } else if (quote.symbol) {
+            const history = await window.electronAPI.getHistoricalPrices(quote.symbol, isoDaysAgo(35), todayStr);
+            if (history && history.length > 0) {
+              ref1w = closeOnOrBefore(history, isoDaysAgo(7));
+              ref1m = closeOnOrBefore(history, isoDaysAgo(30));
+              refDate = todayStr;
+            }
+          }
+        }
+
         for (const holding of holdingsToUpdate) {
           const updateData: any = {
             lastPrice: quote.price,
@@ -851,8 +894,43 @@ export const useFinanceStore = defineStore("finance", () => {
             updateData.sectorWeightings = await window.electronAPI.getAssetProfile(holding.symbol);
           }
 
+          if (symbolHasAlerts && refDate) {
+            updateData.refClose1w = ref1w;
+            updateData.refClose1m = ref1m;
+            updateData.refDate = refDate;
+          }
+
+          // Evaluate each timeframe; notify at most once per timeframe per day
+          if (quote.price != null) {
+            const checks = [
+              { tf: 'daily' as const, threshold: holding.alertDailyPct, ref: quote.previousClose, notified: holding.alertDailyNotified, notifiedKey: 'alertDailyNotified' },
+              { tf: 'weekly' as const, threshold: holding.alertWeeklyPct, ref: ref1w, notified: holding.alertWeeklyNotified, notifiedKey: 'alertWeeklyNotified' },
+              { tf: 'monthly' as const, threshold: holding.alertMonthlyPct, ref: ref1m, notified: holding.alertMonthlyNotified, notifiedKey: 'alertMonthlyNotified' },
+            ];
+            for (const c of checks) {
+              if (c.threshold == null || c.ref == null || c.ref === 0) continue;
+              const change = ((quote.price - c.ref) / c.ref) * 100;
+              if (Math.abs(change) >= c.threshold && c.notified !== todayStr) {
+                alertQueue.push({ symbol: holding.symbol, timeframe: c.tf, pct: change, fromPrice: c.ref, toPrice: quote.price });
+                updateData[c.notifiedKey] = todayStr;
+              }
+            }
+          }
+
           await window.electronAPI.updateInvestmentHolding(holding.id, updateData);
         }
+      }
+
+      // Show one notification per symbol+timeframe (holdings sharing a symbol dedupe)
+      if (alertQueue.length > 0) {
+        const seen = new Set<string>();
+        const unique = alertQueue.filter(a => {
+          const key = `${a.symbol}-${a.timeframe}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        await window.electronAPI.showPriceAlerts(unique);
       }
 
       // Refresh store state
@@ -1343,6 +1421,9 @@ export const useFinanceStore = defineStore("finance", () => {
           nextRunDate: recurring.nextRunDate,
           isActive: recurring.isActive,
           isExpenseTransfer: recurring.isExpenseTransfer,
+          reminderEnabled: recurring.reminderEnabled,
+          reminderDaysBefore: recurring.reminderDaysBefore,
+          lastNotifiedDate: null,
         });
 
         console.log(`Inserting recurring transaction ${recurring.title} completed`);
@@ -1440,7 +1521,11 @@ export const useFinanceStore = defineStore("finance", () => {
           quantity: holding.quantity,
           lastPrice: holding.lastPrice,
           lastUpdated: holding.lastUpdated,
-          sectorWeightings: holding.sectorWeightings
+          sectorWeightings: holding.sectorWeightings,
+          // Carry alert thresholds; reference/notified caches reset to null (re-anchor on the new machine)
+          alertDailyPct: holding.alertDailyPct ?? null,
+          alertWeeklyPct: holding.alertWeeklyPct ?? null,
+          alertMonthlyPct: holding.alertMonthlyPct ?? null,
         });
 
         console.log(`Inserting holding ${holding.symbol} completed`);

@@ -39,11 +39,38 @@ const expandedSections = computed({
 
 const isEdit = ref(false);
 let accountEditId = 0;
+const hasExistingInterest = ref(false);
+const existingNextInterestDate = ref<string | null>(null);
 
 const state = reactive({
   accountArray: store.accounts,
   accountTypeArray: accountsTypeArray
 });
+
+function getTodayStr(): string {
+  const today = new Date();
+  return today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
+}
+
+function computeNextInterestDate(startDateStr: string, compounding: string): string {
+  const [year, month, day] = startDateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const monthsMap: Record<string, number> = {
+    monthly: 1,
+    quarterly: 3,
+    'semi-annually': 6,
+    annually: 12,
+  };
+  const monthsToAdd = monthsMap[compounding] ?? 1;
+  const targetMonth = date.getMonth() + monthsToAdd;
+  date.setMonth(targetMonth);
+  if (date.getMonth() !== targetMonth % 12) date.setDate(0);
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
 
 function toggleSection(section: string) {
   const newSet = new Set(expandedSections.value);
@@ -94,7 +121,10 @@ const form = reactive({
   startingBalance: 0 as number | null,
   classification: 'liquid' as AccountClassification,
   accountType: null as number | null,
-  isDefault: false
+  isDefault: false,
+  interestRate: null as number | null,
+  interestCompounding: 'monthly' as string,
+  interestStartDate: getTodayStr(),
 });
 
 const filteredAccountTypes = computed(() => {
@@ -106,14 +136,18 @@ function closeDialog() {
   openDialog.value = false;
   isEdit.value = false;
   accountEditId = 0;
-  // Reset form object entirely
+  hasExistingInterest.value = false;
+  existingNextInterestDate.value = null;
   Object.assign(form, {
     accountName: '',
     institutionName: '',
     startingBalance: 0 as number | null,
     classification: 'liquid',
     accountType: null,
-    isDefault: false
+    isDefault: false,
+    interestRate: null,
+    interestCompounding: 'monthly',
+    interestStartDate: getTodayStr(),
   });
 }
 
@@ -122,41 +156,62 @@ async function submitForm() {
   const amount = form.startingBalance ?? 0;
   const processedBalance = isLiability ? -Math.abs(amount) : Math.abs(amount);
 
-  if(!isEdit.value){
-    store.addAccount({
-      id : 0,
-      accountName: form.accountName,
-      institutionName: form.institutionName,
-      startingBalance: processedBalance,
-      accountTypeId:  form.accountType,
-      isDefault: form.isDefault,
-    } as Account);
+  const hasInterest = form.classification === 'liquid' && !!form.interestRate && form.interestRate > 0;
+  let interestRate: number | null = null;
+  let interestCompounding: string | null = null;
+  let nextInterestDate: string | null = null;
+
+  if (hasInterest) {
+    interestRate = form.interestRate! / 100;
+    interestCompounding = form.interestCompounding;
+    if (isEdit.value && hasExistingInterest.value) {
+      nextInterestDate = existingNextInterestDate.value;
+    } else {
+      const startDate = form.interestStartDate || getTodayStr();
+      nextInterestDate = computeNextInterestDate(startDate, form.interestCompounding);
+    }
   }
-  else{
-    store.editAccount({
-      id : accountEditId,
+
+  if(!isEdit.value){
+    await store.addAccount({
+      id: 0,
       accountName: form.accountName,
       institutionName: form.institutionName,
       startingBalance: processedBalance,
       accountTypeId: form.accountType,
-      isDefault: form.isDefault
+      isDefault: form.isDefault,
+      interestRate,
+      interestCompounding,
+      nextInterestDate,
+    } as Account);
+  }
+  else{
+    await store.editAccount({
+      id: accountEditId,
+      accountName: form.accountName,
+      institutionName: form.institutionName,
+      startingBalance: processedBalance,
+      accountTypeId: form.accountType,
+      isDefault: form.isDefault,
+      interestRate,
+      interestCompounding,
+      nextInterestDate,
     } as Account);
   }
 
   closeDialog();
 
-  await store.fetchAccounts(); 
-  state.accountArray = store.accounts.filter(() => true);; 
-
-  console.log(store.accounts);
-
+  await store.fetchAccounts();
+  await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+  store.fetchPeriodSummarySync();
+  state.accountArray = store.accounts.filter(() => true);
 }
 
 function editAccount(account: Account) {
   const accountTypeObj = state.accountTypeArray.find(t => t.id === account.accountTypeId);
 
   openDialog.value = true;
-  form.accountName= account.accountName;
+  form.accountName = account.accountName;
   form.institutionName = account.institutionName ?? "";
   form.startingBalance = Math.abs(account.startingBalance);
   form.classification = accountTypeObj?.classification || 'liquid';
@@ -164,6 +219,12 @@ function editAccount(account: Account) {
   form.isDefault = Boolean(account.isDefault);
   isEdit.value = true;
   accountEditId = account.id;
+
+  hasExistingInterest.value = !!(account.interestRate && account.interestRate > 0);
+  existingNextInterestDate.value = account.nextInterestDate ?? null;
+  form.interestRate = account.interestRate ? Math.round(account.interestRate * 10000) / 100 : null;
+  form.interestCompounding = account.interestCompounding ?? 'monthly';
+  form.interestStartDate = getTodayStr();
 }
 
 function viewTransactions(account: Account) {
@@ -389,6 +450,72 @@ async function handleDeleteConfirm(strategy: 'transfer' | 'delete', transferToAc
                 for="isDefault"
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
               >Set as Default</label>
+            </div>
+
+            <!-- Interest Settings (liquid accounts only) -->
+            <div
+              v-if="form.classification === 'liquid'"
+              class="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3"
+            >
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Interest Settings
+              </h3>
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Annual Rate (%)</label>
+                  <input
+                    v-model.number="form.interestRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                    placeholder="e.g. 4.5"
+                  />
+                </div>
+                <div class="flex-1">
+                  <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Compounding</label>
+                  <select
+                    v-model="form.interestCompounding"
+                    :disabled="!form.interestRate"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                  >
+                    <option value="monthly">
+                      Monthly
+                    </option>
+                    <option value="quarterly">
+                      Quarterly
+                    </option>
+                    <option value="semi-annually">
+                      Semi-Annually
+                    </option>
+                    <option value="annually">
+                      Annually
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Start date: only when setting up interest for the first time -->
+              <div v-if="form.interestRate && form.interestRate > 0 && !(isEdit && hasExistingInterest)">
+                <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Interest Start Date</label>
+                <input
+                  v-model="form.interestStartDate"
+                  type="date"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Set to an earlier date to backfill historical interest transactions.
+                </p>
+              </div>
+
+              <!-- Show next scheduled date when editing existing interest -->
+              <p
+                v-else-if="isEdit && hasExistingInterest && form.interestRate && form.interestRate > 0"
+                class="text-xs text-gray-400 dark:text-gray-500"
+              >
+                Next interest date: {{ existingNextInterestDate ?? '—' }}
+              </p>
             </div>
 
             <!-- Footer -->

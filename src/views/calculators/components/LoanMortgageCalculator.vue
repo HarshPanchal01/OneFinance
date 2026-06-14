@@ -145,6 +145,7 @@ const calculate = () => {
 
 const hasCalculated = ref(false);
 const chartKey = ref(0);
+const isExpanded = ref(true);
 
 const showError = (message: string) => {
   errorModal.value?.openConfirmation({ title: 'Invalid Input', message });
@@ -292,7 +293,6 @@ const chartData = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  const privacy = settingsStore.privacyMode;
   const storedScale = amortizationData.value?.xScale ?? 'years';
 
   return {
@@ -312,7 +312,7 @@ const chartOptions = computed(() => {
         beginAtZero: true,
         title: { display: true, text: 'Remaining Balance' },
         ticks: {
-          callback: (value: any) => privacy ? '****' : formatCurrency(value)
+          callback: (value: any) => formatCurrency(value)
         }
       }
     },
@@ -327,8 +327,7 @@ const chartOptions = computed(() => {
           },
           label: (context: any) => {
             const label = context.dataset.label || '';
-            const value = privacy ? '****' : formatCurrency(context.parsed.y ?? 0);
-            return `${label}: ${value}`;
+            return `${label}: ${formatCurrency(context.parsed.y ?? 0)}`;
           }
         }
       },
@@ -345,11 +344,15 @@ const chartOptions = computed(() => {
   <section class="flex flex-col">
     <ErrorModal ref="errorModal" />
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-6">
+    <div
+      class="flex items-center gap-4 cursor-pointer select-none group"
+      :class="isExpanded ? 'mb-6' : 'mb-0'"
+      @click="isExpanded = !isExpanded"
+    >
       <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
         <i class="pi pi-home text-xl" />
       </div>
-      <div>
+      <div class="flex-1">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white">
           Loan & Mortgage Amortization
         </h2>
@@ -357,9 +360,16 @@ const chartOptions = computed(() => {
           Calculate your monthly payment and simulate accelerated payoff
         </p>
       </div>
+      <i
+        class="pi transition-transform duration-200 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 mr-1"
+        :class="isExpanded ? 'pi-chevron-down' : 'pi-chevron-right'"
+      />
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div
+      v-show="isExpanded"
+      class="grid grid-cols-1 lg:grid-cols-4 gap-4"
+    >
       <!-- Input Form -->
       <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 lg:col-span-1 flex flex-col gap-4">
         <div>
@@ -559,7 +569,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-blue-600 dark:text-blue-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(amortizationData.hasCustomPayment ? amortizationData.actualPayment : amortizationData.basePayment) }}
             </p>
@@ -570,7 +579,6 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold text-red-600 dark:text-red-500 truncate"
-              :class="{ 'privacy-blur': settingsStore.privacyMode }"
             >
               {{ formatCurrency(amortizationData.totalInterestActual) }}
             </p>
@@ -581,7 +589,7 @@ const chartOptions = computed(() => {
             </p>
             <p
               class="text-lg font-bold truncate transition-colors"
-              :class="[amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600', { 'privacy-blur': settingsStore.privacyMode }]"
+              :class="amortizationData.hasCustomPayment ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400 dark:text-gray-600'"
             >
               {{ formatCurrency(amortizationData.interestSaved) }}
             </p>
@@ -640,6 +648,7 @@ const chartOptions = computed(() => {
               :data="chartData"
               :options="chartOptions"
               :plugins="chartPlugins"
+              :disable-privacy="true"
               height="100%"
             />
           </div>

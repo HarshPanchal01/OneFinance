@@ -214,5 +214,80 @@ function migrate1to2(db: any): void {
   } catch (e) {
     console.error('[Migration] Migration error creating investment tables:', e);
   }
+
+  // Add savings account interest fields
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN interestRate REAL DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding interestRate to accounts:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN interestCompounding TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding interestCompounding to accounts:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE accounts ADD COLUMN nextInterestDate TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding nextInterestDate to accounts:', error);
+    }
+  }
+
+  // Add payment reminder fields to recurring transactions
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN reminderEnabled BOOLEAN DEFAULT 0");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding reminderEnabled to recurring_transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN reminderDaysBefore INTEGER DEFAULT 1");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding reminderDaysBefore to recurring_transactions:', error);
+    }
+  }
+  try {
+    db.exec("ALTER TABLE recurring_transactions ADD COLUMN lastNotifiedDate TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding lastNotifiedDate to recurring_transactions:', error);
+    }
+  }
+
+  // Add investment price-change alert fields to holdings
+  const holdingAlertColumns = [
+    "ALTER TABLE investment_holdings ADD COLUMN alertDailyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertWeeklyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertMonthlyPct REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refClose1w REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refClose1m REAL DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN refDate TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertDailyNotified TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertWeeklyNotified TEXT DEFAULT NULL",
+    "ALTER TABLE investment_holdings ADD COLUMN alertMonthlyNotified TEXT DEFAULT NULL",
+  ];
+  for (const sql of holdingAlertColumns) {
+    try {
+      db.exec(sql);
+    } catch (e) {
+      const error = e as any;
+      if (!error?.message?.includes('duplicate column name')) {
+        console.error('[Migration] Migration error adding holding alert column:', error);
+      }
+    }
+  }
 }
 

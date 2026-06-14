@@ -11,6 +11,7 @@ interface Props {
   height?: string;
   currencyFormat?: boolean;
   plugins?: any[];
+  disablePrivacy?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   height: "300px",
   currencyFormat: true,
   plugins: () => [],
+  disablePrivacy: false,
 });
 
 const settingsStore = useSettingsStore();
@@ -60,7 +62,7 @@ const defaultOptions = computed(() => {
             label += ': ';
         }
         
-        if (settingsStore.privacyMode && props.type !== 'doughnut' && props.type !== 'pie') {
+        if (!props.disablePrivacy && settingsStore.privacyMode && props.type !== 'doughnut' && props.type !== 'pie') {
             label += '***';
             return label;
         }
@@ -113,7 +115,7 @@ const defaultOptions = computed(() => {
         ticks: {
           color: textColor,
           callback: function(value: string | number) {
-              if (settingsStore.privacyMode) {
+              if (!props.disablePrivacy && settingsStore.privacyMode) {
                   return '***';
               }
               if (props.currencyFormat) {

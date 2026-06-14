@@ -1,4 +1,6 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert } from "@/types";
+import type { BackupSettings } from "./backup";
+import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
 
 // The API exposed to the renderer process
@@ -94,6 +96,38 @@ const electronAPI = {
   onRecurringProcessed: (callback: () => void) => {
     ipcRenderer.on("recurring-processed", callback);
   },
+
+  onSavingsInterestProcessed: (callback: () => void) => {
+    ipcRenderer.on("savings-interest-processed", callback);
+  },
+
+  onReminderNotified: (callback: () => void) => {
+    ipcRenderer.on("reminder-notified", callback);
+  },
+
+  onNavigateReminders: (callback: () => void) => {
+    ipcRenderer.on("navigate-reminders", callback);
+  },
+
+  setReminderLocale: (locale: string, currency: string): Promise<void> =>
+    ipcRenderer.invoke("reminders:setLocale", locale, currency),
+
+  showPriceAlerts: (alerts: PriceAlert[]): Promise<void> =>
+    ipcRenderer.invoke("notifications:showPriceAlerts", alerts),
+
+  onNavigateInvestments: (callback: () => void) => {
+    ipcRenderer.on("navigate-investments", callback);
+  },
+
+  // ============================================
+  // APP PREFERENCES (tray / launch on login)
+  // ============================================
+
+  getAppPreferences: (): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:get"),
+
+  saveAppPreferences: (partial: Partial<AppPreferences>): Promise<AppPreferences> =>
+    ipcRenderer.invoke("prefs:set", partial),
 
   // ============================================
   // LEDGER YEARS
@@ -236,6 +270,9 @@ const electronAPI = {
   deleteDatabase: (): Promise<boolean> =>
     ipcRenderer.invoke("system:deleteDatabase"),
 
+  quitApp: (): Promise<void> =>
+    ipcRenderer.invoke("app:quit"),
+
   exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
     ipcRenderer.invoke("save-file", payload),
 
@@ -249,6 +286,29 @@ const electronAPI = {
     recurringTransactions?: RecurringTransaction[]
   }}> =>
     ipcRenderer.invoke("import-file"),
+
+  // ============================================
+  // AUTOMATED BACKUPS
+  // ============================================
+
+  getBackupSettings: (): Promise<BackupSettings> =>
+    ipcRenderer.invoke('backup:getSettings'),
+
+  saveBackupSettings: (partial: Partial<Pick<BackupSettings, 'enabled' | 'folder' | 'frequency' | 'hasSeenBackupPrompt'>>): Promise<BackupSettings> =>
+    ipcRenderer.invoke('backup:saveSettings', partial),
+
+  selectBackupFolder: (): Promise<{ canceled?: boolean; folder?: string }> =>
+    ipcRenderer.invoke('backup:selectFolder'),
+
+  runBackupNow: (type: 'auto' | 'manual', override: boolean): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('backup:runNow', type, override),
+
+  getLatestManualBackup: (): Promise<{ exists: boolean; filename: string | null }> =>
+    ipcRenderer.invoke('backup:getLatestManualBackup'),
+
+  onSilentBackupComplete: (callback: () => void) => {
+    ipcRenderer.on('silent-backup-complete', callback);
+  },
 
   // ============================================
   // GENERIC IPC (for future use)

@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/stores/settings";
 import Sidebar from "@/components/Sidebar.vue";
 import TopBar from "@/components/TopBar.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
+import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -43,6 +44,7 @@ watch(
 
 // Quick add transaction modal
 const showQuickAddModal = ref(false);
+const backupSetupModal = ref<InstanceType<typeof BackupSetupModal>>();
 
 // Navigate to view
 function navigateTo(view: string) {
@@ -81,6 +83,20 @@ function handleRequestViewTransactions(id: number, type: 'account' | 'recurring'
 onMounted(async () => {
   const settingsStore = useSettingsStore();
   settingsStore.loadSettings();
+  await settingsStore.loadBackupSettings();
+  await settingsStore.loadAppPreferences();
+
+  window.electronAPI.onSilentBackupComplete(() => {
+    settingsStore.refreshLastBackupDate();
+  });
+
+  if (!settingsStore.hasSeenBackupPrompt) {
+    settingsStore.hasSeenBackupPrompt = true;
+    const didEnable = await backupSetupModal.value?.open();
+    if (didEnable) {
+      await settingsStore.loadBackupSettings();
+    }
+  }
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (settingsStore.appearance === 'system') {
@@ -107,6 +123,36 @@ onMounted(async () => {
     await store.fetchAccounts();
     store.fetchPeriodSummarySync();
   });
+
+  // Listen for background savings interest
+  window.electronAPI.onSavingsInterestProcessed(async () => {
+    console.log("Background savings interest processed, refreshing...");
+    await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+    await store.fetchAccounts();
+    store.fetchPeriodSummarySync();
+  });
+
+  // Refresh schedules when a payment reminder notification fires (keeps lastNotifiedDate in sync)
+  window.electronAPI.onReminderNotified(async () => {
+    await store.fetchRecurringTransactions();
+  });
+
+  // Clicking a reminder notification navigates to the Schedules view
+  window.electronAPI.onNavigateReminders(() => {
+    currentView.value = "recurring";
+  });
+
+  // Clicking a price-alert notification navigates to the Investments view
+  window.electronAPI.onNavigateInvestments(() => {
+    currentView.value = "investments";
+  });
+
+  // Mirror locale/currency to the main process so reminder notifications match the user's region
+  const syncReminderLocale = () => {
+    void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);
+  };
+  syncReminderLocale();
+  watch(() => [settingsStore.resolvedLocale, settingsStore.currency], syncReminderLocale);
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
@@ -253,5 +299,8 @@ function handleKeydown(e: KeyboardEvent) {
       @close="showQuickAddModal = false"
       @saved="showQuickAddModal = false"
     />
+
+    <!-- First-run backup setup prompt -->
+    <BackupSetupModal ref="backupSetupModal" />
   </div>
 </template>

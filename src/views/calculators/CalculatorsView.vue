@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CompoundInterestCalculator from './components/CompoundInterestCalculator.vue';
 import LoanMortgageCalculator from './components/LoanMortgageCalculator.vue';
+import DebtPayoffCalculator from './components/DebtPayoffCalculator.vue';
 </script>
 
 <template>
@@ -19,6 +20,7 @@ import LoanMortgageCalculator from './components/LoanMortgageCalculator.vue';
     <div class="flex flex-col gap-8">
       <CompoundInterestCalculator />
       <LoanMortgageCalculator />
+      <DebtPayoffCalculator />
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "$schema": "./node_modules/app-builder-lib/scheme.json",
   "appId": "com.onefinance.app",
   "asar": true,
   "productName": "OneFinance",
@@ -10,6 +10,9 @@
   "files": [
     "dist/**/*",
     "dist-electron/**/*",
+    "assets/icon.svg",
+    "assets/logo.png",
+    "assets/icon.png",
     "!**/*.map",
     "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
     "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
@@ -17,7 +20,7 @@
     "!**/node_modules/.bin"
   ],
   "mac": {
-    "icon": "assets/icon.icns",
+    "icon": "assets/icon.png",
     "target": [
       {
         "target": "dmg",
@@ -27,7 +30,7 @@
     "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
   },
   "win": {
-    "icon": "assets/icon.ico",
+    "icon": "assets/logo.png",
     "target": [
       {
         "target": "nsis",

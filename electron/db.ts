@@ -136,6 +136,9 @@ export function initializeDatabase(): void {
       startingBalance REAL NOT NULL,
       accountTypeId INTEGER,
       isDefault BOOLEAN NOT NULL,
+      interestRate REAL DEFAULT NULL,
+      interestCompounding TEXT DEFAULT NULL,
+      nextInterestDate TEXT DEFAULT NULL,
       FOREIGN KEY (accountTypeId) REFERENCES accountType(id) ON DELETE SET NULL
     )
   `);
@@ -156,6 +159,9 @@ export function initializeDatabase(): void {
       isActive BOOLEAN NOT NULL DEFAULT 1,
       isExpenseTransfer BOOLEAN DEFAULT 0,
       isIncomeTransfer BOOLEAN DEFAULT 0,
+      reminderEnabled BOOLEAN DEFAULT 0,
+      reminderDaysBefore INTEGER DEFAULT 1,
+      lastNotifiedDate TEXT DEFAULT NULL,
       FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE,
       FOREIGN KEY (transferAccountId) REFERENCES accounts(id) ON DELETE CASCADE
@@ -195,6 +201,15 @@ export function initializeDatabase(): void {
       lastPrice REAL,
       lastUpdated TEXT,
       sectorWeightings TEXT,
+      alertDailyPct REAL DEFAULT NULL,
+      alertWeeklyPct REAL DEFAULT NULL,
+      alertMonthlyPct REAL DEFAULT NULL,
+      refClose1w REAL DEFAULT NULL,
+      refClose1m REAL DEFAULT NULL,
+      refDate TEXT DEFAULT NULL,
+      alertDailyNotified TEXT DEFAULT NULL,
+      alertWeeklyNotified TEXT DEFAULT NULL,
+      alertMonthlyNotified TEXT DEFAULT NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -261,6 +276,7 @@ export function initializeDatabase(): void {
   `);
 
   processRecurringTransactions();
+  processSavingsInterest();
 
   console.log(`[DB] Database initialized at: ${getDbPath()}`);
 }
@@ -351,6 +367,168 @@ export function processRecurringTransactions(): boolean {
   } catch (e) {
     if (db.inTransaction) db.exec('ROLLBACK');
     console.error('[DB] Error processing recurring transactions:', e);
+    return false;
+  }
+}
+
+/**
+ * Subtracts a number of days from an ISO date string, using local-time
+ * construction to avoid UTC off-by-one errors.
+ */
+function subtractDays(dateStr: string, days: number): string {
+  const parts = dateStr.split('-');
+  const date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  date.setDate(date.getDate() - days);
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+
+/**
+ * Returns active recurring schedules whose payment reminder is due to fire
+ * (today is within the per-schedule lead time before nextRunDate, and we have
+ * not already notified for this cycle). Stamps lastNotifiedDate so each cycle
+ * notifies at most once; the schedule becomes eligible again once
+ * processRecurringTransactions advances nextRunDate to the next cycle.
+ */
+export function getDueReminders(): RecurringTransaction[] {
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+  const candidates = db.prepare(`
+    SELECT * FROM recurring_transactions
+    WHERE isActive = 1 AND reminderEnabled = 1
+  `).all() as RecurringTransaction[];
+
+  const due = candidates.filter(rec => {
+    const remindDate = subtractDays(rec.nextRunDate, rec.reminderDaysBefore ?? 0);
+    return todayStr >= remindDate && rec.lastNotifiedDate !== rec.nextRunDate;
+  });
+
+  if (due.length > 0) {
+    const stamp = db.prepare("UPDATE recurring_transactions SET lastNotifiedDate = ? WHERE id = ?");
+    for (const rec of due) {
+      stamp.run(rec.nextRunDate, rec.id);
+    }
+  }
+
+  return due;
+}
+
+function advanceInterestDate(dateStr: string, compounding: string): string {
+  const parts = dateStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const date = new Date(year, month, day);
+
+  const monthsMap: Record<string, number> = {
+    monthly: 1,
+    quarterly: 3,
+    'semi-annually': 6,
+    annually: 12,
+  };
+  const monthsToAdd = monthsMap[compounding] ?? 1;
+  const targetMonth = date.getMonth() + monthsToAdd;
+  date.setMonth(targetMonth);
+  if (date.getMonth() !== targetMonth % 12) {
+    date.setDate(0);
+  }
+
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+}
+
+function periodsPerYear(compounding: string): number {
+  if (compounding === 'monthly') return 12;
+  if (compounding === 'quarterly') return 4;
+  if (compounding === 'semi-annually') return 2;
+  if (compounding === 'annually') return 1;
+  return 12;
+}
+
+/**
+ * Processes savings interest for all eligible accounts.
+ * Calculates balance as-of each period date so compounding is accurate,
+ * and backfills all missed periods (same catch-up pattern as recurring transactions).
+ * @returns boolean - true if any interest transactions were created
+ */
+export function processSavingsInterest(): boolean {
+  try {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const dueAccounts = db.prepare(`
+      SELECT * FROM accounts
+      WHERE interestRate IS NOT NULL AND interestRate > 0
+        AND interestCompounding IS NOT NULL
+        AND nextInterestDate IS NOT NULL
+        AND nextInterestDate <= ?
+    `).all(todayStr) as Account[];
+
+    if (dueAccounts.length === 0) return false;
+
+    const otherCat = db.prepare("SELECT id FROM categories WHERE name = 'Other' LIMIT 1").get() as { id: number } | undefined;
+    const interestCategoryId: number | null = otherCat?.id ?? null;
+
+    db.exec('BEGIN TRANSACTION');
+
+    const getBalanceAsOf = db.prepare(`
+      SELECT a.startingBalance + COALESCE(SUM(
+        CASE
+          WHEN t.type = 'income' THEN t.amount
+          WHEN t.type = 'expense' THEN -t.amount
+          WHEN t.type = 'transfer' AND t.accountId = a.id THEN -t.amount
+          WHEN t.type = 'transfer' AND t.transferAccountId = a.id THEN t.amount
+          ELSE 0
+        END
+      ), 0) AS balance
+      FROM accounts a
+      LEFT JOIN transactions t ON (t.accountId = a.id OR t.transferAccountId = a.id) AND t.date <= ?
+      WHERE a.id = ?
+    `);
+
+    const insertTx = db.prepare(`
+      INSERT INTO transactions (title, amount, date, type, notes, categoryId, accountId, transferAccountId, recurringId, isExpenseTransfer, isIncomeTransfer)
+      VALUES ('Interest', ?, ?, 'income', 'Savings interest', ?, ?, NULL, NULL, 0, 0)
+    `);
+
+    const updateAccount = db.prepare(`
+      UPDATE accounts SET nextInterestDate = ? WHERE id = ?
+    `);
+
+    let anyCreated = false;
+
+    for (const account of dueAccounts) {
+      let currentDateStr = account.nextInterestDate!;
+      const periods = periodsPerYear(account.interestCompounding!);
+      const periodRate = account.interestRate! / periods;
+
+      while (currentDateStr <= todayStr) {
+        const row = getBalanceAsOf.get(currentDateStr, account.id) as { balance: number };
+        const balance = row?.balance ?? 0;
+
+        if (balance > 0) {
+          const interest = Math.round(balance * periodRate * 100) / 100;
+          if (interest >= 0.01) {
+            insertTx.run(interest, currentDateStr, interestCategoryId, account.id);
+            anyCreated = true;
+          }
+        }
+
+        currentDateStr = advanceInterestDate(currentDateStr, account.interestCompounding!);
+      }
+
+      updateAccount.run(currentDateStr, account.id);
+    }
+
+    db.exec('COMMIT');
+    if (anyCreated) console.log('[DB] Processed savings interest.');
+    return anyCreated;
+  } catch (e) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('[DB] Error processing savings interest:', e);
     return false;
   }
 }
@@ -514,10 +692,12 @@ export function insertAccount(account: Account): number | null{
       resetDefault();
     }
   
-    const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault) VALUES (?,?,?,?,?)");
-    const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault));
+    const insert = db.prepare("INSERT INTO accounts (accountName, institutionName, startingBalance, accountTypeId, isDefault, interestRate, interestCompounding, nextInterestDate) VALUES (?,?,?,?,?,?,?,?)");
+    const result = insert.run(account.accountName, account.institutionName, account.startingBalance, account.accountTypeId, Number(account.isDefault), account.interestRate ?? null, account.interestCompounding ?? null, account.nextInterestDate ?? null);
 
-    return Number(result.lastInsertRowid);
+    const newId = Number(result.lastInsertRowid);
+    processSavingsInterest();
+    return newId;
   } catch {
     return null;
   }
@@ -560,16 +740,23 @@ export function editAccount(account: Account): void {
         institutionName = ?,
         startingBalance = ?,
         accountTypeId = ?,
-        isDefault = ?
+        isDefault = ?,
+        interestRate = ?,
+        interestCompounding = ?,
+        nextInterestDate = ?
       WHERE id = ?
     `).run(
       account.accountName,
       account.institutionName,
       account.startingBalance,
       account.accountTypeId,
-      account.isDefault ? 1 : 0, 
+      account.isDefault ? 1 : 0,
+      account.interestRate ?? null,
+      account.interestCompounding ?? null,
+      account.nextInterestDate ?? null,
       account.id
     );
+    processSavingsInterest();
   } catch(e){
     console.log(e);
   }
@@ -1251,12 +1438,13 @@ export function getRecurringTransactions(): RecurringTransaction[] {
 
 export function createRecurringTransaction(data: Omit<RecurringTransaction, 'id'>): RecurringTransaction {
   const insert = db.prepare(`
-    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive, isExpenseTransfer, isIncomeTransfer)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO recurring_transactions (title, amount, type, categoryId, accountId, transferAccountId, frequency, startDate, nextRunDate, isActive, isExpenseTransfer, isIncomeTransfer, reminderEnabled, reminderDaysBefore, lastNotifiedDate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = insert.run(
     data.title, data.amount, data.type, data.categoryId, data.accountId, data.transferAccountId,
-    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0, data.isExpenseTransfer ? 1 : 0, data.isIncomeTransfer ? 1 : 0
+    data.frequency, data.startDate, data.nextRunDate, data.isActive ? 1 : 0, data.isExpenseTransfer ? 1 : 0, data.isIncomeTransfer ? 1 : 0,
+    data.reminderEnabled ? 1 : 0, data.reminderDaysBefore ?? 1, data.lastNotifiedDate ?? null
   );
 
   // Process immediately in case the start date is in the past
@@ -1270,7 +1458,7 @@ export function updateRecurringTransaction(id: number, data: Partial<RecurringTr
 
   const update = db.prepare(`
     UPDATE recurring_transactions
-    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?, isExpenseTransfer = ?, isIncomeTransfer = ?
+    SET title = ?, amount = ?, type = ?, categoryId = ?, accountId = ?, transferAccountId = ?, frequency = ?, startDate = ?, nextRunDate = ?, isActive = ?, isExpenseTransfer = ?, isIncomeTransfer = ?, reminderEnabled = ?, reminderDaysBefore = ?, lastNotifiedDate = ?
     WHERE id = ?
   `);
 
@@ -1287,6 +1475,9 @@ export function updateRecurringTransaction(id: number, data: Partial<RecurringTr
     data.isActive !== undefined ? (data.isActive ? 1 : 0) : current.isActive,
     data.isExpenseTransfer !== undefined ? (data.isExpenseTransfer ? 1 : 0) : (current.isExpenseTransfer ? 1 : 0),
     data.isIncomeTransfer !== undefined ? (data.isIncomeTransfer ? 1 : 0) : (current.isIncomeTransfer ? 1 : 0),
+    data.reminderEnabled !== undefined ? (data.reminderEnabled ? 1 : 0) : (current.reminderEnabled ? 1 : 0),
+    data.reminderDaysBefore !== undefined ? data.reminderDaysBefore : (current.reminderDaysBefore ?? 1),
+    data.lastNotifiedDate !== undefined ? data.lastNotifiedDate : (current.lastNotifiedDate ?? null),
     id
   );
   // Process immediately in case the nextRunDate was changed to the past
@@ -1347,10 +1538,10 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  
+
   const result = insert.run(
     data.accountId,
     data.symbol,
@@ -1358,7 +1549,16 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.quantity,
     data.lastPrice,
     data.lastUpdated,
-    data.sectorWeightings || null
+    data.sectorWeightings || null,
+    data.alertDailyPct ?? null,
+    data.alertWeeklyPct ?? null,
+    data.alertMonthlyPct ?? null,
+    data.refClose1w ?? null,
+    data.refClose1m ?? null,
+    data.refDate ?? null,
+    data.alertDailyNotified ?? null,
+    data.alertWeeklyNotified ?? null,
+    data.alertMonthlyNotified ?? null
   );
   
   return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
@@ -1368,11 +1568,14 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   const current = db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(id) as InvestmentHolding;
   
   const update = db.prepare(`
-    UPDATE investment_holdings 
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?
+    UPDATE investment_holdings
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?,
+        alertDailyPct = ?, alertWeeklyPct = ?, alertMonthlyPct = ?,
+        refClose1w = ?, refClose1m = ?, refDate = ?,
+        alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?
     WHERE id = ?
   `);
-  
+
   update.run(
     data.symbol ?? current.symbol,
     data.name !== undefined ? data.name : current.name,
@@ -1380,6 +1583,15 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
     data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
+    data.alertDailyPct !== undefined ? data.alertDailyPct : current.alertDailyPct,
+    data.alertWeeklyPct !== undefined ? data.alertWeeklyPct : current.alertWeeklyPct,
+    data.alertMonthlyPct !== undefined ? data.alertMonthlyPct : current.alertMonthlyPct,
+    data.refClose1w !== undefined ? data.refClose1w : current.refClose1w,
+    data.refClose1m !== undefined ? data.refClose1m : current.refClose1m,
+    data.refDate !== undefined ? data.refDate : current.refDate,
+    data.alertDailyNotified !== undefined ? data.alertDailyNotified : current.alertDailyNotified,
+    data.alertWeeklyNotified !== undefined ? data.alertWeeklyNotified : current.alertWeeklyNotified,
+    data.alertMonthlyNotified !== undefined ? data.alertMonthlyNotified : current.alertMonthlyNotified,
     id
   );
   
