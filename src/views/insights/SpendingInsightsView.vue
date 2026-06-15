@@ -51,13 +51,13 @@ const cashFlowOption = ref<string>('YTD');
 const netWorthOption = ref<string>('YTD');
 
 // Custom Date Ranges (Actual used for metrics)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const savingsCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const avgSpendCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const netCashFlowCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const expenseBreakdownCustomDate = ref<any>(null);
 
 // Watcher for cashFlowOption
@@ -109,10 +109,10 @@ const availableYears = computed(() => {
 
 // Date Pickers State
 // Default to current month
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const pacingDateA = ref<any>(new Date());
 // Default to previous month
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const pacingDateB = ref<any>(new Date(new Date().setMonth(new Date().getMonth() - 1)));
 
 // Refs to trigger date picker
@@ -136,7 +136,7 @@ async function refreshPacing() {
 
     if (comparison) {
          // Cast to any because our store definition is now loose string for 2nd arg
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          
          const { seriesA, seriesB } = await store.fetchPacingData(target, comparison as any);
          pacingSeriesA.value = seriesA;
          pacingSeriesB.value = seriesB;

@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -273,10 +273,35 @@ const electronAPI = {
   quitApp: (): Promise<void> =>
     ipcRenderer.invoke("app:quit"),
 
+  // ============================================
+  // ENCRYPTION / MASTER PASSWORD
+  // ============================================
+
+  getAuthStatus: (): Promise<{ hasMasterPassword: boolean; isUnlocked: boolean; rememberPolicy: RememberPolicy; canRemember: boolean }> =>
+    ipcRenderer.invoke("auth:getStatus"),
+
+  tryAutoUnlock: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("auth:tryAutoUnlock"),
+
+  createMasterPassword: (password: string, policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:create", password, policy),
+
+  unlock: (password: string, policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:unlock", password, policy),
+
+  setRememberPolicy: (policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:setRememberPolicy", policy),
+
+  changeMasterPassword: (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:changePassword", oldPassword, newPassword),
+
+  reencryptBackups: (oldPassword: string, newPassword: string): Promise<{ canceled: boolean; updated: number; failed: number; failures: string[] }> =>
+    ipcRenderer.invoke("backups:reencrypt", oldPassword, newPassword),
+
   exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
     ipcRenderer.invoke("save-file", payload),
 
-  importDatabase: () : Promise<{success: boolean, filepath? : string, data? : {
+  importDatabase: () : Promise<{success: boolean, error?: string, filepath? : string, data? : {
     databaseVersion?: number,
     accounts?: Account[],
     transactions?: TransactionWithCategory[],

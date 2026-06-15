@@ -10,7 +10,7 @@ const confirmButtonClass = ref('bg-red-500 dark:bg-red-900/40 text-white dark:te
 const showDontAskAgain = ref(false);
 const dontAskAgain = ref(false);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let resolveCallback: ((result: any) => void) | null = null;
 let returnsObject = false;
 

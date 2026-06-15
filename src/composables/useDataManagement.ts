@@ -151,6 +151,13 @@ export function useDataManagement() {
     const result = await window.electronAPI.importDatabase();
 
     if (!result.success || result.data == undefined) {
+      if (result.error) {
+        await errorModal?.openConfirmation({
+          title: "Import Error",
+          message: result.error,
+          confirmText: "Okay",
+        });
+      }
       return;
     }
 

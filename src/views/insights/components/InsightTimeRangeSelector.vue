@@ -4,19 +4,19 @@ import DatePicker from "primevue/datepicker";
 
 const props = defineProps<{
   modelValue: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   customRange: any;
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (e: "update:customRange", value: any): void;
 }>();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const tempCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const datePickerRef = ref<any>(null);
 const localValue = ref(props.modelValue);
 
@@ -70,7 +70,7 @@ function showDatePicker() {
 }
 
 function onSelectChange(event: Event) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const newVal = (event.target as any).value;
   localValue.value = newVal;
 

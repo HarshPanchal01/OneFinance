@@ -1,6 +1,7 @@
 import { ipcMain, shell } from "electron";
 import fs from "node:fs";
 import { loadSettings, saveSettings, runBackup, getLatestManualBackup, BackupSettings } from "./backup";
+import { clearSecurity } from "./security";
 import {
   // Ledger Years
   getLedgerYears,
@@ -31,7 +32,7 @@ import {
 
   // DB paths and instance
   getDbPath,
-  closeDb,
+  lockDatabase,
   getAccounts,
   getAccountTypes,
   deleteAccountById,
@@ -413,8 +414,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("system:deleteDatabase", async () => {
     try {
-      // Close the database connection first
-      closeDb();
+      // Lock + close the connection, then forget the stored verifier so the next
+      // launch starts fresh at the create-password screen.
+      lockDatabase();
+      clearSecurity();
 
       // Delete the database file and related files
       const dbPath = getDbPath();

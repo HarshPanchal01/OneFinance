@@ -13,7 +13,9 @@ import {
   getAllInvestmentTransactions,
   getGlobalInvestmentHistory,
   getInvestmentAdjustments,
+  getSessionPassword,
 } from './db';
+import { wrapExport } from './secureExport';
 
 export type BackupFrequency = 'daily' | 'weekly';
 
@@ -120,6 +122,13 @@ export function runBackup(type: 'auto' | 'manual', override = false): { success:
       return { success: false, error: 'folder not writable' };
     }
 
+    // Backups are encrypted with the master password; bail before touching any
+    // files if the database is somehow locked.
+    const password = getSessionPassword();
+    if (!password) {
+      return { success: false, error: 'database is locked' };
+    }
+
     if (type === 'auto') {
       // Rotate: keep at most AUTO_MAX auto backups, deleting the oldest first
       const autoFiles = listBackupFiles(settings.folder, 'auto');
@@ -138,7 +147,7 @@ export function runBackup(type: 'auto' | 'manual', override = false): { success:
 
     const filename = buildFilename(type);
     const backupPath = path.join(settings.folder, filename);
-    fs.writeFileSync(backupPath, JSON.stringify(buildExportPayload(), null, 2), 'utf-8');
+    fs.writeFileSync(backupPath, wrapExport(JSON.stringify(buildExportPayload()), password), 'utf-8');
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

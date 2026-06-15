@@ -10,9 +10,9 @@ const props = defineProps<{
   seriesB: DailyTransactionSum[];
   labelA: string;
   labelB: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   dateA?: any; // Date object for Series A
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   dateB?: any; // Date object for Series B
 }>();
 
@@ -77,7 +77,7 @@ const pacingOptions = computed(() => {
             onComplete: () => {
                 delayed.value = true;
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             delay: (context: any) => {
                 let delay = 0;
                 if (context.type === 'data' && context.mode === 'default' && !delayed.value) {
@@ -91,7 +91,7 @@ const pacingOptions = computed(() => {
             y: {
                 duration: 1000,
                 easing: "easeOutQuart" as const,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 
                 from: (ctx: any) => {
                     if (ctx.chart.scales.y) {
                         return ctx.chart.scales.y.getPixelForValue(0);
@@ -114,7 +114,7 @@ const pacingOptions = computed(() => {
                 titleFont: { size: 13, weight: 'bold' as const },
                 bodyFont: { size: 12 },
                 callbacks: {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                     
                     title: (items: any[]) => {
                         if (items.length === 0) return '';
                         const day = items[0].label;
@@ -138,12 +138,12 @@ const pacingOptions = computed(() => {
                 title: { display: true, text: 'Cumulative Amount' }
             }
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         onHover: (_event: any, chartElement: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         onClick: (_event: any, elements: any[]) => {
             if (elements && elements.length > 0) {
                 const element = elements[0];

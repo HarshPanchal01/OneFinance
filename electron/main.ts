@@ -1,10 +1,15 @@
-import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu, safeStorage } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { initializeDatabase, processRecurringTransactions, processSavingsInterest, getDueReminders } from './db'
+import { initializeDatabase, processRecurringTransactions, processSavingsInterest, getDueReminders, openDatabase, rekeyDatabase, isUnlocked, hasPlaintextDbWithData, setAsidePlaintextDb, getSessionPassword } from './db'
 import { registerIpcHandlers } from './ipc'
 import { checkAndRunBackup } from './backup'
 import { loadPreferences, savePreferences, applyOpenAtLogin, AppPreferences } from './preferences'
+import { loadSecurity, saveSecurity, hasMasterPassword } from './security'
+import { createVerifier, verifyPassword } from './crypto'
+import { computeExpiry, isRememberValid } from './rememberPolicy'
+import type { RememberPolicy } from '@/types'
+import { wrapExport, readImport } from './secureExport'
 import fs from 'fs'
 
 
@@ -124,7 +129,14 @@ ipcMain.handle('save-file', async (_event, {data, defaultName}) => {
     return{success:false}
   }
 
-  fs.writeFileSync(filePath, data, 'utf-8')
+  // Exports are encrypted with the master password so the JSON file isn't a
+  // plaintext hole around the encrypted database.
+  const password = getSessionPassword();
+  if (!password) {
+    return { success: false }
+  }
+
+  fs.writeFileSync(filePath, wrapExport(data, password), 'utf-8')
 
   return { success: true, path: filePath}
   }
@@ -160,14 +172,56 @@ ipcMain.handle('import-file', async() => {
   const filePath = filePaths[0]
   const contents = fs.readFileSync(filePath, 'utf-8')
 
-  const data = JSON.parse(contents)
-
-  return{
-    success: true,
-    path: filePath,
-    data: data,
+  const password = getSessionPassword();
+  if (!password) {
+    return { success: false, error: 'The database is locked.' }
   }
 
+  try {
+    // Decrypts an encrypted OneFinance export; legacy plaintext exports pass through.
+    const data = readImport(contents, password)
+    return { success: true, path: filePath, data }
+  } catch {
+    return {
+      success: false,
+      error: 'Could not read this file. It may be encrypted with a different master password, or it is not a valid OneFinance export.',
+    }
+  }
+
+});
+
+// Re-encrypts selected backup/export files from the old password to a new one.
+// Used by the change-password flow so backups made with the old password stay
+// usable after the master password changes.
+ipcMain.handle('backups:reencrypt', async (_event, oldPassword: string, newPassword: string) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select backups to re-encrypt with your new password',
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'JSON Files', extensions: ['json'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return { canceled: true, updated: 0, failed: 0, failures: [] };
+  }
+
+  let updated = 0;
+  const failures: string[] = [];
+  for (const fp of filePaths) {
+    try {
+      // Decrypt with the old password (legacy plaintext passes straight through),
+      // then re-encrypt the same data with the new password.
+      const data = readImport(fs.readFileSync(fp, 'utf-8'), oldPassword);
+      fs.writeFileSync(fp, wrapExport(JSON.stringify(data), newPassword), 'utf-8');
+      updated++;
+    } catch {
+      failures.push(path.basename(fp));
+    }
+  }
+
+  return { canceled: false, updated, failed: failures.length, failures };
 });
 
 app.on('before-quit', () => {
@@ -351,6 +405,173 @@ function startRecurringTransactionsTask() {
   }, 60 * 1000);
 }
 
+// Background tasks (the 1-minute heartbeat) must start exactly once, and only
+// after the database has been unlocked.
+let tasksStarted = false;
+
+// Opens the encrypted database with the master password and brings the app to
+// life: runs migrations, starts the background heartbeat once, and performs the
+// startup catch-up checks. Shared by auth:create and auth:unlock.
+function unlockAndStart(password: string): void {
+  openDatabase(password);
+  initializeDatabase();
+
+  if (!tasksStarted) {
+    startRecurringTransactionsTask();
+    tasksStarted = true;
+  }
+
+  // Catch-up checks: run now in case anything was missed while the app was closed.
+  runReminderCheck();
+  if (checkAndRunBackup()) {
+    BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
+  }
+}
+
+// Whether the OS can *securely* remember the master password. On Linux, safeStorage
+// silently falls back to a 'basic_text' backend (≈ plaintext) when no desktop keyring
+// is available — we treat that as "cannot remember" so we never write a recoverable
+// password to disk. Must be called after the app is ready.
+function canRemember(): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false;
+  if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') {
+    return false;
+  }
+  return true;
+}
+
+// Forget the persisted key but keep the user's standing policy intent (re-armed on
+// the next manual unlock). Used for 'session' and once a window has expired.
+function clearRemembered(): void {
+  saveSecurity({ rememberedKey: null, rememberExpiry: null });
+}
+
+// Apply a remember policy in one atomic write: encrypt the password with the OS
+// keychain and stamp an absolute expiry, or clear the key for 'session'. Normalizes
+// to 'session' when the keychain isn't available, so stored state never claims to
+// remember a password it cannot actually protect. NEVER writes plaintext.
+function applyRememberPolicy(password: string, policy: RememberPolicy): void {
+  const effective: RememberPolicy = canRemember() ? policy : 'session';
+  if (effective === 'session') {
+    saveSecurity({ rememberPolicy: 'session', rememberedKey: null, rememberExpiry: null });
+    return;
+  }
+  const encrypted = safeStorage.encryptString(password).toString('base64');
+  saveSecurity({
+    rememberPolicy: effective,
+    rememberedKey: encrypted,
+    rememberExpiry: computeExpiry(effective),
+  });
+}
+
+ipcMain.handle('auth:getStatus', () => {
+  const { rememberPolicy } = loadSecurity();
+  return {
+    hasMasterPassword: hasMasterPassword(),
+    isUnlocked: isUnlocked(),
+    rememberPolicy,
+    canRemember: canRemember(),
+  };
+});
+
+// Launch-time auto-unlock: if a still-valid remembered key exists, decrypt it and
+// open the database without prompting. Any failure (no key, expired, keychain
+// unavailable, blob from another OS user, password changed elsewhere) falls back
+// to the manual unlock screen — it must never throw at the gate.
+ipcMain.handle('auth:tryAutoUnlock', () => {
+  const { verifier, rememberedKey, rememberExpiry } = loadSecurity();
+  if (!verifier || !rememberedKey) {
+    return { success: false };
+  }
+  if (!isRememberValid(rememberExpiry)) {
+    clearRemembered();
+    return { success: false };
+  }
+  if (!canRemember()) {
+    return { success: false };
+  }
+  try {
+    const password = safeStorage.decryptString(Buffer.from(rememberedKey, 'base64'));
+    // Defense in depth: never feed an untrusted blob straight into the DB key.
+    if (!verifyPassword(verifier, password)) {
+      clearRemembered();
+      return { success: false };
+    }
+    unlockAndStart(password);
+    return { success: true };
+  } catch {
+    clearRemembered();
+    return { success: false };
+  }
+});
+
+ipcMain.handle('auth:create', (_event, password: string, policy: RememberPolicy = 'session') => {
+  if (hasMasterPassword()) {
+    return { success: false, error: 'A master password already exists.' };
+  }
+  if (!password) {
+    return { success: false, error: 'Password cannot be empty.' };
+  }
+  try {
+    // Preserve any pre-existing plaintext database before creating a fresh
+    // encrypted one (data is recovered via export/import).
+    if (hasPlaintextDbWithData()) {
+      setAsidePlaintextDb();
+    }
+    saveSecurity({ verifier: createVerifier(password) });
+    unlockAndStart(password);
+    applyRememberPolicy(password, policy);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('auth:unlock', (_event, password: string, policy: RememberPolicy = 'session') => {
+  const { verifier } = loadSecurity();
+  if (!verifier || !verifyPassword(verifier, password)) {
+    return { success: false, error: 'Incorrect master password.' };
+  }
+  try {
+    unlockAndStart(password);
+    applyRememberPolicy(password, policy);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
+
+// Change the remember policy from Settings (only reachable while unlocked, so the
+// session password is in memory — no need to re-type it to re-arm a new window).
+ipcMain.handle('auth:setRememberPolicy', (_event, policy: RememberPolicy) => {
+  const password = getSessionPassword();
+  if (!password) {
+    return { success: false, error: 'The database is locked.' };
+  }
+  applyRememberPolicy(password, policy);
+  return { success: true };
+});
+
+ipcMain.handle('auth:changePassword', (_event, oldPassword: string, newPassword: string) => {
+  const { verifier } = loadSecurity();
+  if (!verifier || !verifyPassword(verifier, oldPassword)) {
+    return { success: false, error: 'Current password is incorrect.' };
+  }
+  if (!newPassword) {
+    return { success: false, error: 'New password cannot be empty.' };
+  }
+  try {
+    rekeyDatabase(newPassword);
+    saveSecurity({ verifier: createVerifier(newPassword) });
+    // Keep any active remember-window working by re-encrypting the new password
+    // (resets the window from now); a 'session' policy stays untouched.
+    applyRememberPolicy(newPassword, loadSecurity().rememberPolicy);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+});
+
 if (app.isPackaged) {
   const gotTheLock = app.requestSingleInstanceLock()
 
@@ -369,19 +590,14 @@ if (app.isPackaged) {
 
       appPreferences = loadPreferences();
 
-      // Initialize database and IPC handlers before creating window
-      initializeDatabase();
+      // The database stays locked until the renderer collects the master password
+      // and calls auth:create / auth:unlock — only then do we open it and start the
+      // background tasks (see unlockAndStart). Handlers register now; their DB calls
+      // throw until unlocked.
       registerIpcHandlers();
 
       createWindow();
       createTray();
-      startRecurringTransactionsTask();
-
-      // Catch-up checks: run immediately in case anything was missed while the app was closed
-      runReminderCheck();
-      if (checkAndRunBackup()) {
-        BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
-      }
     });
   }
 } else {
@@ -391,17 +607,11 @@ if (app.isPackaged) {
 
     appPreferences = loadPreferences();
 
-    initializeDatabase();
+    // DB stays locked until the renderer unlocks it via auth:create/auth:unlock
+    // (see unlockAndStart). Handlers register now; their DB calls throw until then.
     registerIpcHandlers();
 
     createWindow();
     createTray();
-    startRecurringTransactionsTask();
-
-    // Catch-up checks: run immediately in case anything was missed while the app was closed
-    runReminderCheck();
-    if (checkAndRunBackup()) {
-      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
-    }
   });
 }

@@ -64,7 +64,7 @@ const chartOptions = computed(() => {
       onComplete: () => {
         delayed.value = true;
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       delay: (context: any) => {
         let delay = 0;
         if (context.type === 'data' && context.mode === 'default' && !delayed.value) {
@@ -77,7 +77,7 @@ const chartOptions = computed(() => {
       y: {
         duration: 1000,
         easing: "easeOutQuart" as const,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         from: (ctx: any) => {
           if (ctx.chart.scales.y) {
             return ctx.chart.scales.y.getPixelForValue(0);
@@ -90,7 +90,7 @@ const chartOptions = computed(() => {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           title: (context: any[]) => {
             const index = context[0].dataIndex;
             const t = filteredTrends.value[index];
@@ -107,12 +107,12 @@ const chartOptions = computed(() => {
         title: { display: true, text: 'Total Balance' }
       }
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onHover: (_event: any, chartElement: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onClick: (_event: any, elements: any[]) => {
       if (elements && elements.length > 0) {
         const index = elements[0].index;

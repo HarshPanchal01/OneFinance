@@ -187,3 +187,17 @@ export interface SearchOptions {
   type?: "income" | "expense" | "transfer" | null;
   sortOrder?: 'desc' | 'asc' | 'amount-desc' | 'amount-asc';
 }
+
+// How long OneFinance may auto-unlock without re-entering the master password.
+// 'session' (default) never persists the key — the password is required every launch.
+// Shared between the renderer and the main process so both agree on the values.
+export type RememberPolicy = 'session' | '15m' | '1h' | '8h' | '1d' | '1w';
+
+export const REMEMBER_POLICY_OPTIONS: { value: RememberPolicy; label: string }[] = [
+  { value: 'session', label: 'Ask every time' },
+  { value: '15m', label: '15 minutes' },
+  { value: '1h', label: '1 hour' },
+  { value: '8h', label: '8 hours' },
+  { value: '1d', label: '1 day' },
+  { value: '1w', label: '1 week' },
+];
