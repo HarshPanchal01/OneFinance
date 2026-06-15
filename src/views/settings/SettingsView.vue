@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import NotificationModal from "@/components/NotificationModal.vue";
@@ -7,6 +7,8 @@ import SettingsImportModal from "./components/SettingsImportModal.vue";
 import ChangePasswordModal from "./components/ChangePasswordModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
 import { useSettingsStore, regionalSettings } from "@/stores/settings";
+import { useAuthStore } from "@/stores/auth";
+import { REMEMBER_POLICY_OPTIONS, type RememberPolicy } from "@/types";
 import Select from "primevue/select";
 import iconSvg from "@/assets/icon.svg";
 import logoPng from "@/assets/logo.png";
@@ -25,6 +27,14 @@ const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 const changePasswordModal = ref<InstanceType<typeof ChangePasswordModal>>();
 const settingsStore = useSettingsStore();
+const auth = useAuthStore();
+
+// Two-way bound to the master-password remember policy; setting it persists via IPC
+// (Main reuses the in-memory session password to re-arm the window).
+const rememberPolicy = computed<RememberPolicy>({
+  get: () => auth.rememberPolicy,
+  set: (value) => { void auth.setRememberPolicy(value); },
+});
 
 const isDev = import.meta.env.DEV;
 
@@ -53,6 +63,8 @@ const shortcuts = [
 
 // Load DB path and platform logo on mount
 onMounted(async () => {
+  // Refresh remember-policy + keychain availability for the Security control.
+  void auth.checkStatus();
   dbPath.value = await window.electronAPI.getDbPath();
   const platform = await window.electronAPI.getPlatform();
   if (platform === "win32") {
@@ -320,6 +332,66 @@ async function runBackupNow() {
         </div>
       </div>
 
+      <!-- Security -->
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center">
+          <i class="pi pi-lock mr-2 text-gray-700 dark:text-white" />
+          Security
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Manage the master password that encrypts your data and how long OneFinance stays unlocked.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+          <!-- Master Password -->
+          <div class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
+            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+              <i class="pi pi-key text-primary-500" />
+              Master Password
+            </div>
+            <p class="text-xs text-gray-500 mb-4">
+              The password that encrypts your data
+            </p>
+            <div class="mt-auto">
+              <button
+                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                @click="changePasswordModal?.open()"
+              >
+                <i class="pi pi-pencil mr-1.5" />
+                Change Password
+              </button>
+            </div>
+          </div>
+
+          <!-- Stay Unlocked -->
+          <div class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
+            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+              <i class="pi pi-clock text-primary-500" />
+              Stay Unlocked
+            </div>
+            <p class="text-xs text-gray-500 mb-4">
+              How long before asking for your password again
+            </p>
+            <div class="mt-auto">
+              <Select
+                v-if="auth.canRemember"
+                v-model="rememberPolicy"
+                :options="REMEMBER_POLICY_OPTIONS"
+                option-label="label"
+                option-value="value"
+                class="w-full"
+              />
+              <p
+                v-else
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                Unavailable — no secure keychain on this system, so OneFinance always asks on launch.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Data Management -->
       <div class="card p-6">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -363,126 +435,119 @@ async function runBackupNow() {
               <i class="pi pi-upload mr-2" />
               Import Data
             </button>
-            <button
-              class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              @click="changePasswordModal?.open()"
-            >
-              <i class="pi pi-key mr-2" />
-              Change Master Password
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Automated Backups -->
-      <div class="card p-6">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center">
-          <i class="pi pi-history mr-2 text-gray-700 dark:text-white" />
-          Automated Backups
-        </h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Schedule automatic exports of your data to a local folder. Automated backups rotate through up to 5 files. Manual backups can be kept separately.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-          <!-- Enable toggle + Backup Now -->
-          <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
-                <i class="pi pi-history text-primary-500" />
-                Auto Backup
-              </div>
-              <button
-                type="button"
-                role="switch"
-                :aria-checked="settingsStore.backupEnabled"
-                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                :class="settingsStore.backupEnabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
-                @click="settingsStore.backupEnabled = !settingsStore.backupEnabled"
-              >
-                <span
-                  aria-hidden="true"
-                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                  :class="settingsStore.backupEnabled ? 'translate-x-5' : 'translate-x-0'"
-                />
-              </button>
-            </div>
-            <p class="text-xs text-gray-500 mb-3">
-              Periodically save a full copy of your data
-            </p>
-            <div class="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <button
-                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                :disabled="!settingsStore.backupFolder"
-                @click="runBackupNow"
-              >
-                <i class="pi pi-save mr-1.5" />
-                Backup Now
-              </button>
-              <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                <template v-if="settingsStore.lastBackupDate">{{ settingsStore.lastBackupDate }}</template>
-                <template v-else>Never backed up</template>
-              </span>
-            </div>
           </div>
 
-          <!-- Backup Folder -->
-          <div
-            class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
-            :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
-          >
-            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
-              <i class="pi pi-folder text-primary-500" />
-              Backup Folder
-            </div>
-            <p class="text-xs text-gray-500 mb-3">
-              <span
-                v-if="settingsStore.backupFolder"
-                class="font-mono break-all"
-              >{{ settingsStore.backupFolder }}</span>
-              <span
-                v-else
-                class="italic"
-              >No folder selected</span>
-            </p>
-            <div class="mt-auto flex items-center gap-2">
-              <button
-                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                @click="chooseBackupFolder"
-              >
-                <i class="pi pi-folder-open mr-1.5" />
-                Choose Folder
-              </button>
-              <span
-                v-if="settingsStore.backupEnabled && !settingsStore.backupFolder"
-                class="text-[10px] text-amber-500 dark:text-amber-400 flex items-center gap-1"
-              >
-                <i class="pi pi-exclamation-triangle" />
-                Required
-              </span>
-            </div>
-          </div>
-
-          <!-- Frequency -->
-          <div
-            class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
-            :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
-          >
-            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
-              <i class="pi pi-calendar text-primary-500" />
-              Frequency
+          <!-- Automated Backups -->
+          <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <i class="pi pi-clone text-gray-700 dark:text-white" />
+              Automated Backups
             </div>
             <p class="text-xs text-gray-500 mb-4">
-              How often to save a backup
+              Automatically save a copy of your data to a folder on a schedule. Keeps the 5 most recent.
             </p>
-            <div class="mt-auto">
-              <Select
-                v-model="settingsStore.backupFrequency"
-                :options="backupFrequencyOptions"
-                option-label="label"
-                option-value="value"
-                class="w-full"
-              />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+              <!-- Enable toggle + Backup Now -->
+              <div class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                    <i class="pi pi-history text-primary-500" />
+                    Auto Backup
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="settingsStore.backupEnabled"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                    :class="settingsStore.backupEnabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                    @click="settingsStore.backupEnabled = !settingsStore.backupEnabled"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                      :class="settingsStore.backupEnabled ? 'translate-x-5' : 'translate-x-0'"
+                    />
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">
+                  Periodically save a full copy of your data
+                </p>
+                <div class="mt-auto flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    :disabled="!settingsStore.backupFolder"
+                    @click="runBackupNow"
+                  >
+                    <i class="pi pi-save mr-1.5" />
+                    Backup Now
+                  </button>
+                  <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <template v-if="settingsStore.lastBackupDate">{{ settingsStore.lastBackupDate }}</template>
+                    <template v-else>Never backed up</template>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Backup Folder -->
+              <div
+                class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
+                :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
+              >
+                <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+                  <i class="pi pi-folder text-primary-500" />
+                  Backup Folder
+                </div>
+                <p class="text-xs text-gray-500 mb-3">
+                  <span
+                    v-if="settingsStore.backupFolder"
+                    class="font-mono break-all"
+                  >{{ settingsStore.backupFolder }}</span>
+                  <span
+                    v-else
+                    class="italic"
+                  >No folder selected</span>
+                </p>
+                <div class="mt-auto flex items-center gap-2">
+                  <button
+                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    @click="chooseBackupFolder"
+                  >
+                    <i class="pi pi-folder-open mr-1.5" />
+                    Choose Folder
+                  </button>
+                  <span
+                    v-if="settingsStore.backupEnabled && !settingsStore.backupFolder"
+                    class="text-[10px] text-amber-500 dark:text-amber-400 flex items-center gap-1"
+                  >
+                    <i class="pi pi-exclamation-triangle" />
+                    Required
+                  </span>
+                </div>
+              </div>
+
+              <!-- Frequency -->
+              <div
+                class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all"
+                :class="{ 'opacity-40 pointer-events-none': !settingsStore.backupEnabled }"
+              >
+                <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+                  <i class="pi pi-calendar text-primary-500" />
+                  Frequency
+                </div>
+                <p class="text-xs text-gray-500 mb-4">
+                  How often to save a backup
+                </p>
+                <div class="mt-auto">
+                  <Select
+                    v-model="settingsStore.backupFrequency"
+                    :options="backupFrequencyOptions"
+                    option-label="label"
+                    option-value="value"
+                    class="w-full"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

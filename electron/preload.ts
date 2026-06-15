@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert } from "@/types";
+import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -277,14 +277,20 @@ const electronAPI = {
   // ENCRYPTION / MASTER PASSWORD
   // ============================================
 
-  getAuthStatus: (): Promise<{ hasMasterPassword: boolean; isUnlocked: boolean }> =>
+  getAuthStatus: (): Promise<{ hasMasterPassword: boolean; isUnlocked: boolean; rememberPolicy: RememberPolicy; canRemember: boolean }> =>
     ipcRenderer.invoke("auth:getStatus"),
 
-  createMasterPassword: (password: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("auth:create", password),
+  tryAutoUnlock: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("auth:tryAutoUnlock"),
 
-  unlock: (password: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("auth:unlock", password),
+  createMasterPassword: (password: string, policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:create", password, policy),
+
+  unlock: (password: string, policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:unlock", password, policy),
+
+  setRememberPolicy: (policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:setRememberPolicy", policy),
 
   changeMasterPassword: (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("auth:changePassword", oldPassword, newPassword),
