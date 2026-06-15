@@ -48,16 +48,24 @@
   --p-surface-800: #f9fafb;
   --p-surface-900: #ffffff;
   --p-surface-950: #ffffff;
-  
-  /* Select specific overrides */
-  --p-select-background: #1f2937; /* bg-gray-800 */
-  --p-select-border-color: #374151; /* border-gray-700 */
-  --p-select-hover-border-color: #4b5563;
+}
+
+/* Select tokens need higher specificity than a plain `.dark`: PrimeVue runs with
+   cssLayer off and injects its own `.dark` theme block at runtime, which otherwise
+   wins on source order and leaves the dropdown trigger/panel on Aura's near-black
+   surface. `html.dark` (specificity 0,1,1) beats PrimeVue's `.dark` (0,1,0), so our
+   navy values stick. Scoped to --p-select-* only, so nothing else is affected. */
+html.dark {
+  --p-select-background: #1f2937; /* bg-gray-800, matches cards */
+  --p-select-border-color: #4b5563; /* border-gray-600, matches the action buttons */
+  --p-select-hover-border-color: #6b7280; /* border-gray-500 on hover */
+  --p-select-color: #f9fafb; /* gray-50 trigger text */
   --p-select-overlay-background: #1f2937;
   --p-select-overlay-border-color: #374151;
   --p-select-list-background: #1f2937;
+  --p-select-option-color: #f9fafb;
   --p-select-option-focus-background: #374151;
-  --p-select-option-selected-background: rgba(14, 165, 233, 0.2); /* primary-500 with opacity */
+  --p-select-option-selected-background: rgba(14, 165, 233, 0.2); /* primary-500 @ 20% */
   --p-select-option-selected-focus-background: rgba(14, 165, 233, 0.3);
 }
 

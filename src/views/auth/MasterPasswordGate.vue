@@ -23,6 +23,14 @@ onMounted(async () => {
     emit("unlocked");
     return;
   }
+  // Returning user within a still-valid remember-window → open without prompting.
+  if (auth.hasMasterPassword) {
+    const auto = await auth.tryAutoUnlock();
+    if (auto.success) {
+      emit("unlocked");
+      return;
+    }
+  }
   loading.value = false;
 });
 
@@ -45,9 +53,12 @@ async function submit() {
 
   submitting.value = true;
   try {
+    // The remember policy is chosen in Settings; on unlock we re-arm whatever the
+    // user already chose (defaults to 'session' on first-run create). Main normalizes
+    // to 'session' if the OS keychain isn't available.
     const result = isCreate.value
-      ? await auth.create(password.value)
-      : await auth.unlock(password.value);
+      ? await auth.create(password.value, auth.rememberPolicy)
+      : await auth.unlock(password.value, auth.rememberPolicy);
     if (result.success) {
       password.value = "";
       confirmPassword.value = "";
@@ -82,7 +93,7 @@ async function submit() {
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
           {{ isCreate
-            ? "Your financial data is encrypted with this password. You'll enter it each time you open OneFinance."
+            ? "Your financial data is encrypted with this password. Keep it somewhere safe."
             : "Enter your master password to unlock your data." }}
         </p>
       </div>

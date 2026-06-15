@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu, safeStorage } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initializeDatabase, processRecurringTransactions, processSavingsInterest, getDueReminders, openDatabase, rekeyDatabase, isUnlocked, hasPlaintextDbWithData, setAsidePlaintextDb, getSessionPassword } from './db'
@@ -7,6 +7,8 @@ import { checkAndRunBackup } from './backup'
 import { loadPreferences, savePreferences, applyOpenAtLogin, AppPreferences } from './preferences'
 import { loadSecurity, saveSecurity, hasMasterPassword } from './security'
 import { createVerifier, verifyPassword } from './crypto'
+import { computeExpiry, isRememberValid } from './rememberPolicy'
+import type { RememberPolicy } from '@/types'
 import { wrapExport, readImport } from './secureExport'
 import fs from 'fs'
 
@@ -426,12 +428,84 @@ function unlockAndStart(password: string): void {
   }
 }
 
-ipcMain.handle('auth:getStatus', () => ({
-  hasMasterPassword: hasMasterPassword(),
-  isUnlocked: isUnlocked(),
-}));
+// Whether the OS can *securely* remember the master password. On Linux, safeStorage
+// silently falls back to a 'basic_text' backend (≈ plaintext) when no desktop keyring
+// is available — we treat that as "cannot remember" so we never write a recoverable
+// password to disk. Must be called after the app is ready.
+function canRemember(): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false;
+  if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') {
+    return false;
+  }
+  return true;
+}
 
-ipcMain.handle('auth:create', (_event, password: string) => {
+// Forget the persisted key but keep the user's standing policy intent (re-armed on
+// the next manual unlock). Used for 'session' and once a window has expired.
+function clearRemembered(): void {
+  saveSecurity({ rememberedKey: null, rememberExpiry: null });
+}
+
+// Apply a remember policy in one atomic write: encrypt the password with the OS
+// keychain and stamp an absolute expiry, or clear the key for 'session'. Normalizes
+// to 'session' when the keychain isn't available, so stored state never claims to
+// remember a password it cannot actually protect. NEVER writes plaintext.
+function applyRememberPolicy(password: string, policy: RememberPolicy): void {
+  const effective: RememberPolicy = canRemember() ? policy : 'session';
+  if (effective === 'session') {
+    saveSecurity({ rememberPolicy: 'session', rememberedKey: null, rememberExpiry: null });
+    return;
+  }
+  const encrypted = safeStorage.encryptString(password).toString('base64');
+  saveSecurity({
+    rememberPolicy: effective,
+    rememberedKey: encrypted,
+    rememberExpiry: computeExpiry(effective),
+  });
+}
+
+ipcMain.handle('auth:getStatus', () => {
+  const { rememberPolicy } = loadSecurity();
+  return {
+    hasMasterPassword: hasMasterPassword(),
+    isUnlocked: isUnlocked(),
+    rememberPolicy,
+    canRemember: canRemember(),
+  };
+});
+
+// Launch-time auto-unlock: if a still-valid remembered key exists, decrypt it and
+// open the database without prompting. Any failure (no key, expired, keychain
+// unavailable, blob from another OS user, password changed elsewhere) falls back
+// to the manual unlock screen — it must never throw at the gate.
+ipcMain.handle('auth:tryAutoUnlock', () => {
+  const { verifier, rememberedKey, rememberExpiry } = loadSecurity();
+  if (!verifier || !rememberedKey) {
+    return { success: false };
+  }
+  if (!isRememberValid(rememberExpiry)) {
+    clearRemembered();
+    return { success: false };
+  }
+  if (!canRemember()) {
+    return { success: false };
+  }
+  try {
+    const password = safeStorage.decryptString(Buffer.from(rememberedKey, 'base64'));
+    // Defense in depth: never feed an untrusted blob straight into the DB key.
+    if (!verifyPassword(verifier, password)) {
+      clearRemembered();
+      return { success: false };
+    }
+    unlockAndStart(password);
+    return { success: true };
+  } catch {
+    clearRemembered();
+    return { success: false };
+  }
+});
+
+ipcMain.handle('auth:create', (_event, password: string, policy: RememberPolicy = 'session') => {
   if (hasMasterPassword()) {
     return { success: false, error: 'A master password already exists.' };
   }
@@ -446,23 +520,36 @@ ipcMain.handle('auth:create', (_event, password: string) => {
     }
     saveSecurity({ verifier: createVerifier(password) });
     unlockAndStart(password);
+    applyRememberPolicy(password, policy);
     return { success: true };
   } catch (err) {
     return { success: false, error: String(err) };
   }
 });
 
-ipcMain.handle('auth:unlock', (_event, password: string) => {
+ipcMain.handle('auth:unlock', (_event, password: string, policy: RememberPolicy = 'session') => {
   const { verifier } = loadSecurity();
   if (!verifier || !verifyPassword(verifier, password)) {
     return { success: false, error: 'Incorrect master password.' };
   }
   try {
     unlockAndStart(password);
+    applyRememberPolicy(password, policy);
     return { success: true };
   } catch (err) {
     return { success: false, error: String(err) };
   }
+});
+
+// Change the remember policy from Settings (only reachable while unlocked, so the
+// session password is in memory — no need to re-type it to re-arm a new window).
+ipcMain.handle('auth:setRememberPolicy', (_event, policy: RememberPolicy) => {
+  const password = getSessionPassword();
+  if (!password) {
+    return { success: false, error: 'The database is locked.' };
+  }
+  applyRememberPolicy(password, policy);
+  return { success: true };
 });
 
 ipcMain.handle('auth:changePassword', (_event, oldPassword: string, newPassword: string) => {
@@ -476,6 +563,9 @@ ipcMain.handle('auth:changePassword', (_event, oldPassword: string, newPassword:
   try {
     rekeyDatabase(newPassword);
     saveSecurity({ verifier: createVerifier(newPassword) });
+    // Keep any active remember-window working by re-encrypting the new password
+    // (resets the window from now); a 'session' policy stays untouched.
+    applyRememberPolicy(newPassword, loadSecurity().rememberPolicy);
     return { success: true };
   } catch (err) {
     return { success: false, error: String(err) };
