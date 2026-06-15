@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 
@@ -8,6 +8,7 @@ import Sidebar from "@/components/Sidebar.vue";
 import TopBar from "@/components/TopBar.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
+import MasterPasswordGate from "@/views/auth/MasterPasswordGate.vue";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -22,6 +23,10 @@ import InvestmentInsightsView from "@/views/insights/InvestmentInsightsView.vue"
 import CalculatorsView from "@/views/calculators/CalculatorsView.vue";
   
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+
+// The app stays gated behind the master-password screen until it is unlocked.
+const authUnlocked = ref(false);
 
 // Current view
 type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
@@ -79,10 +84,18 @@ function handleRequestViewTransactions(id: number, type: 'account' | 'recurring'
   currentView.value = "transactions";
 }
 
-// Initialize on mount
-onMounted(async () => {
-  const settingsStore = useSettingsStore();
+// Apply theme before the gate renders so the unlock screen is themed. Everything
+// that touches the (encrypted) database waits until onUnlocked.
+onMounted(() => {
   settingsStore.loadSettings();
+});
+
+// Runs once the master password unlocks the database (emitted by the gate).
+async function onUnlocked() {
+  authUnlocked.value = true;
+  // Let the main UI (and its modal refs) mount before using them.
+  await nextTick();
+
   await settingsStore.loadBackupSettings();
   await settingsStore.loadAppPreferences();
 
@@ -156,7 +169,7 @@ onMounted(async () => {
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
-});
+}
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
@@ -208,7 +221,6 @@ function handleKeydown(e: KeyboardEvent) {
               e.preventDefault();
               if (e.shiftKey) {
                 // Toggle privacy mode
-                const settingsStore = useSettingsStore();
                 settingsStore.togglePrivacyMode();
               } else {
                 currentView.value = "investment-insights";
@@ -220,7 +232,14 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
+  <MasterPasswordGate
+    v-if="!authUnlocked"
+    @unlocked="onUnlocked"
+  />
+  <div
+    v-else
+    class="flex h-screen bg-gray-100 dark:bg-gray-900"
+  >
     <!-- Sidebar -->
     <Sidebar
       :current-view="currentView"
