@@ -18,7 +18,7 @@ const searchInput = ref<HTMLInputElement | null>(null);
 const selectedCategoryIds = ref<number[]>([]);
 const selectedAccountIds = ref<number[]>([]);
 const selectedRecurringId = ref<number | null>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const dateRange = ref<any>(null);
 const minAmount = ref<number | null>(null);
 const maxAmount = ref<number | null>(null);

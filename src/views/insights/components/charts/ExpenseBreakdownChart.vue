@@ -73,7 +73,7 @@ const categoryOptions = computed(() => ({
     legend: { display: false },
   },
   onHover: (_event: any, chartElement: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
   },
   onClick: (_event: any, elements: any[]) => {

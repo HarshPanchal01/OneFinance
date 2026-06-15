@@ -422,7 +422,7 @@ export function getTimeRangeLabel(range: string, customRange?: DateRange): strin
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function getCustomRangeObj(dateRange: any): DateRange | undefined {
   if (Array.isArray(dateRange) && dateRange[0] && dateRange[1]) {
     return { startDate: dateRange[0], endDate: dateRange[1] };
@@ -444,7 +444,7 @@ export function calculateNetCashFlow(income: number, expense: number): number {
   return income - expense;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function getPacingLabel(date: any, defaultLabel: string): string {
   if (!date) return defaultLabel;
   return date.toLocaleString('default', { month: 'long', year: 'numeric' });

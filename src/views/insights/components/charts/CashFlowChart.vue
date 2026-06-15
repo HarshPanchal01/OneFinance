@@ -48,7 +48,7 @@ const chartOptions = computed(() => ({
   },
   animations: {
     y: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       from: (ctx: any) => {
         if (ctx.chart.scales.y) {
           return ctx.chart.scales.y.getPixelForValue(0);
@@ -63,7 +63,7 @@ const chartOptions = computed(() => ({
     },
     tooltip: {
       callbacks: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         title: (context: any[]) => {
           const index = context[0].dataIndex;
           const t = trends.value[index];
@@ -81,7 +81,7 @@ const chartOptions = computed(() => ({
     }
   },
   onHover: (_event: any, chartElement: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
   },
   onClick: (_event: any, elements: any[]) => {

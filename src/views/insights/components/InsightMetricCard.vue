@@ -10,7 +10,7 @@ defineProps<{
   title: string;
   value: string;
   modelValue: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   customRange: any;
   formulaTitle?: string;
   formula?: string;
@@ -21,7 +21,7 @@ defineProps<{
 
 defineEmits<{
   (e: "update:modelValue", value: string): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (e: "update:customRange", value: any): void;
 }>();
 
