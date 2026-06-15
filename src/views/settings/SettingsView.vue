@@ -4,6 +4,7 @@ import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import NotificationModal from "@/components/NotificationModal.vue";
 import SettingsImportModal from "./components/SettingsImportModal.vue";
+import ChangePasswordModal from "./components/ChangePasswordModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
 import { useSettingsStore, regionalSettings } from "@/stores/settings";
 import Select from "primevue/select";
@@ -22,6 +23,7 @@ const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
 const notificationModal = ref<InstanceType<typeof NotificationModal>>();
 const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
+const changePasswordModal = ref<InstanceType<typeof ChangePasswordModal>>();
 const settingsStore = useSettingsStore();
 
 const isDev = import.meta.env.DEV;
@@ -361,6 +363,13 @@ async function runBackupNow() {
               <i class="pi pi-upload mr-2" />
               Import Data
             </button>
+            <button
+              class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              @click="changePasswordModal?.open()"
+            >
+              <i class="pi pi-key mr-2" />
+              Change Master Password
+            </button>
           </div>
         </div>
       </div>
@@ -538,4 +547,5 @@ async function runBackupNow() {
   <ErrorModal ref="errorModal" />
   <NotificationModal ref="notificationModal" />
   <SettingsImportModal ref="actionModal" />
+  <ChangePasswordModal ref="changePasswordModal" />
 </template>

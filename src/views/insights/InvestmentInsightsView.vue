@@ -48,10 +48,10 @@ function handleGrowthClick(date: string, _accountId: string, totalValue: number)
 }
 
 const globalHistory = ref<{ date: string, totalValue: number }[]>([]);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const globalAdjustments = ref<any[]>([]);
 const globalInvestmentTransactions = ref<InvestmentTransaction[]>([]);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const rawHistories = ref<any[]>([]);
 
 async function fetchGlobalHistory() {
@@ -168,7 +168,7 @@ const bookValueAccountId = ref<string>('all');
 const allocationAccountId = ref<string>('all');
 const growthAccountId = ref<string>('all');
 const growthTimeRange = ref<string>('thisMonth');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const growthCustomDate = ref<any>(null);
 
 const growthDateRange = computed(() => {
@@ -188,11 +188,11 @@ const returnTimeRange = ref<string>('thisMonth');
 const netValueTimeRange = ref<string>('thisMonth');
 const contributionsTimeRange = ref<string>('thisMonth');
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const returnCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const netValueCustomDate = ref<any>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const contributionsCustomDate = ref<any>(null);
 
 const returnData = computed(() => {

@@ -273,10 +273,29 @@ const electronAPI = {
   quitApp: (): Promise<void> =>
     ipcRenderer.invoke("app:quit"),
 
+  // ============================================
+  // ENCRYPTION / MASTER PASSWORD
+  // ============================================
+
+  getAuthStatus: (): Promise<{ hasMasterPassword: boolean; isUnlocked: boolean }> =>
+    ipcRenderer.invoke("auth:getStatus"),
+
+  createMasterPassword: (password: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:create", password),
+
+  unlock: (password: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:unlock", password),
+
+  changeMasterPassword: (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("auth:changePassword", oldPassword, newPassword),
+
+  reencryptBackups: (oldPassword: string, newPassword: string): Promise<{ canceled: boolean; updated: number; failed: number; failures: string[] }> =>
+    ipcRenderer.invoke("backups:reencrypt", oldPassword, newPassword),
+
   exportDatabase: (payload : {data: string, defaultName?: string}): Promise<{success:boolean}> =>
     ipcRenderer.invoke("save-file", payload),
 
-  importDatabase: () : Promise<{success: boolean, filepath? : string, data? : {
+  importDatabase: () : Promise<{success: boolean, error?: string, filepath? : string, data? : {
     databaseVersion?: number,
     accounts?: Account[],
     transactions?: TransactionWithCategory[],

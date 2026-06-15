@@ -191,7 +191,7 @@ const chartOptions = computed(() => {
       onComplete: () => {
         delayed.value = true;
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       delay: (context: any) => {
         let delay = 0;
         if (context.type === 'data' && context.mode === 'default' && !delayed.value) {
@@ -204,7 +204,7 @@ const chartOptions = computed(() => {
       y: {
         duration: 800,
         easing: "easeOutQuart" as const,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         from: (ctx: any) => {
           if (!delayed.value && ctx.chart.scales.y) {
             return ctx.chart.scales.y.getPixelForValue(0);
@@ -227,13 +227,13 @@ const chartOptions = computed(() => {
         cornerRadius: 8,
         displayColors: true, // Enable colors to distinguish lines
         callbacks: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           title: (context: any[]) => {
             const index = context[0].dataIndex;
             const t = chartDataObj.value[index];
             return t ? formatDate(t.date) : '';
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           labelTextColor: (context: any) => {
             // Index 0 is Invested Capital, make it darker grey
             if (context.datasetIndex === 0) return 'rgba(156, 163, 175, 1)'; // Gray-400
@@ -275,12 +275,12 @@ const chartOptions = computed(() => {
       mode: 'index' as const,
       intersect: false,
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onHover: (_event: any, chartElement: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (_event as any).native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onClick: (_event: any, elements: any[]) => {
       if (elements && elements.length > 0) {
         const index = elements[0].index;

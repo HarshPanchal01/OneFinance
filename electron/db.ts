@@ -7,36 +7,81 @@ import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
 
-// Use createRequire for native module (better-sqlite3)
+// Use createRequire for native module (better-sqlite3-multiple-ciphers — a
+// drop-in better-sqlite3 build with SQLCipher whole-database encryption support).
 const require = createRequire(import.meta.url);
-const Database = require("better-sqlite3");
+const Database = require("better-sqlite3-multiple-ciphers");
 
 // Database file path - stored in user data directory
 export const getDbPath = () => path.join(app.getPath("userData"), "one-finance.db");
 export const getDbDir = () => app.getPath("userData");
 
-// Database instance - will be initialized lazily
+// Database instance — opened only after the master password unlocks it (SQLCipher).
 let _db: ReturnType<typeof Database> | null = null;
+// Master password for the unlocked session. Kept in memory only (never written to
+// disk); used to open the DB, rekey on change-password, and encrypt exports/backups.
+let _passphrase: string | null = null;
+
+// PRAGMA key/rekey take a single-quoted string literal and don't support bound
+// parameters, so any quote in the password must be doubled before interpolation.
+function escapeSqlString(value: string): string {
+  return value.replace(/'/g, "''");
+}
 
 /**
- * Get or create the database instance
+ * Open and unlock the encrypted database with the given master password. Throws
+ * "Incorrect master password" if the password can't decrypt an existing database.
+ * For a brand-new database file this initializes the encryption with the password.
+ */
+export function openDatabase(password: string): void {
+  if (_db) return; // already unlocked
+
+  if (!fs.existsSync(getDbDir())) {
+    fs.mkdirSync(getDbDir(), { recursive: true });
+  }
+
+  const handle = new Database(getDbPath());
+  handle.pragma("cipher='sqlcipher'");
+  handle.pragma(`key='${escapeSqlString(password)}'`);
+
+  // Probe read: with the wrong key SQLCipher cannot read the schema and throws.
+  try {
+    handle.prepare("SELECT count(*) FROM sqlite_master").get();
+  } catch {
+    try { handle.close(); } catch { /* ignore */ }
+    throw new Error("Incorrect master password");
+  }
+
+  handle.pragma("journal_mode = WAL");
+  handle.pragma("foreign_keys = ON");
+
+  _db = handle;
+  _passphrase = password;
+}
+
+/**
+ * Get the open database instance. Throws if still locked — nothing should touch
+ * the database before the master password unlocks it.
  */
 export function getDb(): ReturnType<typeof Database> {
   if (!_db) {
-    // Ensure the directory exists
-    if (!fs.existsSync(getDbDir())) {
-      fs.mkdirSync(getDbDir(), { recursive: true });
-    }
-
-    _db = new Database(getDbPath());
-    _db.pragma("journal_mode = WAL");
-    _db.pragma("foreign_keys = ON");
+    throw new Error("Database is locked. Unlock with the master password first.");
   }
   return _db;
 }
 
+export function isUnlocked(): boolean {
+  return _db !== null;
+}
+
+/** The current session's master password, or null when locked. */
+export function getSessionPassword(): string | null {
+  return _passphrase;
+}
+
 /**
- * Close the database connection and reset the instance
+ * Close the database connection and reset the instance. Leaves the session
+ * passphrase intact (used by flows that delete/replace the database file).
  */
 export function closeDb(): void {
   if (_db) {
@@ -46,6 +91,77 @@ export function closeDb(): void {
       console.error("[DB] Error closing database:", e);
     }
     _db = null;
+  }
+}
+
+/** Close the connection and forget the master password (re-locks the app). */
+export function lockDatabase(): void {
+  closeDb();
+  _passphrase = null;
+}
+
+/** Change the master password on the open database (SQLCipher rekey). */
+export function rekeyDatabase(newPassword: string): void {
+  const database = getDb();
+  // SQLCipher cannot rekey while in WAL journal mode, so drop to a rollback
+  // journal for the rekey and restore WAL afterwards (even if it fails).
+  database.pragma("journal_mode = DELETE");
+  try {
+    database.pragma(`rekey='${escapeSqlString(newPassword)}'`);
+  } finally {
+    database.pragma("journal_mode = WAL");
+  }
+  _passphrase = newPassword;
+}
+
+/**
+ * True if an existing database file is unencrypted plaintext that already holds
+ * app tables — i.e. data that must be set aside before enabling encryption.
+ */
+export function hasPlaintextDbWithData(): boolean {
+  if (!fs.existsSync(getDbPath())) return false;
+  let probe: ReturnType<typeof Database> | null = null;
+  try {
+    probe = new Database(getDbPath()); // opened without a key
+    const row = probe.prepare(
+      "SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    ).get() as { count: number };
+    return row.count > 0;
+  } catch {
+    // An encrypted database can't be read without the key — so it isn't plaintext.
+    return false;
+  } finally {
+    try { probe?.close(); } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Preserve an existing plaintext database by renaming it aside (never deleted), so
+ * a fresh encrypted database can take its place. Data is recovered via export/import.
+ */
+export function setAsidePlaintextDb(): void {
+  const dbPath = getDbPath();
+  if (!fs.existsSync(dbPath)) return;
+
+  // Fold any WAL contents into the main file so the preserved copy is complete.
+  try {
+    const probe = new Database(dbPath);
+    probe.pragma("wal_checkpoint(TRUNCATE)");
+    probe.close();
+  } catch (e) {
+    console.error("[DB] Checkpoint before set-aside failed:", e);
+  }
+
+  const base = dbPath.replace(/\.db$/, "");
+  let backupPath = base + ".pre-encryption.bak";
+  if (fs.existsSync(backupPath)) {
+    // Never overwrite an earlier preserved copy.
+    backupPath = `${base}.pre-encryption-${Date.now()}.bak`;
+  }
+  fs.renameSync(dbPath, backupPath);
+
+  for (const suffix of ["-wal", "-shm"]) {
+    try { fs.rmSync(dbPath + suffix, { force: true }); } catch { /* ignore */ }
   }
 }
 
