@@ -38,7 +38,7 @@
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.4",
-    "yahoo-finance2": "^3.14.0"
+    "yahoo-finance2": "^3.15.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -47,10 +47,10 @@
     "@vue/compiler-sfc": "^3.5.26",
     "autoprefixer": "^10.5.0",
     "electron": "^39.8.5",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.39.4",
     "eslint-plugin-vue": "^10.8.0",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.15",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1",
