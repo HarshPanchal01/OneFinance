@@ -128,7 +128,7 @@ function clamp(pct: number | null): number | null {
                 role="switch"
                 :aria-checked="form[row.key].enabled"
                 class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                :class="form[row.key].enabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                :class="form[row.key].enabled ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
                 @click="form[row.key].enabled = !form[row.key].enabled"
               >
                 <span

@@ -260,7 +260,7 @@ async function runBackupNow() {
                 role="switch"
                 :aria-checked="settingsStore.privacyMode"
                 class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                :class="settingsStore.privacyMode ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                :class="settingsStore.privacyMode ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
                 @click="settingsStore.togglePrivacyMode()"
               >
                 <span
@@ -287,7 +287,7 @@ async function runBackupNow() {
                 role="switch"
                 :aria-checked="settingsStore.minimizeToTray"
                 class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                :class="settingsStore.minimizeToTray ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                :class="settingsStore.minimizeToTray ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
                 @click="settingsStore.minimizeToTray = !settingsStore.minimizeToTray"
               >
                 <span
@@ -314,7 +314,7 @@ async function runBackupNow() {
                 role="switch"
                 :aria-checked="settingsStore.openAtLogin"
                 class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                :class="settingsStore.openAtLogin ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                :class="settingsStore.openAtLogin ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
                 @click="settingsStore.openAtLogin = !settingsStore.openAtLogin"
               >
                 <span
@@ -459,7 +459,7 @@ async function runBackupNow() {
                     role="switch"
                     :aria-checked="settingsStore.backupEnabled"
                     class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-                    :class="settingsStore.backupEnabled ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'"
+                    :class="settingsStore.backupEnabled ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
                     @click="settingsStore.backupEnabled = !settingsStore.backupEnabled"
                   >
                     <span
