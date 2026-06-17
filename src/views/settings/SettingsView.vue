@@ -10,8 +10,10 @@ import { useSettingsStore, regionalSettings } from "@/stores/settings";
 import { useAuthStore } from "@/stores/auth";
 import { REMEMBER_POLICY_OPTIONS, type RememberPolicy } from "@/types";
 import Select from "primevue/select";
-import iconSvg from "@/assets/icon.svg";
-import logoPng from "@/assets/logo.png";
+import lockupMacDark from "@/assets/onefinance_lockup_mac_dark.png";
+import lockupMacLight from "@/assets/onefinance_lockup_mac_light.png";
+import lockupWinDark from "@/assets/onefinance_lockup_win_dark.png";
+import lockupWinLight from "@/assets/onefinance_lockup_win_light.png";
 
 const backupFrequencyOptions = [
   { label: 'Daily', value: 'daily' },
@@ -19,7 +21,7 @@ const backupFrequencyOptions = [
 ];
 
 const appVersion = "2.0.0";
-const logoUrl = ref(iconSvg);
+const isWindows = ref(false);
 const dbPath = ref("");
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
@@ -28,6 +30,13 @@ const actionModal = ref<InstanceType<typeof SettingsImportModal>>();
 const changePasswordModal = ref<InstanceType<typeof ChangePasswordModal>>();
 const settingsStore = useSettingsStore();
 const auth = useAuthStore();
+
+const logoUrl = computed(() => {
+  if (isWindows.value) {
+    return settingsStore.isDark ? lockupWinDark : lockupWinLight;
+  }
+  return settingsStore.isDark ? lockupMacDark : lockupMacLight;
+});
 
 // Two-way bound to the master-password remember policy; setting it persists via IPC
 // (Main reuses the in-memory session password to re-arm the window).
@@ -66,12 +75,7 @@ onMounted(async () => {
   // Refresh remember-policy + keychain availability for the Security control.
   void auth.checkStatus();
   dbPath.value = await window.electronAPI.getDbPath();
-  const platform = await window.electronAPI.getPlatform();
-  if (platform === "win32") {
-    logoUrl.value = logoPng;
-  } else {
-    logoUrl.value = iconSvg;
-  }
+  isWindows.value = (await window.electronAPI.getPlatform()) === "win32";
 });
 
 // Wrappers for composable functions to pass modal refs
@@ -145,20 +149,15 @@ async function runBackupNow() {
     <div class="max-w-6xl mx-auto space-y-6 py-8 px-4">
       <!-- App Info -->
       <div class="card p-6">
-        <div class="flex items-center space-x-4 mb-4">
+        <div class="mb-4">
           <img
             :src="logoUrl"
             alt="OneFinance"
-            class="w-16 h-16 rounded-2xl"
+            class="h-12 w-auto max-w-full mb-1"
           />
-          <div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-              OneFinance
-            </h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-              Version {{ appVersion }}
-            </p>
-          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Version {{ appVersion }}
+          </p>
         </div>
 
         <p class="text-gray-600 dark:text-gray-300">

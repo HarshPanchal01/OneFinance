@@ -10,9 +10,8 @@
   "files": [
     "dist/**/*",
     "dist-electron/**/*",
-    "assets/icon.svg",
-    "assets/logo.png",
-    "assets/icon.png",
+    "assets/onefinance_icon_win_light.png",
+    "assets/onefinance_icon_mac_light.png",
     "!**/*.map",
     "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
     "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
@@ -20,7 +19,7 @@
     "!**/node_modules/.bin"
   ],
   "mac": {
-    "icon": "assets/icon.png",
+    "icon": "assets/onefinance_icon_mac_light.png",
     "target": [
       {
         "target": "dmg",
@@ -30,7 +29,7 @@
     "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
   },
   "win": {
-    "icon": "assets/logo.png",
+    "icon": "assets/onefinance_icon_win_light.png",
     "target": [
       {
         "target": "nsis",
@@ -52,7 +51,7 @@
     "uninstallDisplayName": "OneFinance"
   },
   "linux": {
-    "icon": "assets/icon.png",
+    "icon": "assets/onefinance_icon_mac_light.png",
     "category": "Office",
     "target": [
       "AppImage"

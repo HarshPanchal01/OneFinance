@@ -43,6 +43,7 @@ PrimeVue.md
 DATABASE_MIGRATIONS.md
 INSIGHTS_CONTEXT.md
 CLAUDE.md
+STARTER_PROMPT.md
 
 # TypeScript incremental build info
 *.tsbuildinfo
