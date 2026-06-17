@@ -34,13 +34,16 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
 // App icon for the window, tray, and reminder notifications. Tray/Notification
-// use nativeImage (raster only — PNG/ICO, not SVG): Windows uses logo.png, macOS
-// and Linux use icon.png (the rasterized brand logo). Resolves from <root>/assets
-// in dev and inside the asar when packaged (included via electron-builder `files`).
+// use nativeImage (raster only — PNG/ICO, not SVG): Windows uses the square win
+// icon, macOS and Linux use the square mac icon (the rasterized brand logo).
+// Resolves from <root>/assets in dev and inside the asar when packaged (included
+// via electron-builder `files`).
 const APP_ICON = path.join(
   process.env.APP_ROOT,
   'assets',
-  process.platform === 'win32' ? 'logo.png' : 'icon.png',
+  process.platform === 'win32'
+    ? 'onefinance_icon_win_light.png'
+    : 'onefinance_icon_mac_light.png',
 );
 
 let win: BrowserWindow | null;
