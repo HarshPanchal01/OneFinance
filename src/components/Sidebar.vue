@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
 import { getMonthName } from "@/utils";
 import YearDeleteModal from "@/components/YearDeleteModal.vue";
-import iconSvg from "@/assets/icon.svg";
-import logoPng from "@/assets/logo.png";
+import lockupMacDark from "@/assets/onefinance_lockup_mac_dark.png";
+import lockupMacLight from "@/assets/onefinance_lockup_mac_light.png";
+import lockupWinDark from "@/assets/onefinance_lockup_win_dark.png";
+import lockupWinLight from "@/assets/onefinance_lockup_win_light.png";
 
 const props = defineProps<{
   currentView: string;
@@ -15,16 +18,19 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
 
-const logoUrl = ref(iconSvg);
+const isWindows = ref(false);
 
 onMounted(async () => {
-  const platform = await window.electronAPI.getPlatform();
-  if (platform === "win32") {
-    logoUrl.value = logoPng;
-  } else {
-    logoUrl.value = iconSvg;
+  isWindows.value = (await window.electronAPI.getPlatform()) === "win32";
+});
+
+const logoUrl = computed(() => {
+  if (isWindows.value) {
+    return settingsStore.isDark ? lockupWinDark : lockupWinLight;
   }
+  return settingsStore.isDark ? lockupMacDark : lockupMacLight;
 });
 
 // Track expanded years in the tree
@@ -201,37 +207,30 @@ async function requestDeleteYear() {
   >
     <!-- App Header -->
     <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-      <div class="flex items-center space-x-3">
-        <img
-          :src="logoUrl"
-          alt="OneFinance"
-          class="w-10 h-10 rounded-xl"
-        />
-        <div>
-          <h1 class="text-lg font-bold text-gray-900 dark:text-white">
-            OneFinance
-          </h1>
-          <p
-            v-if="store.currentLedgerMonth"
-            class="text-xs text-gray-500 dark:text-gray-400"
-          >
-            {{ getMonthName(store.currentLedgerMonth.month) }}
-            {{ store.currentLedgerMonth.year }}
-          </p>
-          <p
-            v-else-if="store.selectedYear"
-            class="text-xs text-gray-500 dark:text-gray-400"
-          >
-            {{ store.selectedYear }} (All Months)
-          </p>
-          <p
-            v-else
-            class="text-xs text-gray-500 dark:text-gray-400"
-          >
-            Global View
-          </p>
-        </div>
-      </div>
+      <img
+        :src="logoUrl"
+        alt="OneFinance"
+        class="h-9 w-auto max-w-full mb-1"
+      />
+      <p
+        v-if="store.currentLedgerMonth"
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
+        {{ getMonthName(store.currentLedgerMonth.month) }}
+        {{ store.currentLedgerMonth.year }}
+      </p>
+      <p
+        v-else-if="store.selectedYear"
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
+        {{ store.selectedYear }} (All Months)
+      </p>
+      <p
+        v-else
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
+        Global View
+      </p>
     </div>
 
     <!-- Navigation -->

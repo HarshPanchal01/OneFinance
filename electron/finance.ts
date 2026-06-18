@@ -1,6 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // Quote types the app can actually track + price. Excludes indices (e.g. ^GSPE),
 // currencies, futures, etc., which have no tradeable holding and break price fetch.
@@ -94,15 +94,21 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
     }
 
     console.log(`[Yahoo API] Fetching historical prices for ${symbol} from ${d1.toISOString().split('T')[0]} to ${d2.toISOString().split('T')[0]}`);
-    const results = await yahooFinance.historical(symbol, {
+    // chart() replaces the deprecated historical(): it returns raw daily rows (incl. an
+    // in-progress current-day bar with a null close) instead of throwing on partial-null
+    // rows the way historical() does. We drop null-close rows ourselves; validateResult
+    // is off for the usual Yahoo schema drift.
+    const result = await yahooFinance.chart(symbol, {
       period1: d1,
       period2: d2,
       interval: '1d'
-    });
-    return results.map(r => ({
-      date: r.date.toISOString().split('T')[0],
-      close: r.close
-    }));
+    }, { validateResult: false }) as any;
+    return (result?.quotes ?? [])
+      .filter((q: any) => q?.date && q.close != null)
+      .map((q: any) => ({
+        date: new Date(q.date).toISOString().split('T')[0],
+        close: q.close as number,
+      }));
   } catch (error) {
     console.error(`[Finance] Error fetching historical prices for ${symbol}:`, error);
     return [];
