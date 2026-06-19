@@ -89,8 +89,8 @@ function createWindow() {
     },
     width: 1400,
     height: 1000,
-    minWidth: 1024,
-    minHeight: 768,
+    minWidth: 1280,
+    minHeight: 720,
   });
 
   win.maximize();
