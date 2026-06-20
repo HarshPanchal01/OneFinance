@@ -5,6 +5,13 @@ import PasswordInput from "@/components/PasswordInput.vue";
 
 const emit = defineEmits<{ (e: "unlocked"): void }>();
 
+// When the gate reappears after a mid-session lock (idle / manual / OS lock), the
+// remembered-key auto-unlock is suppressed — otherwise it would instantly undo the
+// lock. Only the first launch allows auto-unlock.
+const props = withDefaults(defineProps<{ allowAutoUnlock?: boolean }>(), {
+  allowAutoUnlock: true,
+});
+
 const auth = useAuthStore();
 
 const loading = ref(true);
@@ -24,7 +31,8 @@ onMounted(async () => {
     return;
   }
   // Returning user within a still-valid remember-window → open without prompting.
-  if (auth.hasMasterPassword) {
+  // Skipped after a mid-session lock so the lock isn't immediately undone.
+  if (auth.hasMasterPassword && props.allowAutoUnlock) {
     const auto = await auth.tryAutoUnlock();
     if (auto.success) {
       emit("unlocked");

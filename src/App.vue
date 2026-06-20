@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
+import { useAuthStore } from "@/stores/auth";
+import { useIdleLock } from "@/composables/useIdleLock";
 
 // Components
 import Sidebar from "@/components/Sidebar.vue";
@@ -24,9 +26,12 @@ import CalculatorsView from "@/views/calculators/CalculatorsView.vue";
   
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
+const auth = useAuthStore();
 
 // The app stays gated behind the master-password screen until it is unlocked.
 const authUnlocked = ref(false);
+// One-time app setup runs on the first unlock; later unlocks (after a lock) skip it.
+const appInitialized = ref(false);
 
 // Current view
 type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
@@ -90,12 +95,24 @@ onMounted(() => {
   settingsStore.loadSettings();
 });
 
-// Runs once the master password unlocks the database (emitted by the gate).
+// Runs each time the gate unlocks. One-time setup happens on the first unlock;
+// later unlocks (after a lock) only refresh data that may have changed.
 async function onUnlocked() {
   authUnlocked.value = true;
   // Let the main UI (and its modal refs) mount before using them.
   await nextTick();
 
+  if (!appInitialized.value) {
+    appInitialized.value = true;
+    await initializeApp();
+  } else {
+    await refreshAfterUnlock();
+  }
+}
+
+// One-time setup after the first successful unlock: load preferences, wire up
+// background-event listeners and timers, and pull initial data.
+async function initializeApp() {
   await settingsStore.loadBackupSettings();
   await settingsStore.loadAppPreferences();
 
@@ -123,8 +140,10 @@ async function onUnlocked() {
   await store.fetchInvestmentHoldings();
   store.refreshInvestmentPrices();
 
-  // Refresh investment prices every 30 minutes
+  // Refresh investment prices every 30 minutes (skipped while locked — the DB is
+  // closed and persisting quotes would throw).
   window.setInterval(() => {
+    if (!authUnlocked.value) return;
     store.refreshInvestmentPrices();
   }, 30 * 60 * 1000);
 
@@ -160,6 +179,11 @@ async function onUnlocked() {
     currentView.value = "investments";
   });
 
+  // The main process re-locks on OS suspend / screen lock; reflect that here.
+  window.electronAPI.onAppLocked(() => {
+    auth.markLocked();
+  });
+
   // Mirror locale/currency to the main process so reminder notifications match the user's region
   const syncReminderLocale = () => {
     void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);
@@ -171,12 +195,39 @@ async function onUnlocked() {
   window.addEventListener("keydown", handleKeydown);
 }
 
+// After re-unlocking (post-lock), the background heartbeat resumes and may have
+// caught up on recurring transactions / savings interest; pull the latest data.
+async function refreshAfterUnlock() {
+  await store.fetchRecurringTransactions();
+  await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
+  await store.fetchAccounts();
+  store.fetchPeriodSummarySync();
+}
+
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeydown);
 });
 
+// Auto-lock on inactivity (Off when autoLockMinutes is 0). Disarms automatically
+// while locked because `enabled` (authUnlocked) is false.
+useIdleLock({
+  enabled: authUnlocked,
+  timeoutMs: computed(() => settingsStore.autoLockMinutes * 60 * 1000),
+  onIdle: () => void auth.lock(),
+});
+
+// Every lock path clears auth.isUnlocked (manual, idle, or OS-initiated); drop
+// back to the gate whenever that happens.
+watch(
+  () => auth.isUnlocked,
+  (unlocked) => {
+    if (!unlocked) authUnlocked.value = false;
+  },
+);
+
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
+  if (!authUnlocked.value) return;
   if (e.ctrlKey || e.metaKey) {
     switch (e.key.toLowerCase()) {
       case "n":
@@ -201,7 +252,11 @@ function handleKeydown(e: KeyboardEvent) {
               break;
             case "l":
               e.preventDefault();
-              currentView.value = "categories";
+              if (e.shiftKey) {
+                void auth.lock();
+              } else {
+                currentView.value = "categories";
+              }
               break;
             case "a":
               if (e.shiftKey) {
@@ -234,6 +289,7 @@ function handleKeydown(e: KeyboardEvent) {
 <template>
   <MasterPasswordGate
     v-if="!authUnlocked"
+    :allow-auto-unlock="!appInitialized"
     @unlocked="onUnlocked"
   />
   <div

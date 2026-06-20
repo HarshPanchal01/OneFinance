@@ -8,7 +8,7 @@ import ChangePasswordModal from "./components/ChangePasswordModal.vue";
 import { useDataManagement } from "@/composables/useDataManagement";
 import { useSettingsStore, regionalSettings } from "@/stores/settings";
 import { useAuthStore } from "@/stores/auth";
-import { REMEMBER_POLICY_OPTIONS, type RememberPolicy } from "@/types";
+import { REMEMBER_POLICY_OPTIONS, AUTO_LOCK_OPTIONS, type RememberPolicy } from "@/types";
 import Select from "primevue/select";
 import lockupMacDark from "@/assets/onefinance_lockup_mac_dark.png";
 import lockupMacLight from "@/assets/onefinance_lockup_mac_light.png";
@@ -45,6 +45,11 @@ const rememberPolicy = computed<RememberPolicy>({
   set: (value) => { void auth.setRememberPolicy(value); },
 });
 
+// Manually lock the app now → returns to the master-password gate.
+function lockNow() {
+  void auth.lock();
+}
+
 const isDev = import.meta.env.DEV;
 
 const {
@@ -67,6 +72,7 @@ const shortcuts = [
   { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },
   { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
   { keys: ["Ctrl", "Shift", "P"], description: "Toggle Privacy Mode" },
+  { keys: ["Ctrl", "Shift", "L"], description: "Lock OneFinance" },
   { keys: ["/"], description: "Go to Search Bar (While on Transactions Page)" },
 ];
 
@@ -337,7 +343,7 @@ async function runBackupNow() {
           <i class="pi pi-lock mr-2 text-gray-700 dark:text-white" />
           Security
         </h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Manage the master password that encrypts your data and how long OneFinance stays unlocked.
         </p>
 
@@ -348,10 +354,10 @@ async function runBackupNow() {
               <i class="pi pi-key text-primary-500" />
               Master Password
             </div>
-            <p class="text-xs text-gray-500 mb-4">
+            <p class="text-xs text-gray-500 mb-3">
               The password that encrypts your data
             </p>
-            <div class="mt-auto">
+            <div>
               <button
                 class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 @click="changePasswordModal?.open()"
@@ -368,10 +374,10 @@ async function runBackupNow() {
               <i class="pi pi-clock text-primary-500" />
               Stay Unlocked
             </div>
-            <p class="text-xs text-gray-500 mb-4">
+            <p class="text-xs text-gray-500 mb-3">
               How long before asking for your password again
             </p>
-            <div class="mt-auto">
+            <div>
               <Select
                 v-if="auth.canRemember"
                 v-model="rememberPolicy"
@@ -386,6 +392,33 @@ async function runBackupNow() {
               >
                 Unavailable — no secure keychain on this system, so OneFinance always asks on launch.
               </p>
+            </div>
+          </div>
+
+          <!-- Auto-Lock -->
+          <div class="flex flex-col bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800 transition-all">
+            <div class="flex items-center gap-2 mb-1 text-sm font-bold text-gray-800 dark:text-gray-200">
+              <i class="pi pi-lock-open text-primary-500" />
+              Auto-Lock
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+              Lock automatically after a period of inactivity
+            </p>
+            <div class="flex items-center gap-2">
+              <Select
+                v-model="settingsStore.autoLockMinutes"
+                :options="AUTO_LOCK_OPTIONS"
+                option-label="label"
+                option-value="value"
+                class="flex-1"
+              />
+              <button
+                class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+                @click="lockNow"
+              >
+                <i class="pi pi-lock mr-1.5" />
+                Lock Now
+              </button>
             </div>
           </div>
         </div>
