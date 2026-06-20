@@ -292,6 +292,13 @@ const electronAPI = {
   setRememberPolicy: (policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("auth:setRememberPolicy", policy),
 
+  lock: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("auth:lock"),
+
+  onAppLocked: (callback: () => void) => {
+    ipcRenderer.on("app-locked", callback);
+  },
+
   changeMasterPassword: (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("auth:changePassword", oldPassword, newPassword),
 

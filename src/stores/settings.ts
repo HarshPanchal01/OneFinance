@@ -36,6 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // App preferences — persisted via IPC to app-preferences.json in main process
   const minimizeToTray = ref(false);
   const openAtLogin = ref(false);
+  const autoLockMinutes = ref(0); // 0 = never auto-lock on idle
   let _appPreferencesLoaded = false;
 
   const resolvedRegion = computed(() => {
@@ -106,6 +107,7 @@ export const useSettingsStore = defineStore('settings', () => {
     _appPreferencesLoaded = false;
     minimizeToTray.value = prefs.minimizeToTray;
     openAtLogin.value = prefs.openAtLogin;
+    autoLockMinutes.value = prefs.autoLockMinutes;
     _appPreferencesLoaded = true;
   };
 
@@ -136,11 +138,12 @@ export const useSettingsStore = defineStore('settings', () => {
     }).catch(console.error);
   });
 
-  watch([minimizeToTray, openAtLogin], ([tray, login]) => {
+  watch([minimizeToTray, openAtLogin, autoLockMinutes], ([tray, login, autoLock]) => {
     if (!_appPreferencesLoaded) return;
     void window.electronAPI.saveAppPreferences({
       minimizeToTray: tray,
       openAtLogin: login,
+      autoLockMinutes: autoLock,
     }).catch(console.error);
   });
 
@@ -165,6 +168,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // App preferences
     minimizeToTray,
     openAtLogin,
+    autoLockMinutes,
     loadAppPreferences,
   };
 });

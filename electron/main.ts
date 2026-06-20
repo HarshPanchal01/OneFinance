@@ -1,7 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu, safeStorage } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, Tray, Menu, safeStorage, powerMonitor } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { initializeDatabase, processRecurringTransactions, processSavingsInterest, getDueReminders, openDatabase, rekeyDatabase, isUnlocked, hasPlaintextDbWithData, setAsidePlaintextDb, getSessionPassword } from './db'
+import { initializeDatabase, processRecurringTransactions, processSavingsInterest, getDueReminders, openDatabase, rekeyDatabase, isUnlocked, lockDatabase, hasPlaintextDbWithData, setAsidePlaintextDb, getSessionPassword } from './db'
 import { registerIpcHandlers } from './ipc'
 import { checkAndRunBackup } from './backup'
 import { loadPreferences, savePreferences, applyOpenAtLogin, AppPreferences } from './preferences'
@@ -50,7 +50,7 @@ let win: BrowserWindow | null;
 let tray: Tray | null = null;
 // Set to true by the tray "Quit" item so the window's close handler lets the app exit.
 let isQuitting = false;
-let appPreferences: AppPreferences = { minimizeToTray: false, openAtLogin: false };
+let appPreferences: AppPreferences = { minimizeToTray: false, openAtLogin: false, autoLockMinutes: 0 };
 
 function showWindow() {
   if (!win) {
@@ -395,6 +395,8 @@ function runReminderCheck() {
 function startRecurringTransactionsTask() {
   // Check every 1 minute
   setInterval(() => {
+    // Skip all DB-backed work while the session is locked (getDb() would throw).
+    if (!isUnlocked()) return;
     runReminderCheck();
     if (processRecurringTransactions()) {
       BrowserWindow.getAllWindows().forEach(w => w.webContents.send('recurring-processed'));
@@ -406,6 +408,21 @@ function startRecurringTransactionsTask() {
       BrowserWindow.getAllWindows().forEach(w => w.webContents.send('silent-backup-complete'));
     }
   }, 60 * 1000);
+}
+
+// Re-lock the database when the OS suspends or the screen locks, so an unlocked
+// session isn't left exposed while the user is away. The renderer is told via
+// 'app-locked' to show the master-password gate. NOTE: 'lock-screen' is
+// macOS/Windows only — on Linux a plain screen-lock fires no Electron event, so
+// there it relies on 'suspend' (sleep) plus the renderer's idle auto-lock.
+function registerPowerMonitorLock() {
+  const lockFromMain = () => {
+    if (!isUnlocked()) return;
+    lockSession();
+    BrowserWindow.getAllWindows().forEach(w => w.webContents.send('app-locked'));
+  };
+  powerMonitor.on('suspend', lockFromMain);
+  powerMonitor.on('lock-screen', lockFromMain);
 }
 
 // Background tasks (the 1-minute heartbeat) must start exactly once, and only
@@ -447,6 +464,15 @@ function canRemember(): boolean {
 // the next manual unlock). Used for 'session' and once a window has expired.
 function clearRemembered(): void {
   saveSecurity({ rememberedKey: null, rememberExpiry: null });
+}
+
+// Re-lock the session: drop the in-memory passphrase + close the DB, and clear any
+// remembered key. Clearing the key means a deliberate lock also defeats launch-time
+// auto-unlock — a restart then requires the password even within a still-valid
+// 'stay unlocked' window. Re-typing the password on unlock re-arms the window.
+function lockSession(): void {
+  lockDatabase();
+  clearRemembered();
 }
 
 // Apply a remember policy in one atomic write: encrypt the password with the OS
@@ -575,6 +601,14 @@ ipcMain.handle('auth:changePassword', (_event, oldPassword: string, newPassword:
   }
 });
 
+// Manual / idle lock from the renderer: clear the in-memory passphrase and re-lock
+// the DB so getDb() throws again. The renderer shows the gate; re-unlock goes
+// through auth:unlock (no auto-unlock, so the lock isn't immediately undone).
+ipcMain.handle('auth:lock', () => {
+  lockSession();
+  return { success: true };
+});
+
 if (app.isPackaged) {
   const gotTheLock = app.requestSingleInstanceLock()
 
@@ -601,6 +635,7 @@ if (app.isPackaged) {
 
       createWindow();
       createTray();
+      registerPowerMonitorLock();
     });
   }
 } else {
@@ -616,5 +651,6 @@ if (app.isPackaged) {
 
     createWindow();
     createTray();
+    registerPowerMonitorLock();
   });
 }

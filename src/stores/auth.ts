@@ -68,6 +68,20 @@ export const useAuthStore = defineStore("auth", () => {
     return window.electronAPI.changeMasterPassword(oldPassword, newPassword);
   }
 
+  // Re-lock the session: clears the in-memory passphrase in Main and re-locks the
+  // database. The gate reappears; re-unlocking uses the normal unlock flow (and
+  // deliberately skips the remembered-key auto-unlock so a lock isn't undone).
+  async function lock(): Promise<void> {
+    await window.electronAPI.lock();
+    isUnlocked.value = false;
+  }
+
+  // Reflect a lock initiated by the main process (e.g. OS sleep / screen lock),
+  // where the database has already been closed — just sync the renderer state.
+  function markLocked(): void {
+    isUnlocked.value = false;
+  }
+
   return {
     hasMasterPassword,
     isUnlocked,
@@ -79,5 +93,7 @@ export const useAuthStore = defineStore("auth", () => {
     unlock,
     setRememberPolicy,
     changePassword,
+    lock,
+    markLocked,
   };
 });
