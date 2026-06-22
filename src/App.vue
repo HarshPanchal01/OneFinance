@@ -41,6 +41,8 @@ const currentView = ref<ViewName>("dashboard");
 const activeAccountId = ref<number | null>(null);
 const activeFilterAccountId = ref<number | null>(null);
 const activeFilterRecurringId = ref<number | null>(null);
+const activeHighlightSymbol = ref<string | null>(null);
+const activeHighlightRecurringId = ref<number | null>(null);
 
 // Watch for search active
 watch(
@@ -64,6 +66,8 @@ function navigateTo(view: string) {
   activeAccountId.value = null;
   activeFilterAccountId.value = null;
   activeFilterRecurringId.value = null;
+  activeHighlightSymbol.value = null;
+  activeHighlightRecurringId.value = null;
 
   if (view === "dashboard") {
     // Keep the current period context when going to Dashboard
@@ -87,6 +91,41 @@ function handleRequestViewTransactions(id: number, type: 'account' | 'recurring'
     activeFilterRecurringId.value = id;
   }
   currentView.value = "transactions";
+}
+
+// Dashboard composition/legend → Accounts with that classification section expanded.
+function handleViewAccounts(classification?: string) {
+  if (classification) {
+    const next = new Set(store.expandedAccountSections);
+    next.add(classification);
+    store.expandedAccountSections = next;
+  }
+  currentView.value = "accounts";
+}
+
+// Dashboard watchlist → Investments. A holding click expands its account(s) and
+// highlights the row; "View all" (no symbol) expands every investment account.
+function handleViewInvestments(symbol?: string) {
+  const next = new Set(store.expandedInvestmentAccounts);
+  if (symbol) {
+    store.investmentHoldings
+      .filter((h) => h.symbol === symbol)
+      .forEach((h) => next.add(h.accountId));
+  } else {
+    store.accounts.forEach((a) => {
+      const cls = store.accountTypes.find((t) => t.id === a.accountTypeId)?.classification;
+      if (cls === "investment") next.add(a.id);
+    });
+  }
+  store.expandedInvestmentAccounts = next;
+  activeHighlightSymbol.value = symbol ?? null;
+  currentView.value = "investments";
+}
+
+// Dashboard upcoming bills → Schedules with the schedule highlighted.
+function handleViewRecurring(id?: number) {
+  activeHighlightRecurringId.value = id ?? null;
+  currentView.value = "recurring";
 }
 
 // Apply theme before the gate renders so the unlock screen is themed. Everything
@@ -340,6 +379,10 @@ function handleKeydown(e: KeyboardEvent) {
             v-if="currentView === 'dashboard'"
             @add-transaction="showQuickAddModal = true"
             @request-edit-account="handleRequestEditAccount"
+            @navigate="navigateTo"
+            @view-accounts="handleViewAccounts"
+            @view-investments="handleViewInvestments"
+            @view-recurring="handleViewRecurring"
           />
           <TransactionsView
             v-else-if="currentView === 'transactions'"
@@ -353,10 +396,14 @@ function handleKeydown(e: KeyboardEvent) {
             @request-view-transactions="handleRequestViewTransactions"
           />
           <SpendingInsightsView v-else-if="currentView === 'insights'" />
-          <PortfolioView v-else-if="currentView === 'investments'" />
+          <PortfolioView
+            v-else-if="currentView === 'investments'"
+            :highlight-symbol="activeHighlightSymbol"
+          />
           <InvestmentInsightsView v-else-if="currentView === 'investment-insights'" />
           <RecurringView
             v-else-if="currentView === 'recurring'"
+            :highlight-recurring-id="activeHighlightRecurringId"
             @request-view-transactions="handleRequestViewTransactions"
             @request-edit-account="handleRequestEditAccount"
           />

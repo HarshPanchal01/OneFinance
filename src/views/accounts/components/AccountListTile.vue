@@ -108,14 +108,3 @@ import { computed, ref, watch } from 'vue';
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes highlight-fade {
-  0%, 100% { background-color: transparent; }
-  50% { background-color: rgba(79, 157, 221, 0.4); }
-}
-
-.highlight-blink {
-  animation: highlight-fade 1s ease-in-out 3;
-}
-</style>

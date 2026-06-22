@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { useSettingsStore } from '@/stores/settings';
 import { InvestmentHolding } from '@/types';
@@ -10,12 +10,21 @@ import PriceAlertModal from './components/PriceAlertModal.vue';
 import AdjustCashModal from './components/AdjustCashModal.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import { useFormatter } from '@/composables/useFormatter';
+import { useHighlight } from '@/composables/useHighlight';
+
+const props = defineProps<{
+  highlightSymbol?: string | null;
+}>();
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { getCurrencySymbol, formatCurrency } = useFormatter();
 
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+
+// Briefly blink the holding(s) for a symbol when arriving from the dashboard watchlist.
+const { highlighted: highlightedSymbol, highlight: highlightSym } = useHighlight<string>();
+watch(() => props.highlightSymbol, (sym) => highlightSym(sym));
 
 const investmentAccounts = computed(() => {
   return store.accounts.filter(account => {
@@ -76,6 +85,7 @@ onMounted(async () => {
   await store.fetchAccounts();
   await store.fetchAccountTypes();
   await store.fetchInvestmentHoldings();
+  highlightSym(props.highlightSymbol);
 });
 
 async function refreshPrices() {
@@ -343,6 +353,7 @@ function getAccountCashBalance(accountId: number) {
                   v-for="holding in store.investmentHoldings.filter(h => h.accountId === account.id && h.quantity > 0)"
                   :key="holding.id"
                   class="transition-colors"
+                  :class="{ 'highlight-blink': holding.symbol === highlightedSymbol }"
                 >
                   <td class="px-4 py-3 font-bold truncate">
                     <span 
