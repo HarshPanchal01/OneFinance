@@ -309,6 +309,50 @@ export function getDateRange(range: string, transactions?: TransactionWithCatego
   return { startDate, endDate };
 }
 
+// The previous comparison window for a dashboard range, used for delta comparisons.
+// To-date ranges (thisMonth, thisYear) compare against the prior period clamped to
+// the same day, so a partial current period isn't compared against a full prior one.
+// Returns null for ranges with no comparable prior period (e.g. allTime).
+export function getPreviousDateRange(range: string, customRange?: DateRange): DateRange | null {
+  const now = new Date();
+  // A date clamped to the target month's last day (handles short months / leap years).
+  const dayInMonth = (year: number, monthIndex: number, day: number) =>
+    new Date(year, monthIndex, Math.min(day, new Date(year, monthIndex + 1, 0).getDate()));
+
+  let startDate: Date;
+  let endDate: Date;
+
+  if (range === 'thisMonth') {
+    // Current is month-to-date; compare against the prior month through the same day.
+    startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    endDate = dayInMonth(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  } else if (range === 'last3Months') {
+    // Current window is [m-3 .. end of m-1]; the prior equivalent is [m-6 .. end of m-4].
+    startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() - 3, 0);
+  } else if (range === 'last6Months') {
+    // Current window is [m-6 .. end of m-1]; the prior equivalent is [m-12 .. end of m-7].
+    startDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() - 6, 0);
+  } else if (range === 'thisYear') {
+    // Current is year-to-date; compare against the prior year through the same month/day.
+    startDate = new Date(now.getFullYear() - 1, 0, 1);
+    endDate = dayInMonth(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  } else if ((range === 'custom' || range === 'custom_edit') && customRange) {
+    // The equally-long window immediately before the selected one.
+    const cur = getDateRange(range, undefined, customRange);
+    const span = cur.endDate.getTime() - cur.startDate.getTime();
+    endDate = new Date(cur.startDate.getTime() - 1);
+    startDate = new Date(endDate.getTime() - span);
+  } else {
+    return null;
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+  return { startDate, endDate };
+}
+
 export function getMetricsForRange(range: string, transactions: TransactionWithCategory[], customRange?: DateRange) {
   const { startDate, endDate } = getDateRange(range, transactions, customRange);
   

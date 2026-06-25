@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 import { useFormatter } from "@/composables/useFormatter";
+import { useHighlight } from "@/composables/useHighlight";
 import RecurringModal from "./components/RecurringModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import { RecurringTransaction } from "@/types";
@@ -12,7 +13,16 @@ const emit = defineEmits<{
   (e: "request-edit-account", id: number): void;
 }>();
 
+const props = defineProps<{
+  highlightRecurringId?: number | null;
+}>();
+
 const store = useFinanceStore();
+
+// Briefly blink a schedule when arriving from the dashboard's Upcoming Bills.
+const { highlighted: highlightedId, highlight: highlightItem } = useHighlight<number>();
+watch(() => props.highlightRecurringId, (id) => highlightItem(id));
+onMounted(() => highlightItem(props.highlightRecurringId));
 const settingsStore = useSettingsStore();
 const { formatCurrency, formatDate } = useFormatter();
 
@@ -115,10 +125,11 @@ function getAccountName(id: number) {
             Active
           </h3>
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden">
-            <div 
-              v-for="item in activeItems" 
-              :key="item.id" 
+            <div
+              v-for="item in activeItems"
+              :key="item.id"
               class="group flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              :class="{ 'highlight-blink': item.id === highlightedId }"
             >
               <div class="flex items-center gap-4">
                 <div 
@@ -221,10 +232,11 @@ function getAccountName(id: number) {
             Inactive
           </h3>
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden opacity-60">
-            <div 
-              v-for="item in inactiveItems" 
-              :key="item.id" 
+            <div
+              v-for="item in inactiveItems"
+              :key="item.id"
               class="group flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              :class="{ 'highlight-blink': item.id === highlightedId }"
             >
               <div class="flex items-center gap-4">
                 <div 

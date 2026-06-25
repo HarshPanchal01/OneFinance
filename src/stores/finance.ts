@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { toIsoDateString, getExpenseBreakdownForRange, getIncomeBreakdownForRange, type ImportData } from "@/utils";
+import { getCustomRangeObj, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
 import type {
   Category,
   Account,
@@ -62,8 +62,13 @@ export const useFinanceStore = defineStore("finance", () => {
   });
   const incomeBreakdown = ref<CategoryBreakdown[]>([]);
   const expenseBreakdown = ref<CategoryBreakdown[]>([]);
-  const dashboardBreakdown = ref<CategoryBreakdown[]>([]);
-  const dashboardIncomeBreakdown = ref<CategoryBreakdown[]>([]);
+  // Dashboard (widget overview). Kept separate from the sidebar-driven periodSummary
+  // and from monthlyTrends so navigating to Insights doesn't clobber its charts.
+  const dashboardRange = ref<string>("thisMonth");
+
+  const dashboardCustomRange = ref<any>(null);
+  const dashboardTransactions = ref<TransactionWithCategory[]>([]);
+  const dashboardTrends = ref<MonthlyTrend[]>([]);
   const monthlyTrends = ref<MonthlyTrend[]>([]);
   const netWorthTrends = ref<{ month: number, year: number, balance: number }[]>([]);
 
@@ -75,6 +80,10 @@ export const useFinanceStore = defineStore("finance", () => {
   const investmentHoldings = ref<InvestmentHolding[]>([]);
   const investmentTransactions = ref<InvestmentTransaction[]>([]);
   const investmentHistory = ref<InvestmentHistory[]>([]);
+
+  // Latest previous-close per symbol, captured from the periodic quote fetch
+  // (in-memory only — powers the dashboard watchlist day change without an extra call).
+  const quotePreviousCloses = ref<Record<string, number>>({});
 
   const refreshCooldown = ref(0);
   let cooldownInterval: number | undefined;
@@ -112,6 +121,41 @@ export const useFinanceStore = defineStore("finance", () => {
   const transferTransactions = computed(() =>
     transactions.value.filter((t) => t.type === "transfer")
   );
+
+  // Period-scoped KPIs for the dashboard strip with deltas vs the previous equivalent
+  // period (null when there is no comparable prior window, e.g. allTime). Net worth is
+  // a point-in-time total (sum of account balances); its delta is the change over the
+  // selected period, read from the monthly net-worth trend.
+  const dashboardKpis = computed(() => {
+    const all = dashboardTransactions.value;
+    const range = dashboardRange.value;
+    const customObj = getCustomRangeObj(dashboardCustomRange.value);
+
+    const cur = getMetricsForRange(range, all, customObj);
+    const prevRange = getPreviousDateRange(range, customObj);
+    const prev = prevRange ? getMetricsForRange("custom", all, prevRange) : null;
+
+    const pctDelta = (current: number, previous: number): number | null =>
+      previous === 0 ? null : ((current - previous) / Math.abs(previous)) * 100;
+
+    const income = cur.income;
+    const expenses = cur.expense;
+    const net = income - expenses;
+    // Net worth is a point-in-time total (includes current holdings market value).
+    // We intentionally don't derive a net-worth delta here: the historical trend
+    // can't model intra-period market moves, so the hero shows period cash flow.
+    const netWorth = accounts.value.reduce((sum, a) => sum + (a.balance || 0), 0);
+
+    return {
+      income,
+      expenses,
+      net,
+      netWorth,
+      incomeDelta: prev ? pctDelta(income, prev.income) : null,
+      expensesDelta: prev ? pctDelta(expenses, prev.expense) : null,
+      netDelta: prev ? pctDelta(net, prev.income - prev.expense) : null,
+    };
+  });
 
   // ============================================
   // ACTIONS - Initialization
@@ -335,7 +379,7 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       // Fetch Global Data
       await fetchRecentTransactions(5); // Ensure recent list is up to date
-      await fetchDashboardBreakdown(); // Last 30 days breakdown for dashboard
+      await refreshDashboardData(); // Refresh dashboard KPIs / Top Spending
       await fetchTransactions(); // All transactions
       await fetchPeriodSummarySync(); // Global summary
     } catch (e) {
@@ -568,17 +612,26 @@ export const useFinanceStore = defineStore("finance", () => {
     );
   }
 
-  async function fetchDashboardBreakdown() {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-    
-    const results = await window.electronAPI.searchTransactions({
-      fromDate: toIsoDateString(thirtyDaysAgo),
-      toDate: toIsoDateString(now)
-    });
-    
-    dashboardBreakdown.value = getExpenseBreakdownForRange('last30Days', results);
-    dashboardIncomeBreakdown.value = getIncomeBreakdownForRange('last30Days', results);
+  // Lightweight refresh after a transaction mutation: only the data the dashboard
+  // KPIs / Top Spending derive from. Trends, net worth and holdings are refreshed
+  // when the dashboard mounts (loadDashboard), so they don't run on every mutation.
+  async function refreshDashboardData() {
+    try {
+      dashboardTransactions.value = await window.electronAPI.getAllTransactions();
+    } catch (e) {
+      console.error("[Store] Failed to refresh dashboard data:", e);
+    }
+  }
+
+  async function loadDashboard() {
+    try {
+      dashboardTransactions.value = await window.electronAPI.getAllTransactions();
+      dashboardTrends.value = await window.electronAPI.getRollingMonthlyTrends();
+      netWorthTrends.value = await window.electronAPI.getNetWorthTrend();
+      await fetchInvestmentHoldings();
+    } catch (e) {
+      console.error("[Store] Failed to load dashboard data:", e);
+    }
   }
 
   async function addTransaction(transaction: CreateTransactionInput
@@ -595,7 +648,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
     // Refresh Data
     await fetchRecentTransactions(5);
-    await fetchDashboardBreakdown();
+    await refreshDashboardData();
 
     // Only update main list if it matches current filter (Global or Specific Period)
     if (!currentLedgerMonth.value || currentLedgerMonth.value.month === targetPeriodMonth) {
@@ -647,7 +700,7 @@ export const useFinanceStore = defineStore("finance", () => {
       }
 
       await fetchRecentTransactions(5); // Update dashboard list
-      await fetchDashboardBreakdown();
+      await refreshDashboardData();
       await fetchPeriodSummarySync(); // Refresh summary
 
       // Refresh trends
@@ -662,7 +715,7 @@ export const useFinanceStore = defineStore("finance", () => {
     if (success) {
       transactions.value = transactions.value.filter((t) => t.id !== id);
       await fetchRecentTransactions(5); // Update dashboard list
-      await fetchDashboardBreakdown();
+      await refreshDashboardData();
       await fetchPeriodSummarySync(); // Refresh summary
 
       // Also remove from search results if present
@@ -684,7 +737,7 @@ export const useFinanceStore = defineStore("finance", () => {
         const idSet = new Set(safeIds);
         transactions.value = transactions.value.filter((t) => !idSet.has(t.id));
         await fetchRecentTransactions(5); // Update dashboard list
-        await fetchDashboardBreakdown();
+        await refreshDashboardData();
         await fetchPeriodSummarySync(); // Refresh summary
 
         // Also remove from search results if present
@@ -720,7 +773,7 @@ export const useFinanceStore = defineStore("finance", () => {
           }
         }
         await fetchRecentTransactions(5);
-        await fetchDashboardBreakdown();
+        await refreshDashboardData();
         await fetchPeriodSummarySync();
         // Refresh trends
         const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
@@ -748,7 +801,7 @@ export const useFinanceStore = defineStore("finance", () => {
           await searchTransactions(toRaw(transactionFilter.value));
         }
         await fetchRecentTransactions(5);
-        await fetchDashboardBreakdown();
+        await refreshDashboardData();
         await fetchPeriodSummarySync();
         // Refresh trends
         const yearToRefresh = currentLedgerMonth.value ? currentLedgerMonth.value.year : (selectedYear.value || new Date().getFullYear());
@@ -855,6 +908,9 @@ export const useFinanceStore = defineStore("finance", () => {
       const alertQueue: PriceAlert[] = [];
 
       for (const quote of quotes) {
+        if (quote.symbol && quote.previousClose != null) {
+          quotePreviousCloses.value[quote.symbol] = quote.previousClose;
+        }
         // Update all holdings with this symbol in DB
         const holdingsToUpdate = investmentHoldings.value.filter(h => h.symbol === quote.symbol);
 
@@ -1666,8 +1722,11 @@ export const useFinanceStore = defineStore("finance", () => {
     periodSummary,
     incomeBreakdown,
     expenseBreakdown,
-    dashboardBreakdown,
-    dashboardIncomeBreakdown,
+    dashboardRange,
+    dashboardCustomRange,
+    dashboardTransactions,
+    dashboardTrends,
+    dashboardKpis,
     monthlyTrends,
     netWorthTrends,
     expandedAccountSections,
@@ -1675,6 +1734,7 @@ export const useFinanceStore = defineStore("finance", () => {
     investmentHoldings,
     investmentTransactions,
     investmentHistory,
+    quotePreviousCloses,
     refreshCooldown,
     startRefreshCooldown,
     isLoading,
@@ -1705,7 +1765,7 @@ export const useFinanceStore = defineStore("finance", () => {
     toggleRecurringTransaction,
     fetchTransactions,
     fetchRecentTransactions,
-    fetchDashboardBreakdown,
+    loadDashboard,
     fetchPeriodSummarySync,
     fetchMonthlyTrends,
     fetchRollingMonthlyTrends,

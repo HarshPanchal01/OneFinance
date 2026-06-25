@@ -1,12 +1,26 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, computed } from "vue";
 import DatePicker from "primevue/datepicker";
 
 const props = defineProps<{
   modelValue: string;
-   
+
   customRange: any;
+  // Optional override of the preset list (e.g. the dashboard uses a shorter set).
+  options?: { value: string; label: string }[];
 }>();
+
+const defaultOptions = [
+  { value: "thisMonth", label: "This Month" },
+  { value: "last3Months", label: "Last 3 Months" },
+  { value: "last6Months", label: "Last 6 Months" },
+  { value: "lastYear", label: "Last Year" },
+  { value: "thisYear", label: "This Year" },
+  { value: "ytd", label: "YTD" },
+  { value: "allTime", label: "All Time" },
+  { value: "custom", label: "Custom" },
+];
+const rangeOptions = computed(() => props.options ?? defaultOptions);
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -116,37 +130,20 @@ function onDatePickerHide() {
       class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
       @hide="onDatePickerHide"
     />
-    <select 
+    <select
       :value="localValue"
-      class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[6.5rem] z-10 relative"
+      class="text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none cursor-pointer min-w-[7rem] z-10 relative"
       @change="onSelectChange"
     >
-      <option value="thisMonth">
-        This Month
+      <option
+        v-for="opt in rangeOptions"
+        :key="opt.value"
+        :value="opt.value"
+      >
+        {{ opt.label }}
       </option>
-      <option value="last3Months">
-        Last 3 Months
-      </option>
-      <option value="last6Months">
-        Last 6 Months
-      </option>
-      <option value="lastYear">
-        Last Year
-      </option>
-      <option value="thisYear">
-        This Year
-      </option>
-      <option value="ytd">
-        YTD
-      </option>
-      <option value="allTime">
-        All Time
-      </option>
-      <option value="custom">
-        Custom
-      </option>
-      <option 
-        v-if="modelValue === 'custom'" 
+      <option
+        v-if="modelValue === 'custom'"
         value="custom_edit"
         class="font-semibold text-primary-600 dark:text-primary-400"
       >
