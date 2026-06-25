@@ -14,7 +14,6 @@ const props = withDefaults(
     // For expenses, a decrease is good — invert the delta colouring.
     positiveIsGood?: boolean;
     sparkline?: number[];
-    icon?: string;
     accent?: "income" | "expense" | "primary" | "neutral";
     tooltip?: string;
   }>(),
@@ -28,16 +27,16 @@ const props = withDefaults(
 const settingsStore = useSettingsStore();
 const { formatCurrency } = useFormatter();
 
-const accentClasses = computed(() => {
+const accentText = computed(() => {
   switch (props.accent) {
     case "income":
-      return { text: "text-income", bg: "bg-income-light dark:bg-income/20" };
+      return "text-income";
     case "expense":
-      return { text: "text-expense", bg: "bg-expense-light dark:bg-expense/20" };
+      return "text-expense";
     case "primary":
-      return { text: "text-primary-500", bg: "bg-primary-100 dark:bg-primary-500/20" };
+      return "text-primary-500";
     default:
-      return { text: "text-gray-500 dark:text-gray-400", bg: "bg-gray-100 dark:bg-gray-700" };
+      return "text-gray-500 dark:text-gray-400";
   }
 });
 
@@ -53,9 +52,9 @@ const deltaClass = computed(() => {
   return deltaUp.value === props.positiveIsGood ? "text-income" : "text-expense";
 });
 
-// Smoothed, filled area sparkline (no Chart.js needed for 4 tiny series).
+// Smoothed, filled area sparkline that fills the card's right-hand space.
 const SPARK_W = 100;
-const SPARK_H = 30;
+const SPARK_H = 28;
 const sparkPaths = computed(() => {
   const data = props.sparkline;
   if (!data || data.length < 2) return null;
@@ -64,13 +63,12 @@ const sparkPaths = computed(() => {
   const max = Math.max(...data);
   const range = max - min || 1;
   const stepX = SPARK_W / (data.length - 1);
-  const pad = 2; // keep the stroke off the top/bottom edges
+  const pad = 2;
   const pts = data.map((v, i) => ({
     x: i * stepX,
     y: pad + (SPARK_H - 2 * pad) * (1 - (v - min) / range),
   }));
 
-  // Quadratic smoothing through segment midpoints.
   let line = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const mx = (pts[i].x + pts[i + 1].x) / 2;
@@ -88,66 +86,62 @@ const sparkPaths = computed(() => {
 <template>
   <div
     v-tooltip.bottom="tooltip"
-    class="card p-4 flex flex-col"
+    class="card p-4 flex items-center gap-4"
   >
-    <div class="flex items-start justify-between">
+    <div class="min-w-0 shrink-0">
       <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
         {{ label }}
       </p>
-      <div
-        v-if="icon"
-        class="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-        :class="accentClasses.bg"
+      <p
+        class="text-2xl font-bold text-gray-900 dark:text-white mt-1 whitespace-nowrap"
+        :class="{ 'privacy-blur': settingsStore.privacyMode }"
       >
-        <i :class="['pi', icon, accentClasses.text]" />
+        {{ formatCurrency(value) }}
+      </p>
+      <div class="mt-0.5 min-h-[1.25rem] flex items-center">
+        <span
+          v-if="hasDelta"
+          class="inline-flex items-center text-xs font-semibold whitespace-nowrap"
+          :class="deltaClass"
+        >
+          <i
+            v-if="!deltaIsZero"
+            class="pi text-[10px] mr-1"
+            :class="deltaUp ? 'pi-arrow-up' : 'pi-arrow-down'"
+          />
+          {{ deltaAbs.toFixed(1) }}%
+          <span class="text-gray-400 dark:text-gray-500 font-normal ml-1">vs previous period</span>
+        </span>
       </div>
     </div>
 
-    <p
-      class="text-2xl font-bold text-gray-900 dark:text-white mt-1"
+    <div
+      v-if="sparkPaths"
+      class="flex-1 min-w-0 h-12 self-center"
       :class="{ 'privacy-blur': settingsStore.privacyMode }"
     >
-      {{ formatCurrency(value) }}
-    </p>
-
-    <div class="min-h-[1.5rem] mt-1 flex items-center">
-      <span
-        v-if="hasDelta"
-        class="inline-flex items-center text-sm font-semibold whitespace-nowrap"
-        :class="deltaClass"
+      <svg
+        :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`"
+        preserveAspectRatio="none"
+        class="w-full h-full"
+        :class="accentText"
       >
-        <i
-          v-if="!deltaIsZero"
-          class="pi text-xs mr-1"
-          :class="deltaUp ? 'pi-arrow-up' : 'pi-arrow-down'"
+        <path
+          :d="sparkPaths.area"
+          fill="currentColor"
+          fill-opacity="0.12"
+          stroke="none"
         />
-        {{ deltaAbs.toFixed(1) }}%
-        <span class="text-gray-400 dark:text-gray-500 font-normal ml-1">vs previous period</span>
-      </span>
+        <path
+          :d="sparkPaths.line"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
     </div>
-
-    <svg
-      v-if="sparkPaths"
-      :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`"
-      preserveAspectRatio="none"
-      class="w-full h-8 mt-2"
-      :class="[accentClasses.text, { 'privacy-blur': settingsStore.privacyMode }]"
-    >
-      <path
-        :d="sparkPaths.area"
-        fill="currentColor"
-        fill-opacity="0.12"
-        stroke="none"
-      />
-      <path
-        :d="sparkPaths.line"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        vector-effect="non-scaling-stroke"
-      />
-    </svg>
   </div>
 </template>

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { getCustomRangeObj, getMetricsForRange, getPreviousDateRange, getDateRange, type ImportData } from "@/utils";
+import { getCustomRangeObj, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
 import type {
   Category,
   Account,
@@ -141,18 +141,10 @@ export const useFinanceStore = defineStore("finance", () => {
     const income = cur.income;
     const expenses = cur.expense;
     const net = income - expenses;
+    // Net worth is a point-in-time total (includes current holdings market value).
+    // We intentionally don't derive a net-worth delta here: the historical trend
+    // can't model intra-period market moves, so the hero shows period cash flow.
     const netWorth = accounts.value.reduce((sum, a) => sum + (a.balance || 0), 0);
-
-    let netWorthDelta: number | null = null;
-    if (prevRange) {
-      const periodStart = getDateRange(range, all, customObj).startDate;
-      const startIdx = periodStart.getFullYear() * 12 + periodStart.getMonth();
-      const prior = netWorthTrends.value
-        .filter((p) => p.year * 12 + (p.month - 1) < startIdx)
-        .sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
-      const startNetWorth = prior.length > 0 ? prior[prior.length - 1].balance : null;
-      if (startNetWorth !== null) netWorthDelta = pctDelta(netWorth, startNetWorth);
-    }
 
     return {
       income,
@@ -162,7 +154,6 @@ export const useFinanceStore = defineStore("finance", () => {
       incomeDelta: prev ? pctDelta(income, prev.income) : null,
       expensesDelta: prev ? pctDelta(expenses, prev.expense) : null,
       netDelta: prev ? pctDelta(net, prev.income - prev.expense) : null,
-      netWorthDelta,
     };
   });
 

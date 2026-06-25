@@ -1,39 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { useSettingsStore } from "@/stores/settings";
+import { useFormatter } from "@/composables/useFormatter";
 import TransactionItem from "@/components/TransactionItem.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import { useTransactionActions } from "@/composables/useTransactionActions";
 import InsightTimeRangeSelector from "@/views/insights/components/InsightTimeRangeSelector.vue";
 import DashboardKpiCard from "@/views/dashboard/components/DashboardKpiCard.vue";
-import NetWorthCompositionWidget from "@/views/dashboard/components/NetWorthCompositionWidget.vue";
-import AccountsGlanceWidget from "@/views/dashboard/components/AccountsGlanceWidget.vue";
+import NetWorthHeroChart from "@/views/dashboard/components/NetWorthHeroChart.vue";
 import TopSpendingWidget from "@/views/dashboard/components/TopSpendingWidget.vue";
 import UpcomingBillsWidget from "@/views/dashboard/components/UpcomingBillsWidget.vue";
 import WatchlistWidget from "@/views/dashboard/components/WatchlistWidget.vue";
 
 const store = useFinanceStore();
+const settingsStore = useSettingsStore();
+const { formatCurrency } = useFormatter();
 
 const emit = defineEmits<{
   (e: "addTransaction"): void;
   (e: "request-edit-account", id: number): void;
   (e: "navigate", view: string): void;
-  (e: "view-accounts", classification?: string): void;
   (e: "view-investments", symbol?: string): void;
   (e: "view-recurring", id?: number): void;
 }>();
-
-onMounted(async () => {
-  await store.loadDashboard();
-});
 
 const kpis = computed(() => store.dashboardKpis);
 
 const incomeSpark = computed(() => store.dashboardTrends.map((t) => t.totalIncome));
 const expenseSpark = computed(() => store.dashboardTrends.map((t) => t.totalExpenses));
 const netSpark = computed(() => store.dashboardTrends.map((t) => t.balance));
-const netWorthSpark = computed(() => store.netWorthTrends.map((p) => p.balance));
 
 const rangeOptions = [
   { value: "thisMonth", label: "This Month" },
@@ -43,6 +40,69 @@ const rangeOptions = [
   { value: "allTime", label: "All Time" },
   { value: "custom", label: "Custom" },
 ];
+
+const greeting = computed(() => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning.";
+  if (h < 18) return "Good afternoon.";
+  return "Good evening.";
+});
+
+// Typewriter for the greeting.
+const typedGreeting = ref("");
+const isTyping = ref(true);
+let typeTimer: number | undefined;
+
+const rangeLabel = computed(
+  () =>
+    ({
+      thisMonth: "this month",
+      last3Months: "over the last 3 months",
+      last6Months: "over the last 6 months",
+      thisYear: "this year",
+      allTime: "all-time",
+      custom: "for the selected range",
+    })[store.dashboardRange] ?? "this period"
+);
+
+// Privacy-aware one-line insight shown in the hero.
+const insight = computed(() => {
+  if (settingsStore.privacyMode) return "Here's your financial overview.";
+
+  const k = kpis.value;
+  if (k.income > 0 && k.net > 0) {
+    return `You've saved ${Math.round((k.net / k.income) * 100)}% of your income ${rangeLabel.value}.`;
+  }
+  if (k.net < 0) {
+    return `You're spending more than you earn ${rangeLabel.value} — worth a look.`;
+  }
+  return "Here's your financial overview.";
+});
+
+// The hero's secondary figure is the period's net cash flow (money in − out),
+// not a net-worth delta: we can't model intra-period market moves, so a
+// "net worth ▲ %" would be misleading for investors. Cash flow is honest and
+// matches the Cash Flow KPI.
+const cashFlowUp = computed(() => kpis.value.net >= 0);
+
+onMounted(async () => {
+  const full = greeting.value;
+  let i = 0;
+  typeTimer = window.setInterval(() => {
+    i++;
+    typedGreeting.value = full.slice(0, i);
+    if (i >= full.length) {
+      if (typeTimer) window.clearInterval(typeTimer);
+      isTyping.value = false;
+    }
+  }, 95);
+
+  await store.loadDashboard();
+});
+
+onUnmounted(() => {
+  if (typeTimer) window.clearInterval(typeTimer);
+});
 
 const {
   showModal,
@@ -59,7 +119,7 @@ void confirmModal;
 
 <template>
   <div class="h-full flex flex-col gap-4 min-h-0">
-    <!-- Header: title + period selector + add -->
+    <!-- Header: title + period + Add -->
     <div class="flex items-center justify-between gap-3 shrink-0">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
@@ -85,15 +145,14 @@ void confirmModal;
       </div>
     </div>
 
-    <!-- KPI strip -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+    <!-- KPI stat cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
       <DashboardKpiCard
         label="Income"
         :value="kpis.income"
         :delta="kpis.incomeDelta"
         :sparkline="incomeSpark"
         accent="income"
-        icon="pi-arrow-up"
         tooltip="Total income received in the selected period."
       />
       <DashboardKpiCard
@@ -103,7 +162,6 @@ void confirmModal;
         :positive-is-good="false"
         :sparkline="expenseSpark"
         accent="expense"
-        icon="pi-arrow-down"
         tooltip="Total spending in the selected period."
       />
       <DashboardKpiCard
@@ -112,30 +170,71 @@ void confirmModal;
         :delta="kpis.netDelta"
         :sparkline="netSpark"
         accent="primary"
-        icon="pi-wallet"
         tooltip="Income minus expenses for the selected period — what you kept (or overspent)."
-      />
-      <DashboardKpiCard
-        label="Net Worth"
-        :value="kpis.netWorth"
-        :delta="kpis.netWorthDelta"
-        :sparkline="netWorthSpark"
-        accent="primary"
-        icon="pi-chart-line"
-        tooltip="Everything you own minus everything you owe, across all accounts."
       />
     </div>
 
-    <!-- Body fills the remaining height; long lists scroll inside their own card -->
-    <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-      <!-- Column 1: net worth composition + recent transactions -->
-      <div class="lg:flex-[1.5] flex flex-col gap-4 min-h-0 min-w-0">
-        <NetWorthCompositionWidget
-          class="shrink-0 lg:h-52"
-          @view-accounts="(c) => emit('view-accounts', c)"
-        />
+    <!-- Middle: net-worth hero -->
+    <div class="card relative overflow-hidden shrink-0 lg:h-72">
+      <div class="absolute inset-0">
+        <NetWorthHeroChart />
+      </div>
+      <!-- Legibility wash so the text stays readable over the chart -->
+      <div
+        class="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-gray-800 dark:via-gray-800/80 dark:to-transparent pointer-events-none"
+      />
 
-        <div class="card p-5 flex flex-col flex-1 min-h-0">
+      <div class="relative z-10 h-full p-6 lg:p-8 flex flex-col">
+        <p class="text-2xl font-semibold text-gray-600 dark:text-gray-300 min-h-[2rem]">
+          {{ typedGreeting }}<span
+            v-if="isTyping"
+            class="type-cursor text-primary-500 font-normal"
+          >|</span>
+        </p>
+
+        <div
+          class="flex-1 flex flex-col justify-center min-h-0 animate-rise"
+          style="animation-delay: 0.08s"
+        >
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Net Worth
+          </p>
+          <p
+            class="text-4xl font-bold tracking-tight text-gray-900 dark:text-white mt-1"
+            :class="{ 'privacy-blur': settingsStore.privacyMode }"
+          >
+            {{ formatCurrency(kpis.netWorth) }}
+          </p>
+          <p
+            class="text-base lg:text-lg font-semibold mt-2 inline-flex items-center"
+            :class="cashFlowUp ? 'text-income' : 'text-expense'"
+          >
+            <i
+              class="pi text-sm mr-1.5"
+              :class="cashFlowUp ? 'pi-arrow-up' : 'pi-arrow-down'"
+            />
+            <span :class="{ 'privacy-blur': settingsStore.privacyMode }">
+              {{ formatCurrency(Math.abs(kpis.net)) }}
+            </span>
+            <span class="text-gray-400 dark:text-gray-500 font-normal ml-1.5">
+              {{ cashFlowUp ? 'saved' : 'overspent' }} {{ rangeLabel }}
+            </span>
+          </p>
+        </div>
+
+        <p
+          class="shrink-0 text-sm text-gray-500 dark:text-gray-400 animate-rise"
+          style="animation-delay: 0.16s"
+        >
+          {{ insight }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Bottom: details — fills the remaining height; lists scroll inside their cards -->
+    <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
+      <div class="lg:flex-[1.6] min-w-0 flex min-h-0">
+        <div class="card p-5 flex flex-col w-full min-h-0">
           <div class="flex items-center justify-between mb-4 shrink-0">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
               Recent Transactions
@@ -177,28 +276,18 @@ void confirmModal;
         </div>
       </div>
 
-      <!-- Column 2: accounts + top spending -->
-      <div class="lg:flex-[1] flex flex-col gap-4 min-h-0 min-w-0">
-        <div class="flex-1 min-h-0">
-          <AccountsGlanceWidget
-            @edit-account="(id) => emit('request-edit-account', id)"
-            @view-accounts="emit('view-accounts')"
-          />
-        </div>
-        <div class="flex-1 min-h-0">
-          <TopSpendingWidget @navigate-transactions="emit('navigate', 'transactions')" />
-        </div>
-      </div>
-
-      <!-- Column 3: upcoming bills + watchlist -->
-      <div class="lg:flex-[1] flex flex-col gap-4 min-h-0 min-w-0">
-        <div class="flex-1 min-h-0">
-          <UpcomingBillsWidget @open-recurring="(id) => emit('view-recurring', id)" />
-        </div>
-        <div class="flex-1 min-h-0">
-          <WatchlistWidget @view-investments="(s) => emit('view-investments', s)" />
-        </div>
-      </div>
+      <TopSpendingWidget
+        class="lg:flex-1 min-w-0"
+        @navigate-transactions="emit('navigate', 'transactions')"
+      />
+      <UpcomingBillsWidget
+        class="lg:flex-1 min-w-0"
+        @open-recurring="(id) => emit('view-recurring', id)"
+      />
+      <WatchlistWidget
+        class="lg:flex-1 min-w-0"
+        @view-investments="(s) => emit('view-investments', s)"
+      />
     </div>
   </div>
 

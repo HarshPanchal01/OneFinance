@@ -93,16 +93,6 @@ function handleRequestViewTransactions(id: number, type: 'account' | 'recurring'
   currentView.value = "transactions";
 }
 
-// Dashboard composition/legend → Accounts with that classification section expanded.
-function handleViewAccounts(classification?: string) {
-  if (classification) {
-    const next = new Set(store.expandedAccountSections);
-    next.add(classification);
-    store.expandedAccountSections = next;
-  }
-  currentView.value = "accounts";
-}
-
 // Dashboard watchlist → Investments. A holding click expands its account(s) and
 // highlights the row; "View all" (no symbol) expands every investment account.
 function handleViewInvestments(symbol?: string) {
@@ -241,6 +231,9 @@ async function refreshAfterUnlock() {
   await store.fetchTransactions(store.currentLedgerMonth, store.selectedYear ?? undefined);
   await store.fetchAccounts();
   store.fetchPeriodSummarySync();
+  // Refresh quotes so the dashboard watchlist's day-change repopulates — the
+  // previous-close map is in-memory and isn't refreshed while locked.
+  store.refreshInvestmentPrices();
 }
 
 onUnmounted(() => {
@@ -380,7 +373,6 @@ function handleKeydown(e: KeyboardEvent) {
             @add-transaction="showQuickAddModal = true"
             @request-edit-account="handleRequestEditAccount"
             @navigate="navigateTo"
-            @view-accounts="handleViewAccounts"
             @view-investments="handleViewInvestments"
             @view-recurring="handleViewRecurring"
           />

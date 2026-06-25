@@ -1,18 +1,9 @@
-import { Account, AccountType, AccountClassification, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
+import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
   endDate: Date;
 }
-
-// Single source for account-classification presentation (matches CLAUDE.md:
-// Green = Liquid, Blue = Asset, Red = Liability, Yellow = Investment).
-export const ACCOUNT_CLASSIFICATION_META: Record<AccountClassification, { label: string; color: string; icon: string }> = {
-  liquid: { label: "Liquid", color: "#22c55e", icon: "pi-wallet" },
-  investment: { label: "Investment", color: "#f59e0b", icon: "pi-chart-line" },
-  asset: { label: "Asset", color: "#3b82f6", icon: "pi-home" },
-  liability: { label: "Liability", color: "#ef4444", icon: "pi-credit-card" },
-};
 
 export function formatCurrency(amount: number, locale = 'en-US', currency = 'USD'): string {
   return new Intl.NumberFormat(locale, {
