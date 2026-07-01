@@ -289,5 +289,20 @@ function migrate1to2(db: any): void {
       }
     }
   }
+
+  // Add category budgets table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoryId INTEGER NOT NULL UNIQUE,
+        amount REAL NOT NULL,
+        period TEXT NOT NULL DEFAULT 'monthly',
+        FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating budgets table:', e);
+  }
 }
 

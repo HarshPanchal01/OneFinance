@@ -16,6 +16,7 @@ import MasterPasswordGate from "@/views/auth/MasterPasswordGate.vue";
 import DashboardView from "@/views/DashboardView.vue";
 import TransactionsView from "@/views/TransactionsView.vue";
 import CategoriesView from "@/views/labels/LabelsView.vue";
+import BudgetsView from "@/views/budgets/BudgetsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
 import SpendingInsightsView from "@/views/insights/SpendingInsightsView.vue";
@@ -34,7 +35,7 @@ const authUnlocked = ref(false);
 const appInitialized = ref(false);
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
+type ViewName = "dashboard" | "transactions" | "categories" | "budgets" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
@@ -381,6 +382,10 @@ function handleKeydown(e: KeyboardEvent) {
             @request-edit-account="handleRequestEditAccount"
           />
           <CategoriesView v-else-if="currentView === 'categories'" />
+          <BudgetsView
+            v-else-if="currentView === 'budgets'"
+            @navigate-transactions="currentView = 'transactions'"
+          />
           <SettingsView v-else-if="currentView === 'settings'" />
           <AccountsView
             v-else-if="currentView === 'accounts'"

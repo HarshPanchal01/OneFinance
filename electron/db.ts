@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory } from "@/types";
+import { Account, AccountType, Budget, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -368,6 +368,17 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Budgets - Monthly spending limit per category
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      categoryId INTEGER NOT NULL UNIQUE,
+      amount REAL NOT NULL,
+      period TEXT NOT NULL DEFAULT 'monthly',
+      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
+    )
+  `);
+
   // Seed default categories if none exist
   const categoryCount = db
     .prepare("SELECT COUNT(*) as count FROM categories")
@@ -723,6 +734,7 @@ export function deleteAllDataFromTables(): void{
     "investment_holdings",
     "investment_history",
     "investment_adjustments",
+    "budgets",
     "accounts",
     "accountType",
     "categories",
@@ -879,10 +891,13 @@ export function editAccount(account: Account): void {
 }
 
 export function editAccountType(accountType: AccountType): AccountType | undefined {
+  // Protected account types can't be renamed; keep the existing type name.
+  const existing = getAccountTypeById(accountType.id);
+  const finalType = existing && isProtectedAccountTypeName(existing.type) ? existing.type : accountType.type;
   const stmt = db.prepare(
     "UPDATE accountType SET type = ?, classification = ? WHERE id = ?"
   );
-  stmt.run(accountType.type, accountType.classification || 'liquid', accountType.id);
+  stmt.run(finalType, accountType.classification || 'liquid', accountType.id);
   return getAccountTypeById(accountType.id);
 }
 
@@ -944,6 +959,8 @@ export function deleteAccount(account: Account): void {
 }
 
 export function deleteAccountTypeById(id: number): boolean {
+  const existing = getAccountTypeById(id);
+  if (existing && isProtectedAccountTypeName(existing.type)) return false;
   const stmt = db.prepare("DELETE FROM accountType WHERE id = ?");
   const result = stmt.run(id);
   return result.changes > 0;
@@ -1002,16 +1019,42 @@ export function updateCategory(
   icon: string,
   type: "income" | "expense" | "both"
 ): Category | undefined {
+  // Protected categories can't be renamed; keep the existing name.
+  const existing = getCategoryById(id);
+  const finalName = existing && isProtectedCategoryName(existing.name) ? existing.name : name;
   const stmt = db.prepare(
     "UPDATE categories SET name = ?, colorCode = ?, icon = ?, type = ? WHERE id = ?"
   );
-  stmt.run(name, colorCode, icon, type, id);
+  stmt.run(finalName, colorCode, icon, type, id);
   return getCategoryById(id);
 }
 
 export function deleteCategory(id: number): boolean {
+  const existing = getCategoryById(id);
+  if (existing && isProtectedCategoryName(existing.name)) return false;
   const stmt = db.prepare("DELETE FROM categories WHERE id = ?");
   const result = stmt.run(id);
+  return result.changes > 0;
+}
+
+// ============================================
+// BUDGETS OPERATIONS
+// ============================================
+
+export function getBudgets(): Budget[] {
+  return db.prepare("SELECT * FROM budgets").all() as Budget[];
+}
+
+export function upsertBudget(categoryId: number, amount: number, period: string = "monthly"): Budget {
+  db.prepare(`
+    INSERT INTO budgets (categoryId, amount, period) VALUES (?, ?, ?)
+    ON CONFLICT(categoryId) DO UPDATE SET amount = excluded.amount, period = excluded.period
+  `).run(categoryId, amount, period);
+  return db.prepare("SELECT * FROM budgets WHERE categoryId = ?").get(categoryId) as Budget;
+}
+
+export function deleteBudget(categoryId: number): boolean {
+  const result = db.prepare("DELETE FROM budgets WHERE categoryId = ?").run(categoryId);
   return result.changes > 0;
 }
 

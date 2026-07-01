@@ -16,6 +16,28 @@ export interface Category {
   type: "income" | "expense" | "both";
 }
 
+export interface Budget {
+  id: number;
+  categoryId: number;
+  amount: number;
+  period: "monthly";
+}
+
+// A deliberate essential subset of the seeded defaults (NOT all of them) that
+// cannot be deleted or renamed (color/icon/type stay editable): the "Other"
+// category the savings-interest fallback depends on, plus one or two core
+// account types per classification. Matched by name — no schema flag needed.
+export const PROTECTED_CATEGORY_NAMES: string[] = ["Other"];
+export const PROTECTED_ACCOUNT_TYPE_NAMES: string[] = ["Chequing", "Savings", "Credit Card", "House", "Non-Registered", "Registered"];
+
+export function isProtectedCategoryName(name: string): boolean {
+  return PROTECTED_CATEGORY_NAMES.includes(name);
+}
+
+export function isProtectedAccountTypeName(type: string): boolean {
+  return PROTECTED_ACCOUNT_TYPE_NAMES.includes(type);
+}
+
 export type AccountClassification = "liquid" | "asset" | "liability" | "investment";
 
 export interface AccountType{
