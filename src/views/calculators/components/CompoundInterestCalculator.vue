@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { useFormatter } from '@/composables/useFormatter';
+import { compoundInterestSeries } from '@/utils';
 import AmountInput from '@/components/AmountInput.vue';
 import AppChart from '@/components/AppChart.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
@@ -54,7 +55,6 @@ const calculate = () => {
   const inflRaw = Math.max(0, Math.min((inflationRate.value || 0), 100)) / 100;
   const infl = inflationRatePeriod.value === 'monthly' ? inflRaw * 12 : inflRaw;
 
-  const monthlyRate = rate / 12;
   // years.value is the raw period count — months when scale is 'months', years when 'years'.
   // Never multiply by 12 here; do it only in years mode.
   const totalMonths = xAxisScale.value === 'months'
@@ -63,33 +63,29 @@ const calculate = () => {
 
   data.push({ year: 0, label: '0', totalContributions: p, totalInterest: 0, balance: p, realBalance: p });
 
-  let totalContrib = p;
-  let accumulatedInterest = 0;
-  let balance = p;
+  const series = compoundInterestSeries(p, pmt, rate, totalMonths);
 
   for (let m = 1; m <= totalMonths; m++) {
-    const interestForMonth = balance * monthlyRate;
-    accumulatedInterest += interestForMonth;
-    balance += interestForMonth + pmt;
-    totalContrib += pmt;
+    const point = series[m];
+    const realBalance = point.balance / Math.pow(1 + infl, m / 12);
 
     if (xAxisScale.value === 'months') {
       data.push({
         year: Math.ceil(m / 12),
         label: `${m}`,
-        totalContributions: totalContrib,
-        totalInterest: accumulatedInterest,
-        balance,
-        realBalance: balance / Math.pow(1 + infl, m / 12)
+        totalContributions: point.totalContributions,
+        totalInterest: point.totalInterest,
+        balance: point.balance,
+        realBalance
       });
     } else if (m % 12 === 0) {
       data.push({
         year: m / 12,
         label: `${m / 12}`,
-        totalContributions: totalContrib,
-        totalInterest: accumulatedInterest,
-        balance,
-        realBalance: balance / Math.pow(1 + infl, m / 12)
+        totalContributions: point.totalContributions,
+        totalInterest: point.totalInterest,
+        balance: point.balance,
+        realBalance
       });
     }
   }

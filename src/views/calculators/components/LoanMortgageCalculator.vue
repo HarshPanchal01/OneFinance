@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { useFormatter } from '@/composables/useFormatter';
+import { amortizationPayment } from '@/utils';
 import AmountInput from '@/components/AmountInput.vue';
 import AppChart from '@/components/AppChart.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
@@ -79,9 +80,7 @@ const calculate = () => {
     return;
   }
 
-  const basePmt = i === 0
-    ? p / termMonths
-    : p * ((i * Math.pow(1 + i, termMonths)) / (Math.pow(1 + i, termMonths) - 1));
+  const basePmt = amortizationPayment(p, rate, termMonths);
 
   // Base scenario
   let bal = p;

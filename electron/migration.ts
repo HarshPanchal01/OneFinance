@@ -304,5 +304,24 @@ function migrate1to2(db: any): void {
   } catch (e) {
     console.error('[Migration] Migration error creating budgets table:', e);
   }
+
+  // Add savings goals table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS savings_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        targetAmount REAL NOT NULL,
+        targetDate TEXT,
+        accountId INTEGER,
+        currentAmount REAL NOT NULL DEFAULT 0,
+        startingAmount REAL NOT NULL DEFAULT 0,
+        createdDate TEXT NOT NULL,
+        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE SET NULL
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating savings_goals table:', e);
+  }
 }
 

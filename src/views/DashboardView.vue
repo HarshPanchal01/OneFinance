@@ -279,7 +279,7 @@ void confirmModal;
       <SpendingWidget
         class="lg:flex-1 min-w-0"
         @navigate-transactions="emit('navigate', 'transactions')"
-        @open-budgets="emit('navigate', 'budgets')"
+        @open-goals="emit('navigate', 'goals')"
       />
       <UpcomingBillsWidget
         class="lg:flex-1 min-w-0"

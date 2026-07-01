@@ -1,8 +1,9 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
+import { computeGoalProjection, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
 import type {
   Budget,
+  SavingsGoal,
   Category,
   Account,
   AccountType,
@@ -37,6 +38,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Category budgets (monthly spending limits)
   const budgets = ref<Budget[]>([]);
+
+  // Savings goals
+  const goals = ref<SavingsGoal[]>([]);
 
   // Accounts
   const accounts = ref<Account[]>([]);
@@ -184,6 +188,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Load category budgets
       await fetchBudgets();
+
+      // Load savings goals
+      await fetchGoals();
 
       databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
@@ -489,6 +496,16 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function removeAccount(id: number, strategy: 'transfer' | 'delete', transferToAccountId?: number){
     await window.electronAPI.deleteAccountById(id, strategy, transferToAccountId);
+    // The DB's ON DELETE SET NULL only nulls accountId (leaving currentAmount at 0
+    // for linked goals), which would silently zero their progress. Snapshot the
+    // account's balance into currentAmount so the goal survives as a manual one.
+    for (const g of goals.value) {
+      if (g.accountId === id) {
+        g.currentAmount = accounts.value.find((a) => a.id === id)?.balance ?? 0;
+        g.accountId = null;
+        await window.electronAPI.upsertSavingsGoal(toRaw(g));
+      }
+    }
   }
 
   // ============================================
@@ -604,6 +621,55 @@ export const useFinanceStore = defineStore("finance", () => {
       })
       .filter((row): row is NonNullable<typeof row> => row !== null)
       .sort((a, b) => b.pct - a.pct);
+  });
+
+  // ============================================
+  // ACTIONS - Savings Goals
+  // ============================================
+
+  async function fetchGoals() {
+    goals.value = await window.electronAPI.getSavingsGoals();
+  }
+
+  async function saveGoal(goal: Omit<SavingsGoal, "id"> & { id?: number }) {
+    const updated = await window.electronAPI.upsertSavingsGoal(goal);
+    const index = goals.value.findIndex((g) => g.id === updated.id);
+    if (index !== -1) {
+      goals.value[index] = updated;
+    } else {
+      goals.value.push(updated);
+    }
+    return updated;
+  }
+
+  async function removeGoal(id: number) {
+    const success = await window.electronAPI.deleteSavingsGoal(id);
+    if (success) {
+      goals.value = goals.value.filter((g) => g.id !== id);
+    }
+    return success;
+  }
+
+  // Joins each goal with its progress (linked account balance or manual amount)
+  // and a linear on-pace projection derived from the baseline saved at creation.
+  const goalProgress = computed(() => {
+    const now = new Date();
+    return goals.value.map((goal) => {
+      const linkedAccount = goal.accountId != null
+        ? accounts.value.find((a) => a.id === goal.accountId)
+        : undefined;
+      const currentSaved = linkedAccount ? (linkedAccount.balance ?? 0) : goal.currentAmount;
+
+      return {
+        id: goal.id,
+        name: goal.name,
+        targetAmount: goal.targetAmount,
+        targetDate: goal.targetDate,
+        accountId: goal.accountId,
+        accountName: linkedAccount?.accountName ?? null,
+        ...computeGoalProjection(goal, currentSaved, now),
+      };
+    });
   });
 
   // ============================================
@@ -1765,6 +1831,22 @@ export const useFinanceStore = defineStore("finance", () => {
       }
       await fetchBudgets();
 
+      const importGoals = data.goals || [];
+      for (const goal of importGoals) {
+        // Remap the optional linked account; drop the link if it didn't map (goal still imports).
+        const mappedAccountId = goal.accountId != null ? accountIdMap.get(goal.accountId) ?? null : null;
+        await window.electronAPI.upsertSavingsGoal({
+          name: goal.name,
+          targetAmount: goal.targetAmount,
+          targetDate: goal.targetDate ?? null,
+          accountId: mappedAccountId,
+          currentAmount: goal.currentAmount ?? 0,
+          startingAmount: goal.startingAmount ?? 0,
+          createdDate: goal.createdDate,
+        });
+      }
+      await fetchGoals();
+
     }
    catch (error) {
       console.log(error);
@@ -1779,6 +1861,7 @@ export const useFinanceStore = defineStore("finance", () => {
     accounts.value = [];
     categories.value = [];
     budgets.value = [];
+    goals.value = [];
     transactions.value = [];
     accountTypes.value = [];
     ledgerMonths.value = [];
@@ -1802,6 +1885,8 @@ export const useFinanceStore = defineStore("finance", () => {
     budgets,
     budgetProgress,
     currentMonthSpendByCategory,
+    goals,
+    goalProgress,
     accounts,
     accountTypes,
     transactions,
@@ -1853,6 +1938,9 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchBudgets,
     saveBudget,
     removeBudget,
+    fetchGoals,
+    saveGoal,
+    removeGoal,
     fetchRecurringTransactions,
     addRecurringTransaction,
     editRecurringTransaction,

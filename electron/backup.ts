@@ -14,6 +14,7 @@ import {
   getGlobalInvestmentHistory,
   getInvestmentAdjustments,
   getBudgets,
+  getSavingsGoals,
   getSessionPassword,
 } from './db';
 import { wrapExport } from './secureExport';
@@ -100,6 +101,7 @@ function buildExportPayload(): object {
     investmentHistory: getGlobalInvestmentHistory(),
     investmentAdjustments: getInvestmentAdjustments(),
     budgets: getBudgets(),
+    goals: getSavingsGoals(),
   };
 }
 

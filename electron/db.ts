@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Budget, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -379,6 +379,21 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Savings goals - target amount/date with optional account-linked progress
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS savings_goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      targetAmount REAL NOT NULL,
+      targetDate TEXT,
+      accountId INTEGER,
+      currentAmount REAL NOT NULL DEFAULT 0,
+      startingAmount REAL NOT NULL DEFAULT 0,
+      createdDate TEXT NOT NULL,
+      FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE SET NULL
+    )
+  `);
+
   // Seed default categories if none exist
   const categoryCount = db
     .prepare("SELECT COUNT(*) as count FROM categories")
@@ -735,6 +750,7 @@ export function deleteAllDataFromTables(): void{
     "investment_history",
     "investment_adjustments",
     "budgets",
+    "savings_goals",
     "accounts",
     "accountType",
     "categories",
@@ -1055,6 +1071,41 @@ export function upsertBudget(categoryId: number, amount: number, period: string 
 
 export function deleteBudget(categoryId: number): boolean {
   const result = db.prepare("DELETE FROM budgets WHERE categoryId = ?").run(categoryId);
+  return result.changes > 0;
+}
+
+// ============================================
+// SAVINGS GOALS OPERATIONS
+// ============================================
+
+export function getSavingsGoals(): SavingsGoal[] {
+  return db.prepare("SELECT * FROM savings_goals ORDER BY createdDate ASC").all() as SavingsGoal[];
+}
+
+export function upsertSavingsGoal(goal: Omit<SavingsGoal, "id"> & { id?: number }): SavingsGoal {
+  if (goal.id != null) {
+    db.prepare(`
+      UPDATE savings_goals
+      SET name = ?, targetAmount = ?, targetDate = ?, accountId = ?, currentAmount = ?, startingAmount = ?, createdDate = ?
+      WHERE id = ?
+    `).run(
+      goal.name, goal.targetAmount, goal.targetDate ?? null, goal.accountId ?? null,
+      goal.currentAmount, goal.startingAmount, goal.createdDate, goal.id
+    );
+    return db.prepare("SELECT * FROM savings_goals WHERE id = ?").get(goal.id) as SavingsGoal;
+  }
+  const result = db.prepare(`
+    INSERT INTO savings_goals (name, targetAmount, targetDate, accountId, currentAmount, startingAmount, createdDate)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    goal.name, goal.targetAmount, goal.targetDate ?? null, goal.accountId ?? null,
+    goal.currentAmount, goal.startingAmount, goal.createdDate
+  );
+  return db.prepare("SELECT * FROM savings_goals WHERE id = ?").get(result.lastInsertRowid) as SavingsGoal;
+}
+
+export function deleteSavingsGoal(id: number): boolean {
+  const result = db.prepare("DELETE FROM savings_goals WHERE id = ?").run(id);
   return result.changes > 0;
 }
 
