@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import type { AccountType, Category } from "@/types";
+import { isProtectedAccountTypeName, isProtectedCategoryName, type AccountType, type Category } from "@/types";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import CategoryModal from "./components/CategoryModal.vue";
@@ -202,8 +202,13 @@ function closeAccountTypeModal() {
               <i :class="['pi text-xl', category.icon]" />
             </div>
             <div>
-              <p class="font-semibold text-gray-900 dark:text-white">
+              <p class="font-semibold text-gray-900 dark:text-white inline-flex items-center gap-1.5">
                 {{ category.name }}
+                <i
+                  v-if="isProtectedCategoryName(category.name)"
+                  class="pi pi-lock text-xs text-gray-400 dark:text-gray-500"
+                  title="Default category — can't be renamed or deleted"
+                />
               </p>
               <p class="text-sm text-gray-500 dark:text-gray-400">
                 {{ category.colorCode }}
@@ -221,6 +226,7 @@ function closeAccountTypeModal() {
               <i class="pi pi-pencil text-sm" />
             </button>
             <button
+              v-if="!isProtectedCategoryName(category.name)"
               class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
               title="Delete"
               @click="deleteCategory(category.id)"
@@ -261,10 +267,15 @@ function closeAccountTypeModal() {
         class="group card p-1 hover:shadow-md transition-shadow"
       >
         <div class="flex items-center justify-between gap-1 h-full min-w-0">
-          <div class="flex items-center min-w-0 flex-1 pl-3 py-2">
+          <div class="flex items-center gap-1.5 min-w-0 flex-1 pl-3 py-2">
             <p class="font-semibold text-gray-900 dark:text-white truncate">
               {{ accountType.type }}
             </p>
+            <i
+              v-if="isProtectedAccountTypeName(accountType.type)"
+              class="pi pi-lock text-xs text-gray-400 dark:text-gray-500 shrink-0"
+              title="Default account type — can't be renamed or deleted"
+            />
           </div>
 
           <!-- Actions -->
@@ -277,6 +288,7 @@ function closeAccountTypeModal() {
               <i class="pi pi-pencil text-sm" />
             </button>
             <button
+              v-if="!isProtectedAccountTypeName(accountType.type)"
               class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
               title="Delete"
               @click="deleteAccountType(accountType.id)"
@@ -306,12 +318,14 @@ function closeAccountTypeModal() {
   <CategoryModal
     v-if="showCategoryModal"
     :editing-category="categoryForm"
+    :name-locked="isProtectedCategoryName(categoryForm.name)"
     @close-category-modal="closeCategoryModal"
     @save-category="saveCategory"
   />
   <AccountTypeModal
     v-if="showAccountTypeModal"
     :editing-account-type="accountTypeForm"
+    :name-locked="isProtectedAccountTypeName(accountTypeForm.type)"
     @close-account-type-modal="closeAccountTypeModal"
     @save-account-type="saveAccountType"
   />

@@ -4,6 +4,7 @@ import { ref } from 'vue';
 
 const props = defineProps<{
   editingAccountType: AccountType;
+  nameLocked?: boolean;
 }>();
 
 const accountTypeForm = ref({...props.editingAccountType});
@@ -60,8 +61,16 @@ defineEmits<{
               v-model="accountTypeForm.type"
               type="text"
               placeholder="e.g., RRSP"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              :disabled="nameLocked"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
             />
+            <p
+              v-if="nameLocked"
+              class="text-xs text-gray-500 dark:text-gray-400 mt-1"
+            >
+              <i class="pi pi-lock text-xs mr-1" />
+              Default account type — the name can't be changed.
+            </p>
           </div>
 
           <!-- Classification -->

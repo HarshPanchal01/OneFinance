@@ -8,11 +8,14 @@ export interface AppPreferences {
   minimizeToTray: boolean;
   // Launch OneFinance automatically when the user logs in.
   openAtLogin: boolean;
+  // Minutes of inactivity before the app auto-locks the database (0 = never).
+  autoLockMinutes: number;
 }
 
 const DEFAULTS: AppPreferences = {
   minimizeToTray: false,
   openAtLogin: false,
+  autoLockMinutes: 0,
 };
 
 function getPreferencesPath(): string {

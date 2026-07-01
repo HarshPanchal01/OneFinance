@@ -65,6 +65,7 @@ const navItems = [
   { id: "investments", label: "Investments", icon: "pi-briefcase" },
   { id: "transactions", label: "Transactions", icon: "pi-list" },
   { id: "recurring", label: "Schedules", icon: "pi-sync" },
+  { id: "budgets", label: "Budgets", icon: "pi-money-bill" },
   {
     id: "insights-parent",
     label: "Insights",

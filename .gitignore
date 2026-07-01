@@ -44,6 +44,7 @@ DATABASE_MIGRATIONS.md
 INSIGHTS_CONTEXT.md
 CLAUDE.md
 STARTER_PROMPT.md
+ROADMAP.md
 
 # TypeScript incremental build info
 *.tsbuildinfo

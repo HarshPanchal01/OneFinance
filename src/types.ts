@@ -16,6 +16,28 @@ export interface Category {
   type: "income" | "expense" | "both";
 }
 
+export interface Budget {
+  id: number;
+  categoryId: number;
+  amount: number;
+  period: "monthly";
+}
+
+// A deliberate essential subset of the seeded defaults (NOT all of them) that
+// cannot be deleted or renamed (color/icon/type stay editable): the "Other"
+// category the savings-interest fallback depends on, plus one or two core
+// account types per classification. Matched by name — no schema flag needed.
+export const PROTECTED_CATEGORY_NAMES: string[] = ["Other"];
+export const PROTECTED_ACCOUNT_TYPE_NAMES: string[] = ["Chequing", "Savings", "Credit Card", "House", "Non-Registered", "Registered"];
+
+export function isProtectedCategoryName(name: string): boolean {
+  return PROTECTED_CATEGORY_NAMES.includes(name);
+}
+
+export function isProtectedAccountTypeName(type: string): boolean {
+  return PROTECTED_ACCOUNT_TYPE_NAMES.includes(type);
+}
+
 export type AccountClassification = "liquid" | "asset" | "liability" | "investment";
 
 export interface AccountType{
@@ -200,4 +222,14 @@ export const REMEMBER_POLICY_OPTIONS: { value: RememberPolicy; label: string }[]
   { value: '8h', label: '8 hours' },
   { value: '1d', label: '1 day' },
   { value: '1w', label: '1 week' },
+];
+
+// Idle auto-lock timeout in minutes; 0 = never auto-lock. Persisted in
+// app-preferences.json; consumed by the renderer's useIdleLock composable.
+export const AUTO_LOCK_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: 'Off' },
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
 ];

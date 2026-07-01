@@ -13,6 +13,7 @@ import {
   getAllInvestmentTransactions,
   getGlobalInvestmentHistory,
   getInvestmentAdjustments,
+  getBudgets,
   getSessionPassword,
 } from './db';
 import { wrapExport } from './secureExport';
@@ -98,6 +99,7 @@ function buildExportPayload(): object {
     investmentTransactions: getAllInvestmentTransactions(),
     investmentHistory: getGlobalInvestmentHistory(),
     investmentAdjustments: getInvestmentAdjustments(),
+    budgets: getBudgets(),
   };
 }
 

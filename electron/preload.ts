@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -171,6 +171,19 @@ const electronAPI = {
     ipcRenderer.invoke("db:deleteCategory", id),
 
   // ============================================
+  // BUDGETS
+  // ============================================
+
+  getBudgets: (): Promise<Budget[]> =>
+    ipcRenderer.invoke("db:getBudgets"),
+
+  upsertBudget: (categoryId: number, amount: number, period: string = "monthly"): Promise<Budget> =>
+    ipcRenderer.invoke("db:upsertBudget", categoryId, amount, period),
+
+  deleteBudget: (categoryId: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteBudget", categoryId),
+
+  // ============================================
   // ACCOUNTS
   // ============================================
 
@@ -291,6 +304,13 @@ const electronAPI = {
 
   setRememberPolicy: (policy: RememberPolicy): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("auth:setRememberPolicy", policy),
+
+  lock: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("auth:lock"),
+
+  onAppLocked: (callback: () => void) => {
+    ipcRenderer.on("app-locked", callback);
+  },
 
   changeMasterPassword: (oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("auth:changePassword", oldPassword, newPassword),

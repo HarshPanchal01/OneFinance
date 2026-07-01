@@ -143,6 +143,43 @@ html.dark {
   .badge-expense {
     @apply bg-expense-light text-expense-dark dark:bg-expense-dark/20 dark:text-expense;
   }
+
+  /* Small primary "View all" button used in dashboard card headers. */
+  .btn-view-all {
+    @apply inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-colors;
+    @apply bg-primary-500 text-white hover:bg-primary-600;
+    @apply dark:bg-primary-900/40 dark:text-primary-300 dark:hover:bg-primary-900/60;
+  }
+}
+
+/* Brief attention blink for a row navigated-to from another view. */
+@keyframes highlight-fade {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(79, 157, 221, 0.4); }
+}
+
+.highlight-blink {
+  animation: highlight-fade 1s ease-in-out 3;
+}
+
+/* Gentle entrance for hero content (greeting / net worth / insight). */
+@keyframes rise-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise {
+  animation: rise-fade 0.5s ease-out both;
+}
+
+/* Blinking caret for the typewriter greeting. */
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.type-cursor {
+  animation: caret-blink 0.8s step-end infinite;
 }
 
 /* Utility classes */
