@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { getCustomRangeObj, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
+import { getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
 import type {
+  Budget,
   Category,
   Account,
   AccountType,
@@ -33,6 +34,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Categories
   const categories = ref<Category[]>([]);
+
+  // Category budgets (monthly spending limits)
+  const budgets = ref<Budget[]>([]);
 
   // Accounts
   const accounts = ref<Account[]>([]);
@@ -177,6 +181,9 @@ export const useFinanceStore = defineStore("finance", () => {
       
       // Load recurring transactions
       await fetchRecurringTransactions();
+
+      // Load category budgets
+      await fetchBudgets();
 
       databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
@@ -530,9 +537,74 @@ export const useFinanceStore = defineStore("finance", () => {
     const success = await window.electronAPI.deleteCategory(id);
     if (success) {
       categories.value = categories.value.filter((c) => c.id !== id);
+      // The budget row is removed by the DB's ON DELETE CASCADE; mirror that locally.
+      budgets.value = budgets.value.filter((b) => b.categoryId !== id);
     }
     return success;
   }
+
+  // ============================================
+  // ACTIONS - Budgets
+  // ============================================
+
+  async function fetchBudgets() {
+    budgets.value = await window.electronAPI.getBudgets();
+  }
+
+  async function saveBudget(categoryId: number, amount: number) {
+    const updated = await window.electronAPI.upsertBudget(categoryId, amount, "monthly");
+    const index = budgets.value.findIndex((b) => b.categoryId === categoryId);
+    if (index !== -1) {
+      budgets.value[index] = updated;
+    } else {
+      budgets.value.push(updated);
+    }
+    return updated;
+  }
+
+  async function removeBudget(categoryId: number) {
+    const success = await window.electronAPI.deleteBudget(categoryId);
+    if (success) {
+      budgets.value = budgets.value.filter((b) => b.categoryId !== categoryId);
+    }
+    return success;
+  }
+
+  // Current calendar month's expense total per category id — the shared spend
+  // source for budget progress (store) and the Budgets view's unbudgeted rows.
+  const currentMonthSpendByCategory = computed(() => {
+    const map = new Map<number, number>();
+    for (const entry of getExpenseBreakdownForRange("thisMonth", dashboardTransactions.value)) {
+      if (entry.categoryId != null) map.set(entry.categoryId, entry.total);
+    }
+    return map;
+  });
+
+  // Joins each budget with its category and the current calendar month's spend.
+  const budgetProgress = computed(() => {
+    const spendByCategory = currentMonthSpendByCategory.value;
+
+    return budgets.value
+      .map((budget) => {
+        const category = categories.value.find((c) => c.id === budget.categoryId);
+        if (!category) return null;
+        const spent = spendByCategory.get(budget.categoryId) ?? 0;
+        const pct = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+        return {
+          categoryId: budget.categoryId,
+          categoryName: category.name,
+          categoryColor: category.colorCode,
+          categoryIcon: category.icon,
+          limit: budget.amount,
+          spent,
+          remaining: budget.amount - spent,
+          pct,
+          over: spent > budget.amount,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .sort((a, b) => b.pct - a.pct);
+  });
 
   // ============================================
   // ACTIONS - Recurring Transactions
@@ -1677,6 +1749,22 @@ export const useFinanceStore = defineStore("finance", () => {
         );
       }
 
+      const importBudgets = data.budgets || [];
+      for (const budget of importBudgets) {
+        const mappedCategoryId = categoryTypeIdMap.get(budget.categoryId);
+        if (mappedCategoryId == undefined) {
+          console.log(`Skipping budget with no category mapping for category id: ${budget.categoryId}`);
+          continue;
+        }
+        // Merge mode: don't clobber a budget the user already set (upsert would overwrite).
+        if (!isReplace && budgets.value.some((b) => b.categoryId === mappedCategoryId)) {
+          console.log(`Skipping existing budget for category ${mappedCategoryId}`);
+          continue;
+        }
+        await window.electronAPI.upsertBudget(mappedCategoryId, budget.amount, budget.period || "monthly");
+      }
+      await fetchBudgets();
+
     }
    catch (error) {
       console.log(error);
@@ -1690,6 +1778,7 @@ export const useFinanceStore = defineStore("finance", () => {
     await window.electronAPI.deleteAllDataFromTables();
     accounts.value = [];
     categories.value = [];
+    budgets.value = [];
     transactions.value = [];
     accountTypes.value = [];
     ledgerMonths.value = [];
@@ -1710,6 +1799,9 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerYears,
     ledgerMonths,
     categories,
+    budgets,
+    budgetProgress,
+    currentMonthSpendByCategory,
     accounts,
     accountTypes,
     transactions,
@@ -1758,6 +1850,9 @@ export const useFinanceStore = defineStore("finance", () => {
     addCategory,
     editCategory,
     removeCategory,
+    fetchBudgets,
+    saveBudget,
+    removeBudget,
     fetchRecurringTransactions,
     addRecurringTransaction,
     editRecurringTransaction,
@@ -1766,6 +1861,7 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchTransactions,
     fetchRecentTransactions,
     loadDashboard,
+    refreshDashboardData,
     fetchPeriodSummarySync,
     fetchMonthlyTrends,
     fetchRollingMonthlyTrends,

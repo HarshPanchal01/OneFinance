@@ -10,7 +10,7 @@ import { useTransactionActions } from "@/composables/useTransactionActions";
 import InsightTimeRangeSelector from "@/views/insights/components/InsightTimeRangeSelector.vue";
 import DashboardKpiCard from "@/views/dashboard/components/DashboardKpiCard.vue";
 import NetWorthHeroChart from "@/views/dashboard/components/NetWorthHeroChart.vue";
-import TopSpendingWidget from "@/views/dashboard/components/TopSpendingWidget.vue";
+import SpendingWidget from "@/views/dashboard/components/SpendingWidget.vue";
 import UpcomingBillsWidget from "@/views/dashboard/components/UpcomingBillsWidget.vue";
 import WatchlistWidget from "@/views/dashboard/components/WatchlistWidget.vue";
 
@@ -276,9 +276,10 @@ void confirmModal;
         </div>
       </div>
 
-      <TopSpendingWidget
+      <SpendingWidget
         class="lg:flex-1 min-w-0"
         @navigate-transactions="emit('navigate', 'transactions')"
+        @open-budgets="emit('navigate', 'budgets')"
       />
       <UpcomingBillsWidget
         class="lg:flex-1 min-w-0"

@@ -1,4 +1,4 @@
-import { Account, AccountType, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
+import { Account, AccountType, Budget, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -113,6 +113,7 @@ export interface ImportData {
   investmentTransactions?: any[];
   investmentHistory?: any[];
   investmentAdjustments?: any[];
+  budgets?: Budget[];
 }
 
 export function verifyImportData(
@@ -239,6 +240,20 @@ export function verifyImportData(
         return;
       }
     });
+
+    // Budgets are optional (older 2.0 exports predate this feature) — validate only if present.
+    if (data.budgets != undefined) {
+      data.budgets.forEach((value) => {
+        if (value.categoryId == undefined || value.amount == undefined) {
+          forEachResult = false;
+          return;
+        }
+        if (categories.find((categoryValue) => categoryValue.id === value.categoryId) == undefined) {
+          forEachResult = false;
+          return;
+        }
+      });
+    }
 
     return forEachResult ? { success: true } : { success: false, reason: "Invalid data format." };
   } catch (e) {

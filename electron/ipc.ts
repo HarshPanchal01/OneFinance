@@ -14,6 +14,9 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  getBudgets,
+  upsertBudget,
+  deleteBudget,
   // Transactions
   getTransactions,
   getAllTransactions,
@@ -171,6 +174,22 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:deleteCategory", async (_event, id: number) => {
     return deleteCategory(id);
+  });
+
+  // ============================================
+  // BUDGETS HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getBudgets", async () => {
+    return getBudgets();
+  });
+
+  ipcMain.handle("db:upsertBudget", async (_event, categoryId: number, amount: number, period: string) => {
+    return upsertBudget(categoryId, amount, period);
+  });
+
+  ipcMain.handle("db:deleteBudget", async (_event, categoryId: number) => {
+    return deleteBudget(categoryId);
   });
 
   // ============================================
