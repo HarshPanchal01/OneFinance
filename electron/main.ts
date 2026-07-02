@@ -50,7 +50,7 @@ let win: BrowserWindow | null;
 let tray: Tray | null = null;
 // Set to true by the tray "Quit" item so the window's close handler lets the app exit.
 let isQuitting = false;
-let appPreferences: AppPreferences = { minimizeToTray: false, openAtLogin: false, autoLockMinutes: 0 };
+let appPreferences: AppPreferences = { minimizeToTray: false, openAtLogin: false, autoLockMinutes: 0, reminderLocale: 'en-US', reminderCurrency: 'USD' };
 
 function showWindow() {
   if (!win) {
@@ -279,19 +279,20 @@ if (isDev) {
 // Region/currency mirrored from the renderer so notifications match the user's
 // locale (the renderer owns these settings; the main process can't read them).
 // Defaults keep cold-start notifications sensible before the renderer reports in.
-let reminderLocale: string | undefined;
-let reminderCurrency = 'USD';
-
 ipcMain.handle('reminders:setLocale', (_event, locale: string, currency: string) => {
-  reminderLocale = locale || undefined;
-  if (currency) reminderCurrency = currency;
+  // Persist so the next launch's startup catch-up formats amounts the same way
+  // (before the renderer has reported in), keeping notifications consistent.
+  appPreferences = savePreferences({
+    reminderLocale: locale || appPreferences.reminderLocale,
+    reminderCurrency: currency || appPreferences.reminderCurrency,
+  });
 });
 
 function formatReminderAmount(amount: number): string {
   try {
-    return new Intl.NumberFormat(reminderLocale, {
+    return new Intl.NumberFormat(appPreferences.reminderLocale, {
       style: 'currency',
-      currency: reminderCurrency,
+      currency: appPreferences.reminderCurrency,
       currencyDisplay: 'narrowSymbol',
     }).format(amount);
   } catch {

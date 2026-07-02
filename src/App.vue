@@ -215,12 +215,13 @@ async function initializeApp() {
     auth.markLocked();
   });
 
-  // Mirror locale/currency to the main process so reminder notifications match the user's region
+  // Mirror the UI's formatting locale/currency to the main process so reminder
+  // notifications format amounts identically to the on-screen UI.
   const syncReminderLocale = () => {
-    void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);
+    void window.electronAPI.setReminderLocale(settingsStore.formattingLocale, settingsStore.currency);
   };
   syncReminderLocale();
-  watch(() => [settingsStore.resolvedLocale, settingsStore.currency], syncReminderLocale);
+  watch(() => [settingsStore.formattingLocale, settingsStore.currency], syncReminderLocale);
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
