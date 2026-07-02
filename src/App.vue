@@ -17,6 +17,7 @@ import DashboardView from "@/views/DashboardView.vue";
 import TransactionsView from "@/views/TransactionsView.vue";
 import CategoriesView from "@/views/labels/LabelsView.vue";
 import BudgetsView from "@/views/budgets/BudgetsView.vue";
+import GoalsView from "@/views/goals/GoalsView.vue";
 import SettingsView from "@/views/settings/SettingsView.vue";
 import AccountsView from "@/views/accounts/AccountsView.vue";
 import SpendingInsightsView from "@/views/insights/SpendingInsightsView.vue";
@@ -35,7 +36,7 @@ const authUnlocked = ref(false);
 const appInitialized = ref(false);
 
 // Current view
-type ViewName = "dashboard" | "transactions" | "categories" | "budgets" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
+type ViewName = "dashboard" | "transactions" | "categories" | "budgets" | "goals" | "settings" | "accounts" | "insights" | "recurring" | "investments" | "investment-insights" | "calculators";
 const currentView = ref<ViewName>("dashboard");
 
 // Cross-view state
@@ -214,12 +215,13 @@ async function initializeApp() {
     auth.markLocked();
   });
 
-  // Mirror locale/currency to the main process so reminder notifications match the user's region
+  // Mirror the UI's formatting locale/currency to the main process so reminder
+  // notifications format amounts identically to the on-screen UI.
   const syncReminderLocale = () => {
-    void window.electronAPI.setReminderLocale(settingsStore.resolvedLocale, settingsStore.currency);
+    void window.electronAPI.setReminderLocale(settingsStore.formattingLocale, settingsStore.currency);
   };
   syncReminderLocale();
-  watch(() => [settingsStore.resolvedLocale, settingsStore.currency], syncReminderLocale);
+  watch(() => [settingsStore.formattingLocale, settingsStore.currency], syncReminderLocale);
 
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
@@ -386,6 +388,7 @@ function handleKeydown(e: KeyboardEvent) {
             v-else-if="currentView === 'budgets'"
             @navigate-transactions="currentView = 'transactions'"
           />
+          <GoalsView v-else-if="currentView === 'goals'" />
           <SettingsView v-else-if="currentView === 'settings'" />
           <AccountsView
             v-else-if="currentView === 'accounts'"

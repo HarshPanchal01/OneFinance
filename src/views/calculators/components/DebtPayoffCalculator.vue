@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { useFormatter } from '@/composables/useFormatter';
+import { simulateDebtPayoff, type SimDebt } from '@/utils';
 import AppChart from '@/components/AppChart.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
 
@@ -43,74 +44,6 @@ interface PayoffResult {
 
 const payoffResult = ref<PayoffResult | null>(null);
 
-interface SimDebt {
-  balance: number;
-  rate: number;
-  minPayment: number;
-}
-
-function runSimulation(
-  inputDebts: SimDebt[],
-  extra: number,
-  strategy: 'avalanche' | 'snowball'
-): { months: number; totalInterest: number; curve: number[]; capped: boolean } {
-  const state = inputDebts.map(d => ({ ...d }));
-  const totalMinimums = state.reduce((s, d) => s + d.minPayment, 0);
-  // Fixed total budget per month: all minimums + extra. When a debt is paid off,
-  // its freed minimum naturally stays in the pool and cascades to the target.
-  const totalBudget = totalMinimums + extra;
-
-  let totalInterest = 0;
-  let month = 0;
-  const curve: number[] = [state.reduce((s, d) => s + d.balance, 0)];
-
-  while (state.some(d => d.balance > 0.005) && month < 1200) {
-    month++;
-
-    for (const d of state) {
-      if (d.balance <= 0.005) continue;
-      const interest = d.balance * (d.rate / 100 / 12);
-      totalInterest += interest;
-      d.balance += interest;
-    }
-
-    // Pay minimums first; collect any underspend (paid-off debts) into remaining
-    let remaining = totalBudget;
-    for (const d of state) {
-      if (d.balance <= 0.005) { d.balance = 0; continue; }
-      const payment = Math.min(d.balance, d.minPayment);
-      d.balance -= payment;
-      remaining -= payment;
-      if (d.balance < 0.005) d.balance = 0;
-    }
-
-    // Apply remaining budget to the strategy target, cascading if that debt is paid off
-    const active = state.filter(d => d.balance > 0.005);
-    if (strategy === 'avalanche') {
-      active.sort((a, b) => b.rate - a.rate);
-    } else {
-      active.sort((a, b) => a.balance - b.balance);
-    }
-
-    for (const target of active) {
-      if (remaining <= 0.005) break;
-      const payment = Math.min(target.balance, remaining);
-      target.balance -= payment;
-      remaining -= payment;
-      if (target.balance < 0.005) target.balance = 0;
-    }
-
-    curve.push(Math.max(0, state.reduce((s, d) => s + d.balance, 0)));
-  }
-
-  return {
-    months: month,
-    totalInterest,
-    curve,
-    capped: state.some(d => d.balance > 0.005),
-  };
-}
-
 const calculate = () => {
   const validDebts: SimDebt[] = debts.value
     .filter(d => (d.balance ?? 0) > 0.005)
@@ -123,8 +56,8 @@ const calculate = () => {
   const extra = Math.max(0, extraPayment.value ?? 0);
   const totalDebt = validDebts.reduce((s, d) => s + d.balance, 0);
 
-  const avalanche = runSimulation(validDebts, extra, 'avalanche');
-  const snowball = runSimulation(validDebts, extra, 'snowball');
+  const avalanche = simulateDebtPayoff(validDebts, extra, 'avalanche');
+  const snowball = simulateDebtPayoff(validDebts, extra, 'snowball');
 
   // Pad shorter curve so both datasets are the same length for the chart
   const maxLen = Math.max(avalanche.curve.length, snowball.curve.length);

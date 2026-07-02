@@ -13,10 +13,21 @@ import NetWorthHeroChart from "@/views/dashboard/components/NetWorthHeroChart.vu
 import SpendingWidget from "@/views/dashboard/components/SpendingWidget.vue";
 import UpcomingBillsWidget from "@/views/dashboard/components/UpcomingBillsWidget.vue";
 import WatchlistWidget from "@/views/dashboard/components/WatchlistWidget.vue";
+import DashboardCustomizeModal from "@/views/dashboard/components/DashboardCustomizeModal.vue";
+import { useDashboardLayout } from "@/composables/useDashboardLayout";
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { formatCurrency } = useFormatter();
+
+const {
+  isVisible,
+  orderedVisibleDetailIds,
+  allHidden,
+  currentLayout,
+  applyLayout,
+} = useDashboardLayout();
+const showCustomize = ref(false);
 
 const emit = defineEmits<{
   (e: "addTransaction"): void;
@@ -130,6 +141,14 @@ void confirmModal;
         </p>
       </div>
       <div class="flex items-center gap-3">
+        <button
+          class="inline-flex items-center justify-center h-10 w-10 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          title="Customize dashboard"
+          aria-label="Customize dashboard"
+          @click="showCustomize = true"
+        >
+          <i class="pi pi-sliders-h" />
+        </button>
         <InsightTimeRangeSelector
           v-model="store.dashboardRange"
           v-model:custom-range="store.dashboardCustomRange"
@@ -146,7 +165,10 @@ void confirmModal;
     </div>
 
     <!-- KPI stat cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
+    <div
+      v-if="isVisible('kpis')"
+      class="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0"
+    >
       <DashboardKpiCard
         label="Income"
         :value="kpis.income"
@@ -175,7 +197,10 @@ void confirmModal;
     </div>
 
     <!-- Middle: net-worth hero -->
-    <div class="card relative overflow-hidden shrink-0 lg:h-72">
+    <div
+      v-if="isVisible('netWorth')"
+      class="card relative overflow-hidden shrink-0 lg:h-72"
+    >
       <div class="absolute inset-0">
         <NetWorthHeroChart />
       </div>
@@ -231,66 +256,102 @@ void confirmModal;
       </div>
     </div>
 
-    <!-- Bottom: details — fills the remaining height; lists scroll inside their cards -->
-    <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-      <div class="lg:flex-[1.6] min-w-0 flex min-h-0">
-        <div class="card p-5 flex flex-col w-full min-h-0">
-          <div class="flex items-center justify-between mb-4 shrink-0">
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white">
-              Recent Transactions
-            </h2>
-            <button
-              class="btn-view-all"
-              @click="emit('navigate', 'transactions')"
-            >
-              View all
-            </button>
-          </div>
-
-          <div class="flex-1 min-h-0 overflow-y-auto -mr-3 pr-3">
-            <div
-              v-if="store.recentTransactions.length === 0"
-              class="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400"
-            >
-              <i class="pi pi-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3" />
-              <p>No transactions yet</p>
-              <p class="text-sm mt-1">
-                Add your first transaction to get started!
-              </p>
+    <!-- Bottom: details — ordered + reorderable; lists scroll inside their cards -->
+    <div
+      v-if="orderedVisibleDetailIds.length"
+      class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4"
+    >
+      <template
+        v-for="widgetId in orderedVisibleDetailIds"
+        :key="widgetId"
+      >
+        <div
+          v-if="widgetId === 'recentTransactions'"
+          class="lg:flex-[1.6] min-w-0 flex min-h-0"
+        >
+          <div class="card p-5 flex flex-col w-full min-h-0">
+            <div class="flex items-center justify-between mb-4 shrink-0">
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                Recent Transactions
+              </h2>
+              <button
+                class="btn-view-all"
+                @click="emit('navigate', 'transactions')"
+              >
+                View all
+              </button>
             </div>
 
-            <div
-              v-else
-              class="space-y-2"
-            >
-              <TransactionItem
-                v-for="transaction in store.recentTransactions"
-                :key="transaction.id"
-                :transaction="transaction"
-                @edit="openEditModal"
-                @delete="deleteTransaction"
-                @edit-account="(id) => emit('request-edit-account', id)"
-              />
+            <div class="flex-1 min-h-0 overflow-y-auto -mr-3 pr-3">
+              <div
+                v-if="store.recentTransactions.length === 0"
+                class="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400"
+              >
+                <i class="pi pi-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3" />
+                <p>No transactions yet</p>
+                <p class="text-sm mt-1">
+                  Add your first transaction to get started!
+                </p>
+              </div>
+
+              <div
+                v-else
+                class="space-y-2"
+              >
+                <TransactionItem
+                  v-for="transaction in store.recentTransactions"
+                  :key="transaction.id"
+                  :transaction="transaction"
+                  @edit="openEditModal"
+                  @delete="deleteTransaction"
+                  @edit-account="(id) => emit('request-edit-account', id)"
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <SpendingWidget
-        class="lg:flex-1 min-w-0"
-        @navigate-transactions="emit('navigate', 'transactions')"
-        @open-budgets="emit('navigate', 'budgets')"
-      />
-      <UpcomingBillsWidget
-        class="lg:flex-1 min-w-0"
-        @open-recurring="(id) => emit('view-recurring', id)"
-      />
-      <WatchlistWidget
-        class="lg:flex-1 min-w-0"
-        @view-investments="(s) => emit('view-investments', s)"
-      />
+        <SpendingWidget
+          v-else-if="widgetId === 'spending'"
+          class="lg:flex-1 min-w-0"
+          @navigate-transactions="emit('navigate', 'transactions')"
+          @open-goals="emit('navigate', 'goals')"
+        />
+        <UpcomingBillsWidget
+          v-else-if="widgetId === 'upcomingBills'"
+          class="lg:flex-1 min-w-0"
+          @open-recurring="(id) => emit('view-recurring', id)"
+        />
+        <WatchlistWidget
+          v-else-if="widgetId === 'watchlist'"
+          class="lg:flex-1 min-w-0"
+          @view-investments="(s) => emit('view-investments', s)"
+        />
+      </template>
+    </div>
+
+    <!-- Empty state — every widget hidden -->
+    <div
+      v-if="allHidden"
+      class="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400"
+    >
+      <i class="pi pi-th-large text-4xl text-gray-300 dark:text-gray-600 mb-3" />
+      <p>All widgets are hidden.</p>
+      <button
+        class="btn-view-all mt-2"
+        @click="showCustomize = true"
+      >
+        Customize dashboard
+      </button>
     </div>
   </div>
+
+  <DashboardCustomizeModal
+    :visible="showCustomize"
+    :layout="currentLayout"
+    @close="showCustomize = false"
+    @save="(layout) => { applyLayout(layout); showCustomize = false; }"
+  />
 
   <TransactionModal
     :visible="showModal"

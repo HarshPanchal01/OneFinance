@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -114,6 +114,7 @@ export interface ImportData {
   investmentHistory?: any[];
   investmentAdjustments?: any[];
   budgets?: Budget[];
+  goals?: SavingsGoal[];
 }
 
 export function verifyImportData(
@@ -249,6 +250,16 @@ export function verifyImportData(
           return;
         }
         if (categories.find((categoryValue) => categoryValue.id === value.categoryId) == undefined) {
+          forEachResult = false;
+          return;
+        }
+      });
+    }
+
+    // Savings goals are optional (older 2.0 exports predate this feature) — validate only if present.
+    if (data.goals != undefined) {
+      data.goals.forEach((value) => {
+        if (value.name == undefined || value.targetAmount == undefined || value.createdDate == undefined) {
           forEachResult = false;
           return;
         }
@@ -513,4 +524,165 @@ export function getMonthStr(date: Date): string {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44; // average month length
+
+export interface GoalProjection {
+  currentSaved: number;
+  remaining: number;
+  pct: number;
+  reached: boolean;
+  requiredMonthly: number | null;
+  // The deadline is under a month away — a per-month rate is meaningless (it can
+  // exceed the goal), so the UI shows the flat amount still needed instead.
+  dueWithinMonth: boolean;
+  onTrack: boolean | null;
+}
+
+// Pure progress + on-pace projection for a savings goal. `currentSaved` is passed
+// in (linked-account balance or manual amount) so this stays free of store state.
+export function computeGoalProjection(
+  goal: Pick<SavingsGoal, "targetAmount" | "targetDate" | "startingAmount" | "createdDate">,
+  currentSaved: number,
+  now: Date = new Date()
+): GoalProjection {
+  const remaining = goal.targetAmount - currentSaved;
+  const pct = goal.targetAmount > 0 ? (currentSaved / goal.targetAmount) * 100 : 0;
+  const reached = currentSaved >= goal.targetAmount;
+
+  let requiredMonthly: number | null = null;
+  let onTrack: boolean | null = null;
+  let dueWithinMonth = false;
+  if (goal.targetDate && !reached) {
+    const months = (new Date(goal.targetDate).getTime() - now.getTime()) / MS_PER_MONTH;
+    if (months > 0) {
+      dueWithinMonth = months <= 1;
+      requiredMonthly = remaining / months;
+      const elapsed = Math.max(
+        (now.getTime() - new Date(goal.createdDate).getTime()) / MS_PER_MONTH,
+        0.03 // guard against divide-by-zero on a same-day goal
+      );
+      const pace = (currentSaved - goal.startingAmount) / elapsed;
+      onTrack = currentSaved + pace * months >= goal.targetAmount;
+    } else {
+      // Target date passed without reaching the goal.
+      onTrack = false;
+    }
+  }
+
+  return { currentSaved, remaining, pct, reached, requiredMonthly, dueWithinMonth, onTrack };
+}
+
+// ============================================
+// Financial calculator math (pure — used by src/views/calculators)
+// ============================================
+
+export interface SimDebt {
+  balance: number;
+  rate: number; // annual percent, e.g. 19.99
+  minPayment: number;
+}
+
+export interface DebtPayoffResult {
+  months: number;
+  totalInterest: number;
+  curve: number[]; // total remaining balance per month (index 0 = start)
+  capped: boolean; // true if not paid off within the 1200-month cap
+}
+
+// Simulates paying down a set of debts with a fixed monthly budget (all minimums
+// + extra). When a debt is cleared its freed minimum cascades to the strategy's
+// current target — avalanche = highest rate first, snowball = smallest balance first.
+export function simulateDebtPayoff(
+  inputDebts: SimDebt[],
+  extra: number,
+  strategy: "avalanche" | "snowball"
+): DebtPayoffResult {
+  const state = inputDebts.map((d) => ({ ...d }));
+  const totalMinimums = state.reduce((s, d) => s + d.minPayment, 0);
+  const totalBudget = totalMinimums + extra;
+
+  let totalInterest = 0;
+  let month = 0;
+  const curve: number[] = [state.reduce((s, d) => s + d.balance, 0)];
+
+  while (state.some((d) => d.balance > 0.005) && month < 1200) {
+    month++;
+
+    for (const d of state) {
+      if (d.balance <= 0.005) continue;
+      const interest = d.balance * (d.rate / 100 / 12);
+      totalInterest += interest;
+      d.balance += interest;
+    }
+
+    // Pay minimums first; underspend from cleared debts stays in the pool.
+    let remaining = totalBudget;
+    for (const d of state) {
+      if (d.balance <= 0.005) { d.balance = 0; continue; }
+      const payment = Math.min(d.balance, d.minPayment);
+      d.balance -= payment;
+      remaining -= payment;
+      if (d.balance < 0.005) d.balance = 0;
+    }
+
+    // Direct the remaining budget at the strategy target, cascading when it clears.
+    const active = state.filter((d) => d.balance > 0.005);
+    if (strategy === "avalanche") active.sort((a, b) => b.rate - a.rate);
+    else active.sort((a, b) => a.balance - b.balance);
+
+    for (const target of active) {
+      if (remaining <= 0.005) break;
+      const payment = Math.min(target.balance, remaining);
+      target.balance -= payment;
+      remaining -= payment;
+      if (target.balance < 0.005) target.balance = 0;
+    }
+
+    curve.push(Math.max(0, state.reduce((s, d) => s + d.balance, 0)));
+  }
+
+  return { months: month, totalInterest, curve, capped: state.some((d) => d.balance > 0.005) };
+}
+
+// Standard fixed monthly payment for a fully-amortizing loan. `annualRate` is a
+// decimal (0.05 = 5%); the zero-rate case is a straight-line split.
+export function amortizationPayment(principal: number, annualRate: number, termMonths: number): number {
+  if (termMonths <= 0) return 0;
+  const i = annualRate / 12;
+  if (i === 0) return principal / termMonths;
+  return principal * ((i * Math.pow(1 + i, termMonths)) / (Math.pow(1 + i, termMonths) - 1));
+}
+
+export interface CompoundPoint {
+  balance: number;
+  totalContributions: number;
+  totalInterest: number;
+}
+
+// Month-by-month compound growth. Index 0 is the starting state, then `months`
+// steps; each month accrues interest (annualRate decimal / 12) then adds the
+// contribution. Returns cumulative balance / contributions / interest per month.
+export function compoundInterestSeries(
+  principal: number,
+  monthlyContribution: number,
+  annualRate: number,
+  months: number
+): CompoundPoint[] {
+  const monthlyRate = annualRate / 12;
+  const series: CompoundPoint[] = [
+    { balance: principal, totalContributions: principal, totalInterest: 0 },
+  ];
+  let balance = principal;
+  let totalContributions = principal;
+  let totalInterest = 0;
+  for (let m = 1; m <= months; m++) {
+    const interest = balance * monthlyRate;
+    totalInterest += interest;
+    balance += interest + monthlyContribution;
+    totalContributions += monthlyContribution;
+    series.push({ balance, totalContributions, totalInterest });
+  }
+  return series;
 }

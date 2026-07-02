@@ -17,6 +17,9 @@ import {
   getBudgets,
   upsertBudget,
   deleteBudget,
+  getSavingsGoals,
+  upsertSavingsGoal,
+  deleteSavingsGoal,
   // Transactions
   getTransactions,
   getAllTransactions,
@@ -79,7 +82,7 @@ import {
   createInvestmentHistoryEntry,
 } from "./db";
 import { getQuote, getQuotes, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
-import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction } from "@/types";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, SavingsGoal } from "@/types";
 
 /**
  * Register all IPC handlers for database operations
@@ -190,6 +193,18 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:deleteBudget", async (_event, categoryId: number) => {
     return deleteBudget(categoryId);
+  });
+
+  ipcMain.handle("db:getSavingsGoals", async () => {
+    return getSavingsGoals();
+  });
+
+  ipcMain.handle("db:upsertSavingsGoal", async (_event, goal: Omit<SavingsGoal, "id"> & { id?: number }) => {
+    return upsertSavingsGoal(goal);
+  });
+
+  ipcMain.handle("db:deleteSavingsGoal", async (_event, id: number) => {
+    return deleteSavingsGoal(id);
   });
 
   // ============================================

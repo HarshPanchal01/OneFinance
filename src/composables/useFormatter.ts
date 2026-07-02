@@ -5,30 +5,19 @@ export function useFormatter() {
   const settingsStore = useSettingsStore();
 
   const formatCurrency = (amount: number) => {
-    // We split the locale (e.g., 'de-DE') and force the language part to 'en'
-    // This keeps the regional formatting (separators) but uses English labels/symbols
-    const localeParts = settingsStore.resolvedLocale.split('-');
-    const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
-
     return _formatCurrency(
       amount,
-      forcedLocale,
+      settingsStore.formattingLocale,
       settingsStore.currency
     );
   };
 
   const formatDate = (dateString: string) => {
-    const localeParts = settingsStore.resolvedLocale.split('-');
-    const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
-    
-    return _formatDate(dateString, forcedLocale);
+    return _formatDate(dateString, settingsStore.formattingLocale);
   };
 
   const getCurrencySymbol = () => {
-    const localeParts = settingsStore.resolvedLocale.split('-');
-    const forcedLocale = localeParts.length > 1 ? `en-${localeParts[1]}` : 'en-US';
-    
-    const parts = new Intl.NumberFormat(forcedLocale, {
+    const parts = new Intl.NumberFormat(settingsStore.formattingLocale, {
       style: 'currency',
       currency: settingsStore.currency,
       minimumFractionDigits: 0,

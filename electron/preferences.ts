@@ -10,12 +10,19 @@ export interface AppPreferences {
   openAtLogin: boolean;
   // Minutes of inactivity before the app auto-locks the database (0 = never).
   autoLockMinutes: number;
+  // Formatting locale + currency for reminder notifications, mirrored from the
+  // renderer. Persisted so the startup catch-up formats amounts the same way the
+  // UI does before the renderer has reported its locale.
+  reminderLocale: string;
+  reminderCurrency: string;
 }
 
 const DEFAULTS: AppPreferences = {
   minimizeToTray: false,
   openAtLogin: false,
   autoLockMinutes: 0,
+  reminderLocale: 'en-US',
+  reminderCurrency: 'USD',
 };
 
 function getPreferencesPath(): string {

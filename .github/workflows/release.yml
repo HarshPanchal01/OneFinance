@@ -24,7 +24,7 @@ jobs:
       release_tag: ${{ steps.create_tag.outputs.tag }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -90,7 +90,7 @@ jobs:
     
     steps:
       - name: Checkout Tagged Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare_release.outputs.release_tag }}
       

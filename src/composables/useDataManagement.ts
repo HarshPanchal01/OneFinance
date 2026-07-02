@@ -84,6 +84,7 @@ export function useDataManagement() {
     const ledgerYearsValue = toRaw(store.ledgerYears);
     const recurringTransactionsValue = await window.electronAPI.getRecurringTransactions();
     const budgetsValue = await window.electronAPI.getBudgets();
+    const goalsValue = await window.electronAPI.getSavingsGoals();
     const databaseVersion = toRaw(store.databaseVersion);
     const investmentHoldingsValue = toRaw(store.investmentHoldings);
     
@@ -123,6 +124,7 @@ export function useDataManagement() {
       investmentHistory: investmentHistoryValue,
       investmentAdjustments: investmentAdjustmentsValue,
       budgets: budgetsValue,
+      goals: goalsValue,
     };
 
     const timestamp = new Date().toDateString();

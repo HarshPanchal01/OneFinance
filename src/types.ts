@@ -23,6 +23,19 @@ export interface Budget {
   period: "monthly";
 }
 
+export interface SavingsGoal {
+  id: number;
+  name: string;
+  targetAmount: number;
+  targetDate: string | null;
+  // When set, progress tracks this account's live balance; otherwise currentAmount is used.
+  accountId: number | null;
+  currentAmount: number;
+  // Amount already saved when the goal was created — the baseline for the pace projection.
+  startingAmount: number;
+  createdDate: string;
+}
+
 // A deliberate essential subset of the seeded defaults (NOT all of them) that
 // cannot be deleted or renamed (color/icon/type stay editable): the "Other"
 // category the savings-interest fallback depends on, plus one or two core

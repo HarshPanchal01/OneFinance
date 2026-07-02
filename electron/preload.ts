@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -182,6 +182,15 @@ const electronAPI = {
 
   deleteBudget: (categoryId: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteBudget", categoryId),
+
+  getSavingsGoals: (): Promise<SavingsGoal[]> =>
+    ipcRenderer.invoke("db:getSavingsGoals"),
+
+  upsertSavingsGoal: (goal: Omit<SavingsGoal, "id"> & { id?: number }): Promise<SavingsGoal> =>
+    ipcRenderer.invoke("db:upsertSavingsGoal", goal),
+
+  deleteSavingsGoal: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteSavingsGoal", id),
 
   // ============================================
   // ACCOUNTS
