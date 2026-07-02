@@ -43,6 +43,14 @@ export const useSettingsStore = defineStore('settings', () => {
     return region.value === 'system' ? navigator.language : region.value;
   });
 
+  // Language forced to English, region preserved — English currency symbols/labels
+  // with regional separators. Single source of truth for both the UI formatter and
+  // the reminder-notification formatter in the main process (so they never disagree).
+  const formattingLocale = computed(() => {
+    const parts = resolvedRegion.value.split('-');
+    return parts.length > 1 ? `en-${parts[1]}` : 'en-US';
+  });
+
   const currency = computed(() => {
     const setting = regionalSettings.find(r => r.value === region.value);
     if (setting && region.value !== 'system') {
@@ -154,6 +162,7 @@ export const useSettingsStore = defineStore('settings', () => {
     region,
     currency,
     resolvedLocale: resolvedRegion,
+    formattingLocale,
     loadSettings,
     applyAppearance,
     togglePrivacyMode,
