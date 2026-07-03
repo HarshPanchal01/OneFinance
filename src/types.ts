@@ -80,6 +80,8 @@ export interface InvestmentHolding {
   quantity: number;
   lastPrice: number | null;
   lastUpdated: string | null;
+  // Native quote currency from Yahoo (e.g. 'USD'); null = unknown, treated as user currency
+  currency?: string | null;
   sectorWeightings?: string | null;
   // Price-change alert thresholds (percent; null = off)
   alertDailyPct?: number | null;
@@ -93,6 +95,13 @@ export interface InvestmentHolding {
   alertDailyNotified?: string | null;
   alertWeeklyNotified?: string | null;
   alertMonthlyNotified?: string | null;
+}
+
+export interface FxRate {
+  from: string;      // e.g. 'USD'
+  to: string;        // e.g. 'CAD'
+  rate: number;      // 1 unit of `from` in `to`
+  updatedAt: string;
 }
 
 export type PriceAlertTimeframe = 'daily' | 'weekly' | 'monthly';

@@ -25,7 +25,7 @@ const cashBalance = computed(() => {
   if (!account) return 0;
   
   const accountHoldings = store.investmentHoldings.filter(h => h.accountId === props.accountId);
-  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
   
   return (account.balance || 0) - holdingsValue;
 });
@@ -42,7 +42,8 @@ const form = reactive({
   date: new Date() as any,
   price: null as number | null,
   fees: 0 as number | null,
-  affectCash: true
+  affectCash: true,
+  currency: null as string | null
 });
 
 let searchTimeout: any = null;
@@ -84,6 +85,7 @@ async function selectSymbol(result: any) {
     if (quote && quote.price) {
       form.price = quote.price;
     }
+    form.currency = quote?.currency ?? null;
   } catch (e) {
     console.error("Failed to fetch initial price for symbol", e);
   }
@@ -107,7 +109,8 @@ async function submit() {
         name: form.name,
         quantity: 0,
         lastPrice: form.price,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        currency: form.currency
       });
     }
     

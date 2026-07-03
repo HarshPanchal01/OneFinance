@@ -8,17 +8,18 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrencyIn, isForeignCurrency } = useFormatter();
 
 // One row per symbol (holdings of the same symbol across accounts are merged).
 // Day change comes from the previous close captured during the periodic quote
 // fetch; rows are ranked by change, biggest gain first.
 const watchlist = computed(() => {
-  const bySymbol = new Map<string, { symbol: string; name: string | null; price: number | null }>();
+  const bySymbol = new Map<string, { symbol: string; name: string | null; price: number | null; currency: string | null }>();
   for (const h of store.investmentHoldings) {
-    const entry = bySymbol.get(h.symbol) ?? { symbol: h.symbol, name: h.name, price: h.lastPrice };
+    const entry = bySymbol.get(h.symbol) ?? { symbol: h.symbol, name: h.name, price: h.lastPrice, currency: h.currency ?? null };
     if (h.lastPrice != null) entry.price = h.lastPrice;
     if (h.name) entry.name = h.name;
+    if (h.currency) entry.currency = h.currency;
     bySymbol.set(h.symbol, entry);
   }
 
@@ -96,7 +97,12 @@ function changeText(change: number | null): string {
           </div>
           <div class="text-right shrink-0">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ item.price != null ? formatCurrency(item.price) : "—" }}
+              <!-- Quote price stays in the holding's native currency -->
+              {{ item.price != null ? formatCurrencyIn(item.price, item.currency) : "—" }}
+              <span
+                v-if="item.price != null && isForeignCurrency(item.currency)"
+                class="text-[10px] text-gray-400 dark:text-gray-500"
+              >{{ item.currency }}</span>
             </p>
             <p
               class="text-xs font-semibold"

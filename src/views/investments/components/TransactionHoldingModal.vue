@@ -31,7 +31,7 @@ const cashBalance = computed(() => {
   if (!account) return 0;
   
   const accountHoldings = store.investmentHoldings.filter(h => h.accountId === accountId);
-  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
   
   return (account.balance || 0) - holdingsValue;
 });

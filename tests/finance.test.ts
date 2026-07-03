@@ -5,6 +5,8 @@ import {
   getAssetProfile,
   getHistoricalPrices,
   searchSymbols,
+  fxPairSymbol,
+  getFxRates,
 } from "../electron/finance";
 
 // finance.ts builds `new YahooFinance(...)` at module load, so the mock must stand in
@@ -87,13 +89,13 @@ describe("getQuotes", () => {
 
   it("maps a batch of quotes", async () => {
     mockQuote.mockResolvedValue([
-      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, shortName: "Apple" },
-      { symbol: "MSFT", regularMarketPrice: 400, regularMarketPreviousClose: 395, shortName: "Microsoft" },
+      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, shortName: "Apple", currency: "USD" },
+      { symbol: "VFV.TO", regularMarketPrice: 130, regularMarketPreviousClose: 128, shortName: "Vanguard S&P 500", currency: "CAD" },
     ]);
-    const quotes = await getQuotes(["AAPL", "MSFT"]);
+    const quotes = await getQuotes(["AAPL", "VFV.TO"]);
     expect(quotes).toHaveLength(2);
-    expect(quotes[0]).toMatchObject({ symbol: "AAPL", price: 250, previousClose: 248, name: "Apple" });
-    expect(quotes[1]).toMatchObject({ symbol: "MSFT", price: 400, previousClose: 395 });
+    expect(quotes[0]).toMatchObject({ symbol: "AAPL", price: 250, previousClose: 248, name: "Apple", currency: "USD" });
+    expect(quotes[1]).toMatchObject({ symbol: "VFV.TO", price: 130, previousClose: 128, currency: "CAD" });
   });
 
   it("wraps a single-object response into an array", async () => {
@@ -107,6 +109,80 @@ describe("getQuotes", () => {
   it("rethrows when the batch call fails", async () => {
     mockQuote.mockRejectedValue(new Error("boom"));
     await expect(getQuotes(["AAPL"])).rejects.toThrow("boom");
+  });
+});
+
+describe("fxPairSymbol", () => {
+  it("builds the Yahoo FX symbol for a pair", () => {
+    expect(fxPairSymbol("USD", "CAD")).toBe("USDCAD=X");
+    expect(fxPairSymbol("EUR", "USD")).toBe("EURUSD=X");
+  });
+
+  it("uppercases lowercase codes", () => {
+    expect(fxPairSymbol("usd", "cad")).toBe("USDCAD=X");
+  });
+
+  it("returns null for identity pairs (no conversion needed)", () => {
+    expect(fxPairSymbol("USD", "USD")).toBeNull();
+    expect(fxPairSymbol("usd", "USD")).toBeNull();
+  });
+
+  it("returns null for incomplete pairs", () => {
+    expect(fxPairSymbol("", "CAD")).toBeNull();
+    expect(fxPairSymbol("USD", "")).toBeNull();
+  });
+});
+
+describe("getFxRates", () => {
+  it("returns [] and skips the API when all pairs are identity/empty", async () => {
+    expect(await getFxRates([])).toEqual([]);
+    expect(await getFxRates([{ from: "USD", to: "USD" }, { from: "", to: "CAD" }])).toEqual([]);
+    expect(mockQuote).not.toHaveBeenCalled();
+  });
+
+  it("dedupes pairs into one batch call and maps prices to rates", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: 1.37 },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+      { from: "USD", to: "CAD" }, // duplicate
+    ]);
+    expect(mockQuote).toHaveBeenCalledTimes(1);
+    expect(mockQuote.mock.calls[0][0]).toEqual(["USDCAD=X", "EURCAD=X"]);
+    expect(rates).toHaveLength(2);
+    expect(rates[0]).toMatchObject({ from: "USD", to: "CAD", rate: 1.37 });
+    expect(rates[1]).toMatchObject({ from: "EUR", to: "CAD", rate: 1.48 });
+    expect(typeof rates[0].updatedAt).toBe("string");
+  });
+
+  it("handles a single-object Yahoo response (one pair requested)", async () => {
+    mockQuote.mockResolvedValue({ symbol: "USDCAD=X", regularMarketPrice: 1.37 });
+    const rates = await getFxRates([{ from: "USD", to: "CAD" }]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "USD", to: "CAD", rate: 1.37 }),
+    ]);
+  });
+
+  it("drops FX quotes without a price", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: null },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+    ]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "EUR", to: "CAD", rate: 1.48 }),
+    ]);
+  });
+
+  it("returns [] (does not throw) when the Yahoo call fails — callers keep cached rates", async () => {
+    mockQuote.mockRejectedValue(new Error("fx down"));
+    expect(await getFxRates([{ from: "USD", to: "CAD" }])).toEqual([]);
   });
 });
 

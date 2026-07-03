@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
+import { useSettingsStore } from "@/stores/settings";
 import { computeGoalProjection, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
 import type {
   Budget,
@@ -23,6 +24,8 @@ import type {
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
+  const settingsStore = useSettingsStore();
+
   // ============================================
   // STATE
   // ============================================
@@ -92,6 +95,68 @@ export const useFinanceStore = defineStore("finance", () => {
   // Latest previous-close per symbol, captured from the periodic quote fetch
   // (in-memory only — powers the dashboard watchlist day change without an extra call).
   const quotePreviousCloses = ref<Record<string, number>>({});
+
+  // FX rates keyed 'FROM->TO' (target-keyed so a user-currency change never reads
+  // stale rates for the old target). Cached in localStorage so offline startup can
+  // still convert holdings' cached lastPrice.
+  const FX_CACHE_KEY = "fxRatesCache";
+  const fxRates = ref<Record<string, number>>({});
+
+  try {
+    const rawFxCache = localStorage.getItem(FX_CACHE_KEY);
+    if (rawFxCache) {
+      fxRates.value = JSON.parse(rawFxCache).rates ?? {};
+    }
+  } catch {
+    // Corrupt cache — rates refetch on the next price refresh
+  }
+
+  async function refreshFxRates() {
+    const to = settingsStore.currency;
+    const froms = [...new Set(
+      investmentHoldings.value
+        .map(h => h.currency)
+        .filter((c): c is string => !!c && c !== to)
+    )];
+    if (froms.length === 0) return;
+    try {
+      const rates = await window.electronAPI.getFxRates(froms.map(from => ({ from, to })));
+      if (rates.length === 0) return; // fetch failed/empty — keep cached rates
+      for (const r of rates) fxRates.value[`${r.from}->${r.to}`] = r.rate;
+      localStorage.setItem(FX_CACHE_KEY, JSON.stringify({ rates: fxRates.value }));
+    } catch (e) {
+      console.error("[Store] Failed to refresh FX rates:", e);
+    }
+  }
+
+  // null = rate unknown (callers fall back to 1:1 and can flag it in the UI)
+  function fxRateFor(fromCurrency?: string | null): number | null {
+    if (!fromCurrency || fromCurrency === settingsStore.currency) return 1;
+    return fxRates.value[`${fromCurrency}->${settingsStore.currency}`] ?? null;
+  }
+
+  function convertToUserCurrency(amount: number, fromCurrency?: string | null): number {
+    return amount * (fxRateFor(fromCurrency) ?? 1);
+  }
+
+  function holdingMarketValue(holding: InvestmentHolding): number {
+    return convertToUserCurrency(holding.quantity * (holding.lastPrice || 0), holding.currency);
+  }
+
+  function holdingFxMissing(holding: InvestmentHolding): boolean {
+    return fxRateFor(holding.currency) === null;
+  }
+
+  // Rates for the current user currency keyed by source code (e.g. { USD: 1.37 }),
+  // for main-process consumers like the net-worth trend.
+  function userFxRateMap(): Record<string, number> {
+    const suffix = `->${settingsStore.currency}`;
+    const map: Record<string, number> = {};
+    for (const [key, rate] of Object.entries(fxRates.value)) {
+      if (key.endsWith(suffix)) map[key.slice(0, -suffix.length)] = rate;
+    }
+    return map;
+  }
 
   const refreshCooldown = ref(0);
   let cooldownInterval: number | undefined;
@@ -448,8 +513,8 @@ export const useFinanceStore = defineStore("finance", () => {
         return sum;
       }, 0);
 
-      // Add investment holdings current market value
-      const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+      // Add investment holdings current market value (converted to user currency)
+      const holdingsValue = accountHoldings.reduce((sum, h) => sum + holdingMarketValue(h), 0);
 
       account.balance = account.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
     });
@@ -765,7 +830,7 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       dashboardTransactions.value = await window.electronAPI.getAllTransactions();
       dashboardTrends.value = await window.electronAPI.getRollingMonthlyTrends();
-      netWorthTrends.value = await window.electronAPI.getNetWorthTrend();
+      netWorthTrends.value = await window.electronAPI.getNetWorthTrend(userFxRateMap());
       await fetchInvestmentHoldings();
     } catch (e) {
       console.error("[Store] Failed to load dashboard data:", e);
@@ -1021,7 +1086,7 @@ export const useFinanceStore = defineStore("finance", () => {
     return newTx;
   }
 
-  async function refreshInvestmentPrices() {
+  async function refreshInvestmentPrices(options?: { rebuildHistory?: boolean }) {
     if (investmentHoldings.value.length === 0) return;
     
     const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
@@ -1083,6 +1148,9 @@ export const useFinanceStore = defineStore("finance", () => {
             name: quote.name
           };
 
+          // Never clobber a known currency with undefined (quote may omit it on drift)
+          if (quote.currency) updateData.currency = quote.currency;
+
           // If sector weightings are missing, fetch them
           if (!holding.sectorWeightings) {
             updateData.sectorWeightings = await window.electronAPI.getAssetProfile(holding.symbol);
@@ -1127,8 +1195,11 @@ export const useFinanceStore = defineStore("finance", () => {
         await window.electronAPI.showPriceAlerts(unique);
       }
 
-      // Refresh store state
+      // Refresh store state. FX rates refresh after holdings (so the pair list
+      // reflects fresh currencies) and before accounts (so balances convert
+      // with fresh rates).
       await fetchInvestmentHoldings();
+      await refreshFxRates();
       await fetchAccounts();
 
       const today = new Date().toISOString().split('T')[0];
@@ -1174,8 +1245,10 @@ export const useFinanceStore = defineStore("finance", () => {
         const earliestTxnDate = txnDates.length > 0 ? txnDates[0] : today;
 
         // If we have history, we only need to refresh from that date to today.
-        // If we don't, we start from the beginning.
-        const startDateStr = lastDate || earliestTxnDate;
+        // If we don't, we start from the beginning. A rebuild (e.g. after a
+        // user-currency change) recomputes everything so old rows aren't left
+        // denominated in the previous currency.
+        const startDateStr = options?.rebuildHistory ? earliestTxnDate : (lastDate || earliestTxnDate);
         
         // We re-calculate the last recorded day anyway to ensure it has latest prices
         if (startDateStr < oldestRequiredDate) oldestRequiredDate = startDateStr;
@@ -1279,7 +1352,9 @@ export const useFinanceStore = defineStore("finance", () => {
                      if (mDate !== today && pastPrices.length > 0) {
                          price = pastPrices[pastPrices.length - 1].close;
                      }
-                     holdingsValue += (currentQty * price);
+                     // Historical closes are native-currency; converted at the current
+                     // cached rate (frugal trade-off — no per-day historical FX).
+                     holdingsValue += convertToUserCurrency(currentQty * price, holding.currency);
                   }
                }
 
@@ -1381,7 +1456,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function fetchNetWorthTrend() {
     try {
-      netWorthTrends.value = await window.electronAPI.getNetWorthTrend();
+      netWorthTrends.value = await window.electronAPI.getNetWorthTrend(userFxRateMap());
     } catch (e) {
       console.error("[Store] Failed to fetch net worth trend:", e);
       netWorthTrends.value = [];
@@ -1715,6 +1790,7 @@ export const useFinanceStore = defineStore("finance", () => {
           quantity: holding.quantity,
           lastPrice: holding.lastPrice,
           lastUpdated: holding.lastUpdated,
+          currency: holding.currency ?? null,
           sectorWeightings: holding.sectorWeightings,
           // Carry alert thresholds; reference/notified caches reset to null (re-anchor on the new machine)
           alertDailyPct: holding.alertDailyPct ?? null,
@@ -1912,6 +1988,12 @@ export const useFinanceStore = defineStore("finance", () => {
     investmentTransactions,
     investmentHistory,
     quotePreviousCloses,
+    fxRates,
+    refreshFxRates,
+    fxRateFor,
+    convertToUserCurrency,
+    holdingMarketValue,
+    holdingFxMissing,
     refreshCooldown,
     startRefreshCooldown,
     isLoading,
