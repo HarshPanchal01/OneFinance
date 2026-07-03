@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 
 const rowRefs = ref<Record<string, HTMLElement>>({});
@@ -29,16 +29,17 @@ const sortedHoldings = computed(() => {
   const assetData = new Map<string, { 
       name: string | null;
       quantity: number; 
-      marketValue: number; 
-      bookValue: number; 
+      marketValue: number;
+      bookValue: number;
       lastPrice: number;
+      currency: string | null;
   }>();
 
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
 
-    // Market Value
-    const marketValue = h.quantity * (h.lastPrice || 0);
+    // Market Value (converted to user currency)
+    const marketValue = store.holdingMarketValue(h);
 
     // Calculate Book Value
     const hTxs = props.transactions
@@ -61,13 +62,14 @@ const sortedHoldings = computed(() => {
     }
 
     // Combine identical symbols across different accounts if "all" is selected
-    const existing = assetData.get(h.symbol) || { name: h.name, quantity: 0, marketValue: 0, bookValue: 0, lastPrice: h.lastPrice || 0 };
+    const existing = assetData.get(h.symbol) || { name: h.name, quantity: 0, marketValue: 0, bookValue: 0, lastPrice: h.lastPrice || 0, currency: h.currency ?? null };
     assetData.set(h.symbol, {
       name: existing.name || h.name,
       quantity: existing.quantity + h.quantity,
       marketValue: existing.marketValue + marketValue,
       bookValue: existing.bookValue + currentBookValue,
-      lastPrice: h.lastPrice || 0 // Assuming the price is the same for the same symbol
+      lastPrice: h.lastPrice || 0, // Assuming the price is the same for the same symbol
+      currency: h.currency ?? existing.currency
     });
   });
 
@@ -174,7 +176,14 @@ watch(() => props.highlightedSymbol, async (newSymbol) => {
               <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.avgCost) }}</span>
             </td>
             <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
-              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.lastPrice) }}</span>
+              <!-- Quote price stays in the holding's native currency -->
+              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">
+                {{ formatCurrencyIn(asset.lastPrice, asset.currency) }}
+                <span
+                  v-if="isForeignCurrency(asset.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500"
+                >{{ asset.currency }}</span>
+              </span>
             </td>
             <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
               <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.marketValue) }}</span>

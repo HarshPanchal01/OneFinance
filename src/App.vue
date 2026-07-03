@@ -223,6 +223,13 @@ async function initializeApp() {
   syncReminderLocale();
   watch(() => [settingsStore.formattingLocale, settingsStore.currency], syncReminderLocale);
 
+  // A user-currency change re-denominates all holding conversions: refetch FX
+  // pairs and fully rebuild investment history so old rows aren't left in the
+  // previous currency (which would corrupt period returns).
+  watch(() => settingsStore.currency, () => {
+    void store.refreshInvestmentPrices({ rebuildHistory: true });
+  });
+
   // Add keyboard shortcuts
   window.addEventListener("keydown", handleKeydown);
 }

@@ -81,7 +81,7 @@ import {
   bulkUpsertInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
-import { getQuote, getQuotes, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
+import { getQuote, getQuotes, getFxRates, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, SavingsGoal } from "@/types";
 
 /**
@@ -282,8 +282,8 @@ export function registerIpcHandlers(): void {
     return getTotalMonthSpend(year, month);
   });
 
-  ipcMain.handle("db:getNetWorthTrend", async () => {
-    return getNetWorthTrend();
+  ipcMain.handle("db:getNetWorthTrend", async (_event, fxRates?: Record<string, number>) => {
+    return getNetWorthTrend(fxRates);
   });
 
   ipcMain.handle("db:getDatabaseVersion", async () => {
@@ -408,6 +408,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("finance:getQuotes", async (_event, symbols: string[]) => {
     return getQuotes(symbols);
+  });
+
+  ipcMain.handle("finance:getFxRates", async (_event, pairs: { from: string; to: string }[]) => {
+    return getFxRates(pairs);
   });
 
   ipcMain.handle("finance:searchSymbols", async (_event, query: string) => {

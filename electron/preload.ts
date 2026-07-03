@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -64,6 +64,9 @@ const electronAPI = {
 
   getQuotes: (symbols: string[]): Promise<any[]> =>
     ipcRenderer.invoke("finance:getQuotes", symbols),
+
+  getFxRates: (pairs: { from: string; to: string }[]): Promise<FxRate[]> =>
+    ipcRenderer.invoke("finance:getFxRates", pairs),
 
   searchSymbols: (query: string): Promise<any[]> =>
     ipcRenderer.invoke("finance:searchSymbols", query),
@@ -266,8 +269,8 @@ const electronAPI = {
   getTotalMonthSpend: (year: number, month: number): Promise<number> =>
     ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
 
-  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
-    ipcRenderer.invoke("db:getNetWorthTrend"),
+  getNetWorthTrend: (fxRates?: Record<string, number>): Promise<{ month: number, year: number, balance: number }[]> =>
+    ipcRenderer.invoke("db:getNetWorthTrend", fxRates),
 
   getDatabaseVersion: (): Promise<number> =>
     ipcRenderer.invoke("db:getDatabaseVersion"),

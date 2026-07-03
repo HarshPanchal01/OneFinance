@@ -316,6 +316,7 @@ export function initializeDatabase(): void {
       quantity REAL NOT NULL,
       lastPrice REAL,
       lastUpdated TEXT,
+      currency TEXT DEFAULT NULL,
       sectorWeightings TEXT,
       alertDailyPct REAL DEFAULT NULL,
       alertWeeklyPct REAL DEFAULT NULL,
@@ -1523,7 +1524,7 @@ export function getTotalMonthSpend(year: number, month: number): number {
     return result.total || 0;
 }
 
-export function getNetWorthTrend(): { month: number, year: number, balance: number }[] {
+export function getNetWorthTrend(fxRates?: Record<string, number>): { month: number, year: number, balance: number }[] {
     const accounts = getAccounts();
     const holdings = getInvestmentHoldings();
 
@@ -1555,9 +1556,11 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
 
     currentNetWorth += (cashFlow.total || 0);
 
-    // Current Market Value of Holdings
+    // Current Market Value of Holdings, converted to the user's currency when a
+    // rate is known (must match the renderer's converted account balances)
     for (const h of holdings) {
-        currentNetWorth += (h.quantity * (h.lastPrice || 0));
+        const rate = (h.currency && fxRates?.[h.currency]) || 1;
+        currentNetWorth += (h.quantity * (h.lastPrice || 0) * rate);
     }
 
     // 2. Fetch monthly changes that actually AFFECT net worth (Income, Expense, Fees, Adjustments)
@@ -1748,8 +1751,8 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, currency, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = insert.run(
@@ -1759,6 +1762,7 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.quantity,
     data.lastPrice,
     data.lastUpdated,
+    data.currency ?? null,
     data.sectorWeightings || null,
     data.alertDailyPct ?? null,
     data.alertWeeklyPct ?? null,
@@ -1779,7 +1783,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   
   const update = db.prepare(`
     UPDATE investment_holdings
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?,
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, currency = ?, sectorWeightings = ?,
         alertDailyPct = ?, alertWeeklyPct = ?, alertMonthlyPct = ?,
         refClose1w = ?, refClose1m = ?, refDate = ?,
         alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?
@@ -1792,6 +1796,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.quantity ?? current.quantity,
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
+    data.currency !== undefined ? data.currency : current.currency,
     data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
     data.alertDailyPct !== undefined ? data.alertDailyPct : current.alertDailyPct,
     data.alertWeeklyPct !== undefined ? data.alertWeeklyPct : current.alertWeeklyPct,

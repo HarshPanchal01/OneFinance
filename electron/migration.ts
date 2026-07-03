@@ -323,5 +323,15 @@ function migrate1to2(db: any): void {
   } catch (e) {
     console.error('[Migration] Migration error creating savings_goals table:', e);
   }
+
+  // Add native quote currency to holdings (multi-currency portfolios)
+  try {
+    db.exec("ALTER TABLE investment_holdings ADD COLUMN currency TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding currency to investment_holdings:', error);
+    }
+  }
 }
 

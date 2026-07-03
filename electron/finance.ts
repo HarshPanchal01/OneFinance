@@ -1,4 +1,5 @@
 import YahooFinance from 'yahoo-finance2';
+import { FxRate } from '@/types';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
@@ -53,6 +54,45 @@ export async function getQuotes(symbols: string[]) {
   } catch (error) {
     console.error(`[Finance] Error fetching batch quotes:`, error);
     throw error;
+  }
+}
+
+/**
+ * Yahoo FX quote symbol for a currency pair ('USD','CAD' -> 'USDCAD=X').
+ * Returns null for identity or incomplete pairs (no fetch needed/possible).
+ */
+export function fxPairSymbol(from: string, to: string): string | null {
+  if (!from || !to) return null;
+  const f = from.toUpperCase();
+  const t = to.toUpperCase();
+  if (f === t) return null;
+  return `${f}${t}=X`;
+}
+
+/**
+ * Fetch FX rates for currency pairs in one batch quote call.
+ * Never throws — a failure returns [] so callers keep their cached rates.
+ */
+export async function getFxRates(pairs: { from: string; to: string }[]): Promise<FxRate[]> {
+  const symbolToPair = new Map<string, { from: string; to: string }>();
+  for (const p of pairs) {
+    const sym = fxPairSymbol(p.from, p.to);
+    if (sym) symbolToPair.set(sym, { from: p.from.toUpperCase(), to: p.to.toUpperCase() });
+  }
+  if (symbolToPair.size === 0) return [];
+
+  try {
+    const quotes = await getQuotes([...symbolToPair.keys()]);
+    return quotes
+      .filter(q => q.symbol && symbolToPair.has(q.symbol) && q.price != null)
+      .map(q => ({
+        ...symbolToPair.get(q.symbol)!,
+        rate: q.price as number,
+        updatedAt: q.updatedAt,
+      }));
+  } catch (error) {
+    console.error('[Finance] Error fetching FX rates:', error);
+    return [];
   }
 }
 
