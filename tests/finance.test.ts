@@ -7,6 +7,8 @@ import {
   searchSymbols,
   fxPairSymbol,
   getFxRates,
+  getHistoricalFxRate,
+  getHistoricalFxRates,
 } from "../electron/finance";
 
 // finance.ts builds `new YahooFinance(...)` at module load, so the mock must stand in
@@ -273,6 +275,85 @@ describe("getHistoricalPrices", () => {
     await getHistoricalPrices("AAPL", "2026-06-10", "2026-06-10");
     const { period1, period2 } = mockChart.mock.calls[0][1];
     expect(period2.getTime()).toBeGreaterThan(period1.getTime());
+  });
+});
+
+describe("getHistoricalFxRates", () => {
+  const fxQuotes = (rows: [string, number][]) => ({
+    quotes: rows.map(([date, close]) => ({ date: new Date(`${date}T13:30:00.000Z`), close })),
+  });
+
+  it("resolves each date to its close via one chart() call for the whole span", async () => {
+    mockChart.mockResolvedValue(fxQuotes([
+      ["2026-06-10", 1.36],
+      ["2026-06-11", 1.37],
+      ["2026-06-12", 1.38],
+    ]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-10", "2026-06-12"]);
+    expect(rates.get("2026-06-10")).toBe(1.36);
+    expect(rates.get("2026-06-12")).toBe(1.38);
+    expect(mockChart).toHaveBeenCalledTimes(1);
+    expect(mockChart.mock.calls[0][0]).toBe("USDCAD=X");
+  });
+
+  it("falls back to the prior trading day's close for weekend/holiday dates", async () => {
+    // 2026-06-13 is a Saturday — no candle for it
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 1.37]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-13"]);
+    expect(rates.get("2026-06-13")).toBe(1.37);
+  });
+
+  it("maps identity pairs to 1 without a network call", async () => {
+    const rates = await getHistoricalFxRates("CAD", "CAD", ["2026-06-10"]);
+    expect(rates.get("2026-06-10")).toBe(1);
+    expect(mockChart).not.toHaveBeenCalled();
+  });
+
+  it("maps a date with no close on or before it to null", async () => {
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 1.37]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-01"]);
+    expect(rates.get("2026-06-01")).toBeNull();
+  });
+
+  it("rejects a 0-value candle (a persisted rate of 0 would zero the trade everywhere)", async () => {
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 0]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-12"]);
+    expect(rates.get("2026-06-12")).toBeNull();
+  });
+
+  it("maps all dates to null (does not throw) on API error", async () => {
+    mockChart.mockRejectedValue(new Error("chart failed"));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-10"]);
+    expect(rates.get("2026-06-10")).toBeNull();
+  });
+
+  it("returns an empty map for no dates or an incomplete pair", async () => {
+    expect((await getHistoricalFxRates("USD", "CAD", [])).size).toBe(0);
+    expect((await getHistoricalFxRates("", "CAD", ["2026-06-10"])).size).toBe(0);
+    expect(mockChart).not.toHaveBeenCalled();
+  });
+
+  it("pads the fetched span so boundary dates resolve (a week back, a day forward)", async () => {
+    mockChart.mockResolvedValue(fxQuotes([]));
+    await getHistoricalFxRates("USD", "CAD", ["2026-06-10", "2026-06-12"]);
+    const { period1, period2 } = mockChart.mock.calls[0][1];
+    expect(period1.getTime()).toBeLessThan(new Date("2026-06-10").getTime());
+    expect(period2.getTime()).toBeGreaterThan(new Date("2026-06-12").getTime());
+  });
+});
+
+describe("getHistoricalFxRate", () => {
+  it("returns the close on the trade date", async () => {
+    mockChart.mockResolvedValue({
+      quotes: [{ date: new Date("2026-06-10T13:30:00.000Z"), close: 1.36 }],
+    });
+    expect(await getHistoricalFxRate("USD", "CAD", "2026-06-10")).toBe(1.36);
+  });
+
+  it("returns 1 for an identity pair and null when unresolvable", async () => {
+    expect(await getHistoricalFxRate("CAD", "CAD", "2026-06-10")).toBe(1);
+    mockChart.mockResolvedValue({ quotes: [] });
+    expect(await getHistoricalFxRate("USD", "CAD", "2026-06-10")).toBeNull();
   });
 });
 

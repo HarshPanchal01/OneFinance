@@ -225,7 +225,9 @@ async function initializeApp() {
 
   // A user-currency change re-denominates all holding conversions: refetch FX
   // pairs and fully rebuild investment history so old rows aren't left in the
-  // previous currency (which would corrupt period returns).
+  // previous currency (which would corrupt period returns). Stored trade fxRates
+  // re-derive inside refreshInvestmentPrices (the tradeFxTarget heal detects the
+  // change), ordered before the rebuild reads the trades.
   watch(() => settingsStore.currency, () => {
     void store.refreshInvestmentPrices({ rebuildHistory: true });
   });

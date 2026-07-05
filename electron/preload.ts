@@ -77,6 +77,12 @@ const electronAPI = {
   getHistoricalPrices: (symbol: string, period1: string, period2: string): Promise<{ date: string; close: number }[]> =>
     ipcRenderer.invoke("finance:getHistoricalPrices", symbol, period1, period2),
 
+  getHistoricalFxRate: (from: string, to: string, date: string): Promise<number | null> =>
+    ipcRenderer.invoke("finance:getHistoricalFxRate", from, to, date),
+
+  recomputeTradeFxRates: (userCurrency: string, force?: boolean): Promise<number> =>
+    ipcRenderer.invoke("investments:recomputeTradeFx", userCurrency, force),
+
   // ============================================
   // RECURRING TRANSACTIONS
   // ============================================

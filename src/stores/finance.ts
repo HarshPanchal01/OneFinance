@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
 import { useSettingsStore } from "@/stores/settings";
-import { computeGoalProjection, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
+import { closeOnOrBefore, computeGoalProjection, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
 import type {
   Budget,
   SavingsGoal,
@@ -507,11 +507,7 @@ export const useFinanceStore = defineStore("finance", () => {
       const accountHoldingIds = accountHoldings.map(h => h.id);
       const accountInvestmentTransactions = investmentTransactionsRaw.filter(it => accountHoldingIds.includes(it.holdingId));
       
-      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => {
-        if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-        if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-        return sum;
-      }, 0);
+      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
       // Add investment holdings current market value (converted to user currency)
       const holdingsValue = accountHoldings.reduce((sum, h) => sum + holdingMarketValue(h), 0);
@@ -1071,7 +1067,43 @@ export const useFinanceStore = defineStore("finance", () => {
     return success;
   }
 
-  async function addInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>) {
+  async function addInvestmentTransaction(
+    data: Omit<InvestmentTransaction, 'id'>,
+    options?: { captureFx?: boolean }
+  ) {
+    // Stamp the trade with its native currency + trade-date FX rate (captured once,
+    // persisted on the row — frugality rule) so cost basis and cash impact convert
+    // like broker statements. Callers may pass `currency` (e.g. AddHoldingModal's
+    // fresh quote currency, which can be newer than the holding row's); import
+    // passes { captureFx: false } to round-trip stored values as-is (legacy rows
+    // stay null = user currency, rate 1).
+    if (options?.captureFx !== false && data.fxRate == null) {
+      const currency = data.currency
+        ?? investmentHoldings.value.find(h => h.id === data.holdingId)?.currency
+        ?? null;
+      let fxRate: number | null = null;
+      if (currency) {
+        if (currency === settingsStore.currency) {
+          fxRate = 1;
+        } else if (data.date >= toIsoDateString(new Date())) {
+          // Today's trade: the live cached rate (refreshed every 30 min) is what
+          // the historical endpoint would return — skip the Yahoo call
+          fxRate = fxRateFor(currency);
+        }
+        if (fxRate == null) {
+          try {
+            fxRate = await window.electronAPI.getHistoricalFxRate(currency, settingsStore.currency, data.date);
+          } catch (e) {
+            console.error("[Store] Failed to fetch trade-date FX rate:", e);
+          }
+          // Offline/failed fetch — fall back to the live cached rate. A row left
+          // at null is re-derived by the refresh-cycle recompute once online.
+          fxRate = fxRate ?? fxRateFor(currency);
+        }
+      }
+      data = { ...data, currency, fxRate };
+    }
+
     const newTx = await window.electronAPI.createInvestmentTransaction(data);
     if (newTx) {
       // Find the holding to know which account to refresh
@@ -1088,7 +1120,16 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function refreshInvestmentPrices(options?: { rebuildHistory?: boolean }) {
     if (investmentHoldings.value.length === 0) return;
-    
+
+    // Self-heal stored trade fxRates before anything reads them (the backfill
+    // below, converted balances): re-derives rows targeting a stale currency or
+    // left null by an offline creation. Zero Yahoo calls when already healthy.
+    try {
+      await window.electronAPI.recomputeTradeFxRates(settingsStore.currency);
+    } catch (e) {
+      console.error("[Store] Trade FX heal failed:", e);
+    }
+
     const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
     try {
       const quotes = await window.electronAPI.getQuotes(symbols);
@@ -1102,11 +1143,6 @@ export const useFinanceStore = defineStore("finance", () => {
         const d = new Date();
         d.setDate(d.getDate() - n);
         return d.toISOString().split('T')[0];
-      };
-      const closeOnOrBefore = (history: { date: string; close: number }[], dateStr: string): number | null => {
-        const eligible = history.filter(h => h.date <= dateStr && h.close != null);
-        if (eligible.length === 0) return null;
-        return eligible.reduce((a, b) => (a.date >= b.date ? a : b)).close;
       };
       const alertQueue: PriceAlert[] = [];
 
@@ -1300,11 +1336,7 @@ export const useFinanceStore = defineStore("finance", () => {
               return sum;
             }, 0);
             
-            const investmentTradeSumAll = iTxns.reduce((sum, it) => {
-              if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-              if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-              return sum;
-            }, 0);
+            const investmentTradeSumAll = iTxns.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
             const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
 
@@ -1330,10 +1362,8 @@ export const useFinanceStore = defineStore("finance", () => {
                });
 
                const futureITxns = iTxns.filter(t => t.date > mDate);
-               futureITxns.forEach(it => {
-                  if (it.type === 'buy') pastCash += (it.quantity * it.price + it.fees);
-                  if (it.type === 'sell') pastCash -= (it.quantity * it.price - it.fees);
-               });
+               // Walking backwards: undo each future trade's cash impact
+               futureITxns.forEach(it => { pastCash -= tradeCashImpact(it); });
 
                let holdingsValue = 0;
                for (const holding of accHoldings) {
@@ -1822,14 +1852,18 @@ export const useFinanceStore = defineStore("finance", () => {
           throw new Error("Holding id mapping not found for investment transaction id: " + tx.id);
         }
 
+        // currency/fxRate round-trip as stored (legacy rows stay null = user
+        // currency); the post-import recompute below re-targets them
         await addInvestmentTransaction({
           holdingId: mappedHoldingId,
           date: tx.date,
           type: tx.type,
           quantity: tx.quantity,
           price: tx.price,
-          fees: tx.fees
-        });
+          fees: tx.fees,
+          currency: tx.currency ?? null,
+          fxRate: tx.fxRate ?? null
+        }, { captureFx: false });
       }
 
       // Reset holding quantities to their exported values since adding transactions artificially inflates them
@@ -1922,6 +1956,15 @@ export const useFinanceStore = defineStore("finance", () => {
         });
       }
       await fetchGoals();
+
+      // Imported fxRates target the EXPORTER-time user currency, which may not be
+      // this machine's — force a full re-derive against the current one (a failed
+      // fetch here self-heals via the refresh-cycle recompute)
+      try {
+        await window.electronAPI.recomputeTradeFxRates(settingsStore.currency, true);
+      } catch (e) {
+        console.error("[Store] Post-import trade FX recompute failed:", e);
+      }
 
     }
    catch (error) {

@@ -67,6 +67,9 @@ import {
   deleteInvestmentHolding,
   getInvestmentTransactions,
   getAllInvestmentTransactions,
+  updateInvestmentTransactionFxRates,
+  getMeta,
+  setMeta,
   getAccountInvestmentTransactions,
   getCombinedInvestmentHistory,
   getAllCombinedInvestmentHistory,
@@ -81,7 +84,7 @@ import {
   bulkUpsertInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
-import { getQuote, getQuotes, getFxRates, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
+import { getQuote, getQuotes, getFxRates, searchSymbols, getAssetProfile, getHistoricalPrices, getHistoricalFxRate, getHistoricalFxRates } from "./finance";
 import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, SavingsGoal } from "@/types";
 
 /**
@@ -424,6 +427,50 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("finance:getHistoricalPrices", async (_event, symbol: string, period1: string, period2: string) => {
     return getHistoricalPrices(symbol, period1, period2);
+  });
+
+  ipcMain.handle("finance:getHistoricalFxRate", async (_event, from: string, to: string, date: string) => {
+    return getHistoricalFxRate(from, to, date);
+  });
+
+  // Keep every trade's stored fxRate consistent with the user currency it
+  // targets. `app_meta.tradeFxTarget` records which currency the rates were last
+  // derived against; it only advances when every candidate row resolved, so a
+  // failed/offline run self-heals on a later call (the 30-min refresh cycle)
+  // instead of leaving stale-target rates forever. Modes:
+  //   - target mismatch or `force` (import): re-derive ALL currency-carrying rows
+  //   - otherwise: heal only rows whose fxRate is still null (offline creation)
+  // One historical fetch per distinct trade currency (frugality rule); a healthy
+  // steady-state call costs zero Yahoo requests. Legacy rows (null currency)
+  // stay at rate 1 by design.
+  ipcMain.handle("investments:recomputeTradeFx", async (_event, userCurrency: string, force = false) => {
+    const fullRecompute = force || getMeta("tradeFxTarget") !== userCurrency;
+    const candidates = getAllInvestmentTransactions()
+      .filter(t => t.currency && (fullRecompute || t.fxRate == null));
+
+    const byCurrency = new Map<string, typeof candidates>();
+    for (const t of candidates) {
+      const list = byCurrency.get(t.currency!) ?? [];
+      list.push(t);
+      byCurrency.set(t.currency!, list);
+    }
+
+    const updates: { id: number; fxRate: number | null }[] = [];
+    let unresolved = 0;
+    for (const [currency, group] of byCurrency) {
+      const rates = await getHistoricalFxRates(currency, userCurrency, group.map(t => t.date));
+      for (const t of group) {
+        // No rate (fetch failed / gap) — leave the row untouched rather than
+        // silently downgrading a good rate to 1; the un-advanced target marker
+        // retries it next cycle
+        const rate = rates.get(t.date);
+        if (rate != null) updates.push({ id: t.id, fxRate: rate });
+        else unresolved++;
+      }
+    }
+    updateInvestmentTransactionFxRates(updates);
+    if (unresolved === 0) setMeta("tradeFxTarget", userCurrency);
+    return updates.length;
   });
 
   // ============================================
