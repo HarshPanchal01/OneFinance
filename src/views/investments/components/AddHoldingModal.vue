@@ -5,6 +5,7 @@ import DatePicker from 'primevue/datepicker';
 import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
 import { useSettingsStore } from '@/stores/settings';
+import { tradeCashImpact } from '@/utils';
 
 const props = defineProps<{
   accountId: number | null;
@@ -16,7 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 
 const cashBalance = computed(() => {
@@ -45,6 +46,12 @@ const form = reactive({
   affectCash: true,
   currency: null as string | null
 });
+
+// Price/fees are entered in the symbol's native currency; the summary previews
+// the cash impact at the live rate (the persisted rate is the trade-date one,
+// resolved on save — for backdated buys this preview is an estimate).
+const nativeTotal = computed(() => ((form.quantity || 0) * (form.price || 0)) + (form.fees || 0));
+const convertedTotal = computed(() => store.convertToUserCurrency(nativeTotal.value, form.currency));
 
 let searchTimeout: any = null;
 watch(searchQuery, (newQuery) => {
@@ -115,18 +122,21 @@ async function submit() {
     }
     
     if (holding) {
-      await store.addInvestmentTransaction({
+      const newTx = await store.addInvestmentTransaction({
         holdingId: holding.id,
         date: isoDate,
         type: 'buy',
         quantity: form.quantity,
         price: form.price,
-        fees: form.fees || 0
+        fees: form.fees || 0,
+        // The fresh quote's currency — the holding row's can be stale/null, and
+        // the form previewed the price in this one
+        currency: form.currency
       });
 
-      if (!form.affectCash) {
-        // Offset the cash subtracted by the buy transaction
-        const totalCost = (form.quantity * form.price) + (form.fees || 0);
+      if (!form.affectCash && newTx) {
+        // Offset the cash subtracted by the buy, at the rate captured on the row
+        const totalCost = -tradeCashImpact(newTx);
         await window.electronAPI.adjustAccountCash(props.accountId, totalCost, "Historical Book Value Addition");
         await store.fetchAccounts();
       }
@@ -238,18 +248,32 @@ async function submit() {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per Share</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Price per Share
+                <span
+                  v-if="isForeignCurrency(form.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500 font-normal"
+                >({{ form.currency }})</span>
+              </label>
               <AmountInput
                 v-model="form.price"
                 :show-currency="true"
+                :currency="form.currency"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fees (Optional)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Fees (Optional)
+                <span
+                  v-if="isForeignCurrency(form.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500 font-normal"
+                >({{ form.currency }})</span>
+              </label>
               <AmountInput
                 v-model="form.fees"
                 :show-currency="true"
+                :currency="form.currency"
               />
             </div>
 
@@ -283,9 +307,16 @@ async function submit() {
                     {{ formatCurrency(cashBalance) }}
                   </span>
                 </div>
-                <span class="font-bold text-expense">
-                  - <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (form.fees || 0))) }}</span>
-                </span>
+                <div class="flex flex-col items-end">
+                  <span class="font-bold text-expense">
+                    - <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(convertedTotal) }}</span>
+                  </span>
+                  <span
+                    v-if="isForeignCurrency(form.currency)"
+                    class="text-[10px] text-gray-400 dark:text-gray-500"
+                    :class="{ 'privacy-blur': settingsStore.privacyMode }"
+                  >{{ formatCurrencyIn(nativeTotal, form.currency) }} {{ form.currency }}</span>
+                </div>
               </div>
             </div>
           </div>

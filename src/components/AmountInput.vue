@@ -8,6 +8,8 @@ const props = defineProps<{
   placeholder?: string;
   disabled?: boolean;
   showCurrency?: boolean;
+  // Override the displayed symbol (e.g. a foreign holding's native trade currency)
+  currency?: string | null;
 }>();
 
 const settingsStore = useSettingsStore();
@@ -20,7 +22,7 @@ const currencySymbol = computed(() => {
   try {
     const parts = new Intl.NumberFormat(settingsStore.resolvedLocale, {
       style: 'currency',
-      currency: settingsStore.currency,
+      currency: props.currency || settingsStore.currency,
       currencyDisplay: 'narrowSymbol',
     }).formatToParts(0);
     return parts.find(p => p.type === 'currency')?.value || '$';

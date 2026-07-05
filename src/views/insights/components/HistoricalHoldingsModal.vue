@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { useFormatter } from '@/composables/useFormatter';
-import { formatDate } from '@/utils';
+import { formatDate, tradeCashImpact } from '@/utils';
 
 const props = defineProps<{
   date: string;
@@ -72,11 +72,7 @@ watch(() => props.date, async (newDate) => {
     const hIds = accHoldings.map(h => h.id);
     const iTxnsAll = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
     
-    const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => {
-      if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-      if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-      return sum;
-    }, 0);
+    const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
     let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
 
@@ -98,10 +94,8 @@ watch(() => props.date, async (newDate) => {
     });
 
     const futureITxns = iTxnsAll.filter(t => t.date > newDate);
-    futureITxns.forEach(it => {
-      if (it.type === 'buy') currentCash += (it.quantity * it.price + it.fees);
-      if (it.type === 'sell') currentCash -= (it.quantity * it.price - it.fees);
-    });
+    // Walking backwards: undo each future trade's cash impact
+    futureITxns.forEach(it => { currentCash -= tradeCashImpact(it); });
 
     computedCash += currentCash;
     

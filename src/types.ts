@@ -122,8 +122,10 @@ export interface InvestmentTransaction {
   date: string;
   type: InvestmentTransactionType;
   quantity: number;
-  price: number;
-  fees: number;
+  price: number;    // in `currency` (native trade currency)
+  fees: number;     // in `currency`, converted with the same fxRate
+  currency?: string | null;  // null = legacy row entered as user currency
+  fxRate?: number | null;    // trade currency -> user currency at trade date; null = 1
 }
 
 export interface InvestmentHistory {

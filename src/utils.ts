@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction, InvestmentTransaction } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -524,6 +524,26 @@ export function getMonthStr(date: Date): string {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+// Latest close on or before `date` — markets close weekends/holidays, so a date
+// can fall between candles; fall back to the prior trading day. Shared by the
+// FX-at-date lookup (electron/finance.ts) and the price-alert reference closes.
+export function closeOnOrBefore(rows: { date: string; close: number }[], date: string): number | null {
+  let best: { date: string; close: number } | null = null;
+  for (const row of rows) {
+    if (row.close != null && row.date <= date && (!best || row.date > best.date)) best = row;
+  }
+  return best?.close ?? null;
+}
+
+// Signed cash impact of a trade in USER currency: price and fees are native to
+// the trade's currency and convert together at the captured trade-date fxRate
+// (null = 1, legacy user-currency rows). Buys drain cash, sells add it.
+export function tradeCashImpact(tx: Pick<InvestmentTransaction, "type" | "quantity" | "price" | "fees" | "fxRate">): number {
+  const rate = tx.fxRate ?? 1;
+  if (tx.type === "buy") return -(tx.quantity * tx.price + tx.fees) * rate;
+  return (tx.quantity * tx.price - tx.fees) * rate;
 }
 
 const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44; // average month length

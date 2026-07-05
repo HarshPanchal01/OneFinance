@@ -16,7 +16,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const { formatDate, formatCurrency } = useFormatter();
+const { formatDate, formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 const store = useFinanceStore();
 
@@ -699,11 +699,24 @@ onUnmounted(() => {
                 <td class="px-4 py-4 text-right font-medium text-gray-900 dark:text-white">
                   <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.quantity }">{{ tx.quantity || '---' }}</span>
                 </td>
+                <!-- Trade price/fees stay in the trade's native currency; Total is converted -->
                 <td class="px-4 py-4 text-right text-gray-600 dark:text-gray-300">
-                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.price }">{{ tx.price ? formatCurrency(tx.price) : '---' }}</span>
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.price }">
+                    {{ tx.price ? formatCurrencyIn(tx.price, tx.currency) : '---' }}
+                    <span
+                      v-if="tx.price && isForeignCurrency(tx.currency)"
+                      class="text-[10px] text-gray-400 dark:text-gray-500"
+                    >{{ tx.currency }}</span>
+                  </span>
                 </td>
                 <td class="px-4 py-4 text-right text-gray-500 dark:text-gray-400">
-                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.fees }">{{ tx.fees ? formatCurrency(tx.fees) : '---' }}</span>
+                  <span :class="{ 'privacy-blur': settingsStore.privacyMode && tx.fees }">
+                    {{ tx.fees ? formatCurrencyIn(tx.fees, tx.currency) : '---' }}
+                    <span
+                      v-if="tx.fees && isForeignCurrency(tx.currency)"
+                      class="text-[10px] text-gray-400 dark:text-gray-500"
+                    >{{ tx.currency }}</span>
+                  </span>
                 </td>
                 <td
                   class="px-4 py-4 text-right font-bold whitespace-nowrap"

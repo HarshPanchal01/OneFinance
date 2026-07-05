@@ -333,5 +333,34 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error adding currency to investment_holdings:', error);
     }
   }
+
+  // Add app metadata key/value table (e.g. tradeFxTarget)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating app_meta table:', e);
+  }
+
+  // Add trade-date FX fields to trades (cost basis in user currency).
+  // null currency = legacy row entered as user currency; null fxRate = 1.
+  const tradeFxColumns = [
+    "ALTER TABLE investment_transactions ADD COLUMN currency TEXT DEFAULT NULL",
+    "ALTER TABLE investment_transactions ADD COLUMN fxRate REAL DEFAULT NULL",
+  ];
+  for (const sql of tradeFxColumns) {
+    try {
+      db.exec(sql);
+    } catch (e) {
+      const error = e as any;
+      if (!error?.message?.includes('duplicate column name')) {
+        console.error('[Migration] Migration error adding trade FX column:', error);
+      }
+    }
+  }
 }
 

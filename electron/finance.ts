@@ -1,5 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
 import { FxRate } from '@/types';
+import { closeOnOrBefore } from '@/utils';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
@@ -94,6 +95,47 @@ export async function getFxRates(pairs: { from: string; to: string }[]): Promise
     console.error('[Finance] Error fetching FX rates:', error);
     return [];
   }
+}
+
+/**
+ * FX rates for a currency pair as of specific dates, via ONE chart() call
+ * spanning the full date range (frugality rule: callers persist the result per
+ * trade row — this is only hit at trade creation or a user-currency change).
+ * Identity pairs map to 1 with no network call; unknown dates map to null.
+ */
+export async function getHistoricalFxRates(from: string, to: string, dates: string[]): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+  if (dates.length === 0 || !from || !to) return result;
+
+  if (!fxPairSymbol(from, to)) {
+    for (const d of dates) result.set(d, 1);
+    return result;
+  }
+
+  const sorted = [...dates].sort();
+  // Pad a week back so the earliest date can still resolve to a prior close,
+  // and a day forward since Yahoo's period2 can exclude the end day's candle
+  const start = new Date(sorted[0]);
+  start.setDate(start.getDate() - 7);
+  const end = new Date(sorted[sorted.length - 1]);
+  end.setDate(end.getDate() + 1);
+  const rows = await getHistoricalPrices(fxPairSymbol(from, to)!, start, end);
+  for (const d of dates) {
+    // A 0-value candle (Yahoo bad-data day) must not become a persisted rate —
+    // it would zero the trade out of every balance
+    const close = closeOnOrBefore(rows, d);
+    result.set(d, close != null && close > 0 ? close : null);
+  }
+  return result;
+}
+
+/**
+ * FX rate for from->to as of a single date (trade-date rate for cost basis).
+ * Returns null when unresolvable so callers can fall back to a live rate.
+ */
+export async function getHistoricalFxRate(from: string, to: string, date: string): Promise<number | null> {
+  const rates = await getHistoricalFxRates(from, to, [date]);
+  return rates.get(date) ?? null;
 }
 
 /**
