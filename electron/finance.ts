@@ -8,6 +8,26 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 // currencies, futures, etc., which have no tradeable holding and break price fetch.
 const INVESTABLE_QUOTE_TYPES = ['EQUITY', 'ETF', 'MUTUALFUND', 'CRYPTOCURRENCY'];
 
+// London Stock Exchange instruments quote in pence with a currency of 'GBp'
+// (occasionally 'GBX'), whereas Yahoo's FX symbols and the rest of the app work in
+// whole-currency units (GBPUSD=X, a GBP-denominated holding). We normalize at the API
+// boundary — divide by 100 and relabel as GBP — so pence never leaks into FX pairing,
+// storage, or conversion (which would otherwise inflate every converted value 100×).
+export function isPenceCurrency(currency?: string | null): boolean {
+  if (!currency) return false;
+  return currency === 'GBp' || currency.toUpperCase() === 'GBX';
+}
+
+/** A pence (GBp/GBX) value expressed in whole pounds; other currencies pass through. */
+export function fromPence(value: number | null | undefined, currency?: string | null): number | null | undefined {
+  return isPenceCurrency(currency) && value != null ? value / 100 : value;
+}
+
+/** The whole-currency label for a native quote currency ('GBp'/'GBX' -> 'GBP'). */
+export function toMajorCurrency(currency?: string | null): string | null | undefined {
+  return isPenceCurrency(currency) ? 'GBP' : currency;
+}
+
 /**
  * Fetch current quote for a given symbol
 
@@ -16,12 +36,13 @@ export async function getQuote(symbol: string) {
   try {
     console.log(`[Yahoo API] Fetching quote for: ${symbol}`);
     const result = await yahooFinance.quote(symbol, {}, { validateResult: false }) as any;
+    const native = result.currency;
     return {
       symbol: result.symbol,
-      price: result.regularMarketPrice,
-      previousClose: result.regularMarketPreviousClose,
+      price: fromPence(result.regularMarketPrice, native),
+      previousClose: fromPence(result.regularMarketPreviousClose, native),
       name: result.shortName || result.longName,
-      currency: result.currency,
+      currency: toMajorCurrency(native),
       exchange: result.fullExchangeName,
       updatedAt: new Date().toISOString()
     };
@@ -45,10 +66,10 @@ export async function getQuotes(symbols: string[]) {
     
     return quotes.map((result: any) => ({
       symbol: result.symbol,
-      price: result.regularMarketPrice,
-      previousClose: result.regularMarketPreviousClose,
+      price: fromPence(result.regularMarketPrice, result.currency),
+      previousClose: fromPence(result.regularMarketPreviousClose, result.currency),
       name: result.shortName || result.longName,
-      currency: result.currency,
+      currency: toMajorCurrency(result.currency),
       exchange: result.fullExchangeName,
       updatedAt: new Date().toISOString()
     }));
@@ -185,11 +206,13 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
       period2: d2,
       interval: '1d'
     }, { validateResult: false }) as any;
+    // chart() reports the series currency in meta; LSE symbols come through in pence.
+    const native = result?.meta?.currency;
     return (result?.quotes ?? [])
       .filter((q: any) => q?.date && q.close != null)
       .map((q: any) => ({
         date: new Date(q.date).toISOString().split('T')[0],
-        close: q.close as number,
+        close: fromPence(q.close as number, native) as number,
       }));
   } catch (error) {
     console.error(`[Finance] Error fetching historical prices for ${symbol}:`, error);
@@ -219,6 +242,8 @@ export async function getDividendEvents(symbol: string, period1: string | Date, 
   }, { validateResult: false }) as any;
 
   const dividends = result?.events?.dividends;
+  // LSE dividends are reported in pence too — normalize against the series currency.
+  const native = result?.meta?.currency;
   // Raw (unvalidated) payloads key dividends by timestamp; validated ones are arrays
   const rows: any[] = Array.isArray(dividends) ? dividends : Object.values(dividends ?? {});
   return rows
@@ -226,7 +251,7 @@ export async function getDividendEvents(symbol: string, period1: string | Date, 
     .map((d: any) => ({
       // Epoch seconds in raw payloads, Date/ms elsewhere
       date: new Date(typeof d.date === 'number' && d.date < 1e12 ? d.date * 1000 : d.date).toISOString().split('T')[0],
-      perShare: d.amount as number,
+      perShare: fromPence(d.amount as number, native) as number,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
