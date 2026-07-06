@@ -4,7 +4,13 @@ import {
   getQuotes,
   getAssetProfile,
   getHistoricalPrices,
+  getDividendEvents,
   searchSymbols,
+  fxPairSymbol,
+  getFxRates,
+  getHistoricalFxRate,
+  getHistoricalFxRates,
+  isPenceCurrency,
 } from "../electron/finance";
 
 // finance.ts builds `new YahooFinance(...)` at module load, so the mock must stand in
@@ -77,6 +83,18 @@ describe("getQuote", () => {
     mockQuote.mockRejectedValue(new Error("network down"));
     await expect(getQuote("AAPL")).rejects.toThrow("network down");
   });
+
+  it("normalizes LSE pence (GBp) quotes to whole pounds (#175)", async () => {
+    mockQuote.mockResolvedValue({
+      symbol: "VOD.L",
+      regularMarketPrice: 7250, // 72.50 pence... reported as 7250 pence
+      regularMarketPreviousClose: 7000,
+      shortName: "Vodafone",
+      currency: "GBp",
+    });
+    const q = await getQuote("VOD.L");
+    expect(q).toMatchObject({ price: 72.5, previousClose: 70, currency: "GBP" });
+  });
 });
 
 describe("getQuotes", () => {
@@ -87,13 +105,13 @@ describe("getQuotes", () => {
 
   it("maps a batch of quotes", async () => {
     mockQuote.mockResolvedValue([
-      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, shortName: "Apple" },
-      { symbol: "MSFT", regularMarketPrice: 400, regularMarketPreviousClose: 395, shortName: "Microsoft" },
+      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, shortName: "Apple", currency: "USD" },
+      { symbol: "VFV.TO", regularMarketPrice: 130, regularMarketPreviousClose: 128, shortName: "Vanguard S&P 500", currency: "CAD" },
     ]);
-    const quotes = await getQuotes(["AAPL", "MSFT"]);
+    const quotes = await getQuotes(["AAPL", "VFV.TO"]);
     expect(quotes).toHaveLength(2);
-    expect(quotes[0]).toMatchObject({ symbol: "AAPL", price: 250, previousClose: 248, name: "Apple" });
-    expect(quotes[1]).toMatchObject({ symbol: "MSFT", price: 400, previousClose: 395 });
+    expect(quotes[0]).toMatchObject({ symbol: "AAPL", price: 250, previousClose: 248, name: "Apple", currency: "USD" });
+    expect(quotes[1]).toMatchObject({ symbol: "VFV.TO", price: 130, previousClose: 128, currency: "CAD" });
   });
 
   it("wraps a single-object response into an array", async () => {
@@ -107,6 +125,104 @@ describe("getQuotes", () => {
   it("rethrows when the batch call fails", async () => {
     mockQuote.mockRejectedValue(new Error("boom"));
     await expect(getQuotes(["AAPL"])).rejects.toThrow("boom");
+  });
+
+  it("normalizes pence (GBp/GBX) rows while leaving other currencies untouched (#175)", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "VOD.L", regularMarketPrice: 7250, regularMarketPreviousClose: 7000, currency: "GBp" },
+      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, currency: "USD" },
+    ]);
+    const quotes = await getQuotes(["VOD.L", "AAPL"]);
+    expect(quotes[0]).toMatchObject({ price: 72.5, previousClose: 70, currency: "GBP" });
+    expect(quotes[1]).toMatchObject({ price: 250, previousClose: 248, currency: "USD" });
+  });
+});
+
+describe("fxPairSymbol", () => {
+  it("builds the Yahoo FX symbol for a pair", () => {
+    expect(fxPairSymbol("USD", "CAD")).toBe("USDCAD=X");
+    expect(fxPairSymbol("EUR", "USD")).toBe("EURUSD=X");
+  });
+
+  it("uppercases lowercase codes", () => {
+    expect(fxPairSymbol("usd", "cad")).toBe("USDCAD=X");
+  });
+
+  it("returns null for identity pairs (no conversion needed)", () => {
+    expect(fxPairSymbol("USD", "USD")).toBeNull();
+    expect(fxPairSymbol("usd", "USD")).toBeNull();
+  });
+
+  it("returns null for incomplete pairs", () => {
+    expect(fxPairSymbol("", "CAD")).toBeNull();
+    expect(fxPairSymbol("USD", "")).toBeNull();
+  });
+});
+
+describe("getFxRates", () => {
+  it("returns [] and skips the API when all pairs are identity/empty", async () => {
+    expect(await getFxRates([])).toEqual([]);
+    expect(await getFxRates([{ from: "USD", to: "USD" }, { from: "", to: "CAD" }])).toEqual([]);
+    expect(mockQuote).not.toHaveBeenCalled();
+  });
+
+  it("dedupes pairs into one batch call and maps prices to rates", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: 1.37 },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+      { from: "USD", to: "CAD" }, // duplicate
+    ]);
+    expect(mockQuote).toHaveBeenCalledTimes(1);
+    expect(mockQuote.mock.calls[0][0]).toEqual(["USDCAD=X", "EURCAD=X"]);
+    expect(rates).toHaveLength(2);
+    expect(rates[0]).toMatchObject({ from: "USD", to: "CAD", rate: 1.37 });
+    expect(rates[1]).toMatchObject({ from: "EUR", to: "CAD", rate: 1.48 });
+    expect(typeof rates[0].updatedAt).toBe("string");
+  });
+
+  it("handles a single-object Yahoo response (one pair requested)", async () => {
+    mockQuote.mockResolvedValue({ symbol: "USDCAD=X", regularMarketPrice: 1.37 });
+    const rates = await getFxRates([{ from: "USD", to: "CAD" }]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "USD", to: "CAD", rate: 1.37 }),
+    ]);
+  });
+
+  it("drops FX quotes without a price", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: null },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+    ]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "EUR", to: "CAD", rate: 1.48 }),
+    ]);
+  });
+
+  it("drops a 0-value FX quote (a persisted rate of 0 would zero foreign holdings)", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: 0 },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+    ]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "EUR", to: "CAD", rate: 1.48 }),
+    ]);
+  });
+
+  it("returns [] (does not throw) when the Yahoo call fails — callers keep cached rates", async () => {
+    mockQuote.mockRejectedValue(new Error("fx down"));
+    expect(await getFxRates([{ from: "USD", to: "CAD" }])).toEqual([]);
   });
 });
 
@@ -197,6 +313,206 @@ describe("getHistoricalPrices", () => {
     await getHistoricalPrices("AAPL", "2026-06-10", "2026-06-10");
     const { period1, period2 } = mockChart.mock.calls[0][1];
     expect(period2.getTime()).toBeGreaterThan(period1.getTime());
+  });
+
+  it("divides pence closes by 100 when the series currency is GBp (#175)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "GBp" },
+      quotes: [
+        { date: new Date("2026-06-10T13:30:00.000Z"), close: 7250 },
+        { date: new Date("2026-06-11T13:30:00.000Z"), close: 7300 },
+      ],
+    });
+    const prices = await getHistoricalPrices("VOD.L", "2026-06-10", "2026-06-12");
+    expect(prices).toEqual([
+      { date: "2026-06-10", close: 72.5 },
+      { date: "2026-06-11", close: 73 },
+    ]);
+  });
+
+  it("leaves FX-pair closes unchanged (meta.currency is a whole currency, not pence)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "USD" },
+      quotes: [{ date: new Date("2026-06-10T13:30:00.000Z"), close: 1.36 }],
+    });
+    const prices = await getHistoricalPrices("GBPUSD=X", "2026-06-10", "2026-06-12");
+    expect(prices).toEqual([{ date: "2026-06-10", close: 1.36 }]);
+  });
+});
+
+describe("getDividendEvents", () => {
+  it("maps chart dividend events to sorted { date, perShare } rows", async () => {
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: [
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: 0.26 },
+          { date: new Date("2026-03-12T13:30:00.000Z"), amount: 0.25 },
+        ],
+      },
+      quotes: [],
+    });
+    const events = await getDividendEvents("AAPL", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([
+      { date: "2026-03-12", perShare: 0.25 },
+      { date: "2026-06-12", perShare: 0.26 },
+    ]);
+  });
+
+  it("handles the raw payload shape: timestamp-keyed object with epoch-second dates", async () => {
+    // With validateResult:false Yahoo's raw chart payload can come through
+    // unnormalized — dividends keyed by timestamp, dates as epoch seconds.
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: {
+          "1749735000": { amount: 0.26, date: 1749735000 }, // 2025-06-12
+        },
+      },
+    });
+    const events = await getDividendEvents("AAPL", "2025-01-01", "2025-07-01");
+    expect(events).toEqual([{ date: "2025-06-12", perShare: 0.26 }]);
+  });
+
+  it("drops events without a date or a positive amount", async () => {
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: [
+          { date: null, amount: 0.25 },
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: 0 },
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: null },
+          { date: new Date("2026-03-12T13:30:00.000Z"), amount: 0.25 },
+        ],
+      },
+    });
+    const events = await getDividendEvents("AAPL", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([{ date: "2026-03-12", perShare: 0.25 }]);
+  });
+
+  it("returns [] when the chart result carries no dividend events", async () => {
+    mockChart.mockResolvedValue({ quotes: [] });
+    expect(await getDividendEvents("BTC-USD", "2026-01-01", "2026-07-01")).toEqual([]);
+  });
+
+  it("requests dividend events with validateResult disabled", async () => {
+    mockChart.mockResolvedValue({});
+    await getDividendEvents("AAPL", "2026-06-10", "2026-06-12");
+    const [symbol, queryOptions, moduleOptions] = mockChart.mock.calls[0];
+    expect(symbol).toBe("AAPL");
+    expect(queryOptions.events).toBe("div");
+    expect(moduleOptions).toEqual({ validateResult: false });
+  });
+
+  it("advances period2 when it equals period1 (Yahoo needs a non-empty range)", async () => {
+    mockChart.mockResolvedValue({});
+    await getDividendEvents("AAPL", "2026-06-10", "2026-06-10");
+    const { period1, period2 } = mockChart.mock.calls[0][1];
+    expect(period2.getTime()).toBeGreaterThan(period1.getTime());
+  });
+
+  it("rethrows on API error so the sync can tell failure from no-dividends", async () => {
+    mockChart.mockRejectedValue(new Error("chart failed"));
+    await expect(getDividendEvents("AAPL", "2026-01-01", "2026-07-01")).rejects.toThrow("chart failed");
+  });
+
+  it("normalizes pence (GBp) dividend amounts to whole pounds (#175)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "GBp" },
+      events: {
+        dividends: [{ date: new Date("2026-06-12T13:30:00.000Z"), amount: 25 }],
+      },
+    });
+    const events = await getDividendEvents("VOD.L", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([{ date: "2026-06-12", perShare: 0.25 }]);
+  });
+});
+
+describe("isPenceCurrency", () => {
+  it("matches Yahoo's pence codes and nothing else", () => {
+    expect(isPenceCurrency("GBp")).toBe(true);
+    expect(isPenceCurrency("GBX")).toBe(true);
+    expect(isPenceCurrency("gbx")).toBe(true);
+    expect(isPenceCurrency("GBP")).toBe(false); // whole pounds
+    expect(isPenceCurrency("USD")).toBe(false);
+    expect(isPenceCurrency(null)).toBe(false);
+    expect(isPenceCurrency(undefined)).toBe(false);
+  });
+});
+
+describe("getHistoricalFxRates", () => {
+  const fxQuotes = (rows: [string, number][]) => ({
+    quotes: rows.map(([date, close]) => ({ date: new Date(`${date}T13:30:00.000Z`), close })),
+  });
+
+  it("resolves each date to its close via one chart() call for the whole span", async () => {
+    mockChart.mockResolvedValue(fxQuotes([
+      ["2026-06-10", 1.36],
+      ["2026-06-11", 1.37],
+      ["2026-06-12", 1.38],
+    ]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-10", "2026-06-12"]);
+    expect(rates.get("2026-06-10")).toBe(1.36);
+    expect(rates.get("2026-06-12")).toBe(1.38);
+    expect(mockChart).toHaveBeenCalledTimes(1);
+    expect(mockChart.mock.calls[0][0]).toBe("USDCAD=X");
+  });
+
+  it("falls back to the prior trading day's close for weekend/holiday dates", async () => {
+    // 2026-06-13 is a Saturday — no candle for it
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 1.37]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-13"]);
+    expect(rates.get("2026-06-13")).toBe(1.37);
+  });
+
+  it("maps identity pairs to 1 without a network call", async () => {
+    const rates = await getHistoricalFxRates("CAD", "CAD", ["2026-06-10"]);
+    expect(rates.get("2026-06-10")).toBe(1);
+    expect(mockChart).not.toHaveBeenCalled();
+  });
+
+  it("maps a date with no close on or before it to null", async () => {
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 1.37]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-01"]);
+    expect(rates.get("2026-06-01")).toBeNull();
+  });
+
+  it("rejects a 0-value candle (a persisted rate of 0 would zero the trade everywhere)", async () => {
+    mockChart.mockResolvedValue(fxQuotes([["2026-06-12", 0]]));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-12"]);
+    expect(rates.get("2026-06-12")).toBeNull();
+  });
+
+  it("maps all dates to null (does not throw) on API error", async () => {
+    mockChart.mockRejectedValue(new Error("chart failed"));
+    const rates = await getHistoricalFxRates("USD", "CAD", ["2026-06-10"]);
+    expect(rates.get("2026-06-10")).toBeNull();
+  });
+
+  it("returns an empty map for no dates or an incomplete pair", async () => {
+    expect((await getHistoricalFxRates("USD", "CAD", [])).size).toBe(0);
+    expect((await getHistoricalFxRates("", "CAD", ["2026-06-10"])).size).toBe(0);
+    expect(mockChart).not.toHaveBeenCalled();
+  });
+
+  it("pads the fetched span so boundary dates resolve (a week back, a day forward)", async () => {
+    mockChart.mockResolvedValue(fxQuotes([]));
+    await getHistoricalFxRates("USD", "CAD", ["2026-06-10", "2026-06-12"]);
+    const { period1, period2 } = mockChart.mock.calls[0][1];
+    expect(period1.getTime()).toBeLessThan(new Date("2026-06-10").getTime());
+    expect(period2.getTime()).toBeGreaterThan(new Date("2026-06-12").getTime());
+  });
+});
+
+describe("getHistoricalFxRate", () => {
+  it("returns the close on the trade date", async () => {
+    mockChart.mockResolvedValue({
+      quotes: [{ date: new Date("2026-06-10T13:30:00.000Z"), close: 1.36 }],
+    });
+    expect(await getHistoricalFxRate("USD", "CAD", "2026-06-10")).toBe(1.36);
+  });
+
+  it("returns 1 for an identity pair and null when unresolvable", async () => {
+    expect(await getHistoricalFxRate("CAD", "CAD", "2026-06-10")).toBe(1);
+    mockChart.mockResolvedValue({ quotes: [] });
+    expect(await getHistoricalFxRate("USD", "CAD", "2026-06-10")).toBeNull();
   });
 });
 

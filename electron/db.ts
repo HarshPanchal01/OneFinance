@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -316,6 +316,7 @@ export function initializeDatabase(): void {
       quantity REAL NOT NULL,
       lastPrice REAL,
       lastUpdated TEXT,
+      currency TEXT DEFAULT NULL,
       sectorWeightings TEXT,
       alertDailyPct REAL DEFAULT NULL,
       alertWeeklyPct REAL DEFAULT NULL,
@@ -326,6 +327,7 @@ export function initializeDatabase(): void {
       alertDailyNotified TEXT DEFAULT NULL,
       alertWeeklyNotified TEXT DEFAULT NULL,
       alertMonthlyNotified TEXT DEFAULT NULL,
+      divSyncedThrough TEXT DEFAULT NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
     )
   `);
@@ -340,6 +342,26 @@ export function initializeDatabase(): void {
       quantity REAL NOT NULL,
       price REAL NOT NULL,
       fees REAL DEFAULT 0,
+      currency TEXT DEFAULT NULL,
+      fxRate REAL DEFAULT NULL,
+      FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Investment Dividends - Income received per holding (auto-synced from Yahoo
+  // chart() events or entered manually). amount/perShare are native currency;
+  // fxRate converts to user currency at the pay date (null = 1, same convention
+  // as investment_transactions).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_dividends (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      holdingId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      perShare REAL DEFAULT NULL,
+      currency TEXT DEFAULT NULL,
+      fxRate REAL DEFAULT NULL,
+      source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('auto', 'manual')),
       FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
     )
   `);
@@ -352,6 +374,15 @@ export function initializeDatabase(): void {
       date TEXT NOT NULL,
       totalValue REAL NOT NULL,
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // App Metadata - small key/value facts about the data itself (e.g. which user
+  // currency the stored trade fxRates target)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
     )
   `);
 
@@ -746,6 +777,7 @@ export function deleteAllDataFromTables(): void{
     "transactions",
     "recurring_transactions",
     "investment_transactions",
+    "investment_dividends",
     "investment_holdings",
     "investment_history",
     "investment_adjustments",
@@ -1523,7 +1555,7 @@ export function getTotalMonthSpend(year: number, month: number): number {
     return result.total || 0;
 }
 
-export function getNetWorthTrend(): { month: number, year: number, balance: number }[] {
+export function getNetWorthTrend(fxRates?: Record<string, number>): { month: number, year: number, balance: number }[] {
     const accounts = getAccounts();
     const holdings = getInvestmentHoldings();
 
@@ -1541,23 +1573,28 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
             -- Standard transactions
             SELECT SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END) as net FROM transactions
             UNION ALL
-            -- Investment adjustments (dividends, etc)
+            -- Investment adjustments (manual cash corrections, etc)
             SELECT SUM(CASE WHEN type = 'income' THEN amount WHEN type = 'expense' THEN -amount ELSE 0 END) as net FROM investment_adjustments
             UNION ALL
-            -- Investment trades (cash impact of buying/selling)
-            SELECT SUM(CASE 
-                WHEN type = 'buy' THEN -(quantity * price + fees) 
-                WHEN type = 'sell' THEN (quantity * price - fees) 
-                ELSE 0 END) as net 
+            -- Dividend income (native amount converted at pay-date FX)
+            SELECT SUM(${dividendAmountSql()}) as net FROM investment_dividends
+            UNION ALL
+            -- Investment trades (cash impact of buying/selling, converted at trade-date FX)
+            SELECT SUM(CASE
+                WHEN type = 'buy' THEN -(quantity * price + fees) * COALESCE(fxRate, 1)
+                WHEN type = 'sell' THEN (quantity * price - fees) * COALESCE(fxRate, 1)
+                ELSE 0 END) as net
             FROM investment_transactions
         )
     `).get() as { total: number };
 
     currentNetWorth += (cashFlow.total || 0);
 
-    // Current Market Value of Holdings
+    // Current Market Value of Holdings, converted to the user's currency when a
+    // rate is known (must match the renderer's converted account balances)
     for (const h of holdings) {
-        currentNetWorth += (h.quantity * (h.lastPrice || 0));
+        const rate = (h.currency && fxRates?.[h.currency]) || 1;
+        currentNetWorth += (h.quantity * (h.lastPrice || 0) * rate);
     }
 
     // 2. Fetch monthly changes that actually AFFECT net worth (Income, Expense, Fees, Adjustments)
@@ -1597,7 +1634,15 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
             SELECT
                 strftime('%Y', date) as yearStr,
                 strftime('%m', date) as monthStr,
-                -fees as netChange
+                ${dividendAmountSql()} as netChange
+            FROM investment_dividends
+
+            UNION ALL
+
+            SELECT
+                strftime('%Y', date) as yearStr,
+                strftime('%m', date) as monthStr,
+                -fees * COALESCE(fxRate, 1) as netChange
             FROM investment_transactions
             WHERE fees > 0
         )
@@ -1627,6 +1672,15 @@ export function getNetWorthTrend(): { month: number, year: number, balance: numb
         if (a.year !== b.year) return a.year - b.year;
         return a.month - b.month;
     });
+}
+
+export function getMeta(key: string): string | null {
+  const row = db.prepare("SELECT value FROM app_meta WHERE key = ?").get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setMeta(key: string, value: string): void {
+  db.prepare("INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, value);
 }
 
 export function getDatabaseVersion(): number {
@@ -1748,8 +1802,8 @@ export function getInvestmentHoldings(accountId?: number): InvestmentHolding[] {
 
 export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): InvestmentHolding {
   const insert = db.prepare(`
-    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_holdings (accountId, symbol, name, quantity, lastPrice, lastUpdated, currency, sectorWeightings, alertDailyPct, alertWeeklyPct, alertMonthlyPct, refClose1w, refClose1m, refDate, alertDailyNotified, alertWeeklyNotified, alertMonthlyNotified, divSyncedThrough)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = insert.run(
@@ -1759,6 +1813,7 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.quantity,
     data.lastPrice,
     data.lastUpdated,
+    data.currency ?? null,
     data.sectorWeightings || null,
     data.alertDailyPct ?? null,
     data.alertWeeklyPct ?? null,
@@ -1768,7 +1823,8 @@ export function createInvestmentHolding(data: Omit<InvestmentHolding, 'id'>): In
     data.refDate ?? null,
     data.alertDailyNotified ?? null,
     data.alertWeeklyNotified ?? null,
-    data.alertMonthlyNotified ?? null
+    data.alertMonthlyNotified ?? null,
+    data.divSyncedThrough ?? null
   );
   
   return db.prepare("SELECT * FROM investment_holdings WHERE id = ?").get(result.lastInsertRowid) as InvestmentHolding;
@@ -1779,10 +1835,11 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
   
   const update = db.prepare(`
     UPDATE investment_holdings
-    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, sectorWeightings = ?,
+    SET symbol = ?, name = ?, quantity = ?, lastPrice = ?, lastUpdated = ?, currency = ?, sectorWeightings = ?,
         alertDailyPct = ?, alertWeeklyPct = ?, alertMonthlyPct = ?,
         refClose1w = ?, refClose1m = ?, refDate = ?,
-        alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?
+        alertDailyNotified = ?, alertWeeklyNotified = ?, alertMonthlyNotified = ?,
+        divSyncedThrough = ?
     WHERE id = ?
   `);
 
@@ -1792,6 +1849,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.quantity ?? current.quantity,
     data.lastPrice ?? current.lastPrice,
     data.lastUpdated ?? current.lastUpdated,
+    data.currency !== undefined ? data.currency : current.currency,
     data.sectorWeightings !== undefined ? data.sectorWeightings : current.sectorWeightings,
     data.alertDailyPct !== undefined ? data.alertDailyPct : current.alertDailyPct,
     data.alertWeeklyPct !== undefined ? data.alertWeeklyPct : current.alertWeeklyPct,
@@ -1802,6 +1860,7 @@ export function updateInvestmentHolding(id: number, data: Partial<InvestmentHold
     data.alertDailyNotified !== undefined ? data.alertDailyNotified : current.alertDailyNotified,
     data.alertWeeklyNotified !== undefined ? data.alertWeeklyNotified : current.alertWeeklyNotified,
     data.alertMonthlyNotified !== undefined ? data.alertMonthlyNotified : current.alertMonthlyNotified,
+    data.divSyncedThrough !== undefined ? data.divSyncedThrough : current.divSyncedThrough,
     id
   );
   
@@ -1813,20 +1872,125 @@ export function deleteInvestmentHolding(id: number): boolean {
   return result.changes > 0;
 }
 
+// SQL twin of tradeCashImpact (src/utils.ts): a trade's total in USER currency
+// (price and fees are native, converted together at the trade-date rate).
+// Single definition so the activity queries can't drift apart.
+function tradeAmountSql(prefix = ""): string {
+  const p = prefix;
+  return `((${p}quantity * ${p}price) + (CASE WHEN ${p}type = 'buy' THEN ${p}fees ELSE -${p}fees END)) * COALESCE(${p}fxRate, 1)`;
+}
+
+// SQL twin of dividendCashImpact (src/utils.ts): a dividend's cash inflow in
+// USER currency (amount is native, converted at the captured pay-date rate).
+function dividendAmountSql(prefix = ""): string {
+  const p = prefix;
+  return `(${p}amount * COALESCE(${p}fxRate, 1))`;
+}
+
 export function getInvestmentTransactions(holdingId: number): any[] {
   return db.prepare(`
-    SELECT 
+    SELECT
       *,
       'trade' as recordType,
-      ((quantity * price) + (CASE WHEN type = 'buy' THEN fees ELSE -fees END)) as amount
-    FROM investment_transactions 
-    WHERE holdingId = ? 
+      ${tradeAmountSql()} as amount
+    FROM investment_transactions
+    WHERE holdingId = ?
     ORDER BY date DESC
   `).all(holdingId) as any[];
 }
 
 export function getAllInvestmentTransactions(): InvestmentTransaction[] {
   return db.prepare("SELECT * FROM investment_transactions").all() as InvestmentTransaction[];
+}
+
+export function updateInvestmentTransactionFxRates(updates: { id: number; fxRate: number | null }[]): void {
+  const update = db.prepare("UPDATE investment_transactions SET fxRate = ? WHERE id = ?");
+  const run = db.transaction(() => {
+    for (const u of updates) update.run(u.fxRate, u.id);
+  });
+  run();
+}
+
+// ============================================
+// INVESTMENT DIVIDENDS
+// ============================================
+
+export function getInvestmentDividends(holdingId?: number): InvestmentDividend[] {
+  if (holdingId) {
+    return db.prepare("SELECT * FROM investment_dividends WHERE holdingId = ? ORDER BY date DESC").all(holdingId) as InvestmentDividend[];
+  }
+  return db.prepare("SELECT * FROM investment_dividends").all() as InvestmentDividend[];
+}
+
+export function createInvestmentDividend(data: Omit<InvestmentDividend, 'id'>): InvestmentDividend {
+  const result = db.prepare(`
+    INSERT INTO investment_dividends (holdingId, date, amount, perShare, currency, fxRate, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.holdingId,
+    data.date,
+    data.amount,
+    data.perShare ?? null,
+    data.currency ?? null,
+    data.fxRate ?? null,
+    data.source ?? 'manual'
+  );
+  return db.prepare("SELECT * FROM investment_dividends WHERE id = ?").get(result.lastInsertRowid) as InvestmentDividend;
+}
+
+export function updateInvestmentDividend(id: number, data: Partial<Omit<InvestmentDividend, 'id'>>): InvestmentDividend {
+  const current = db.prepare("SELECT * FROM investment_dividends WHERE id = ?").get(id) as InvestmentDividend;
+  db.prepare(`
+    UPDATE investment_dividends
+    SET date = ?, amount = ?, perShare = ?, currency = ?, fxRate = ?, source = ?
+    WHERE id = ?
+  `).run(
+    data.date ?? current.date,
+    data.amount !== undefined ? data.amount : current.amount,
+    data.perShare !== undefined ? data.perShare : current.perShare,
+    data.currency !== undefined ? data.currency : current.currency,
+    data.fxRate !== undefined ? data.fxRate : current.fxRate,
+    data.source ?? current.source,
+    id
+  );
+  return db.prepare("SELECT * FROM investment_dividends WHERE id = ?").get(id) as InvestmentDividend;
+}
+
+export function deleteInvestmentDividend(id: number): boolean {
+  const result = db.prepare("DELETE FROM investment_dividends WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function updateInvestmentDividendFxRates(updates: { id: number; fxRate: number | null }[]): void {
+  const update = db.prepare("UPDATE investment_dividends SET fxRate = ? WHERE id = ?");
+  const run = db.transaction(() => {
+    for (const u of updates) update.run(u.fxRate, u.id);
+  });
+  run();
+}
+
+// Full per-holding ledger for the Activity History modal: trades + dividends.
+// (getInvestmentTransactions stays trades-only — it also feeds export.)
+export function getHoldingActivity(holdingId: number): any[] {
+  return db.prepare(`
+    SELECT
+      id, date, type, quantity, price, fees, currency, fxRate,
+      'trade' as recordType,
+      ${tradeAmountSql()} as amount
+    FROM investment_transactions
+    WHERE holdingId = ?
+
+    UNION ALL
+
+    SELECT
+      id, date, 'dividend' as type, NULL as quantity, perShare as price, NULL as fees, currency, fxRate,
+      'dividend' as recordType,
+      ${dividendAmountSql()} as amount
+    FROM investment_dividends
+    WHERE holdingId = ?
+
+    ORDER BY date DESC
+  `).all(holdingId, holdingId) as any[];
 }
 
 export function getAccountInvestmentTransactions(accountId: number): InvestmentTransaction[] {
@@ -1850,9 +2014,27 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
       it.quantity,
       it.price,
       it.fees,
-      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+      it.currency,
+      ${tradeAmountSql("it.")} as amount
     FROM investment_transactions it
     JOIN investment_holdings ih ON it.holdingId = ih.id
+    WHERE ih.accountId = ?
+
+    UNION ALL
+
+    SELECT
+      'dividend' as recordType,
+      dv.id,
+      dv.date,
+      'dividend' as type,
+      ih.symbol as asset,
+      NULL as quantity,
+      dv.perShare as price,
+      NULL as fees,
+      dv.currency,
+      ${dividendAmountSql("dv.")} as amount
+    FROM investment_dividends dv
+    JOIN investment_holdings ih ON dv.holdingId = ih.id
     WHERE ih.accountId = ?
 
     UNION ALL
@@ -1866,6 +2048,7 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
+      NULL as currency,
       CASE WHEN ia.type = 'expense' THEN -ia.amount ELSE ia.amount END as amount
     FROM investment_adjustments ia
     WHERE ia.accountId = ?
@@ -1881,6 +2064,7 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
+      NULL as currency,
       CASE
         WHEN t.accountId = ? THEN -t.amount -- Outflow from this account
         ELSE t.amount -- Inflow to this account (transferAccountId)
@@ -1889,7 +2073,7 @@ export function getCombinedInvestmentHistory(accountId: number): any[] {
     WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
 
     ORDER BY date DESC
-  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
+  `).all(accountId, accountId, accountId, accountId, accountId, accountId) as any[];
 }
 
 export function getAllCombinedInvestmentHistory(): any[] {
@@ -1903,9 +2087,26 @@ export function getAllCombinedInvestmentHistory(): any[] {
       it.quantity,
       it.price,
       it.fees,
-      ((it.quantity * it.price) + (CASE WHEN it.type = 'buy' THEN it.fees ELSE -it.fees END)) as amount
+      it.currency,
+      ${tradeAmountSql("it.")} as amount
     FROM investment_transactions it
     JOIN investment_holdings ih ON it.holdingId = ih.id
+
+    UNION ALL
+
+    SELECT
+      'dividend' as recordType,
+      dv.id,
+      dv.date,
+      'dividend' as type,
+      ih.symbol as asset,
+      NULL as quantity,
+      dv.perShare as price,
+      NULL as fees,
+      dv.currency,
+      ${dividendAmountSql("dv.")} as amount
+    FROM investment_dividends dv
+    JOIN investment_holdings ih ON dv.holdingId = ih.id
 
     UNION ALL
 
@@ -1918,6 +2119,7 @@ export function getAllCombinedInvestmentHistory(): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
+      NULL as currency,
       CASE WHEN ia.type = 'expense' THEN -ia.amount ELSE ia.amount END as amount
     FROM investment_adjustments ia
 
@@ -1932,6 +2134,7 @@ export function getAllCombinedInvestmentHistory(): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
+      NULL as currency,
       -t.amount as amount
     FROM transactions t
     JOIN accounts a ON t.accountId = a.id
@@ -1949,6 +2152,7 @@ export function getAllCombinedInvestmentHistory(): any[] {
       NULL as quantity,
       NULL as price,
       NULL as fees,
+      NULL as currency,
       t.amount as amount
     FROM transactions t
       JOIN accounts a ON t.transferAccountId = a.id
@@ -1971,8 +2175,8 @@ export function getAccountTransactions(accountId: number): TransactionWithCatego
 
 export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>): InvestmentTransaction {
   const insert = db.prepare(`
-    INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO investment_transactions (holdingId, date, type, quantity, price, fees, currency, fxRate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = insert.run(
@@ -1981,7 +2185,9 @@ export function createInvestmentTransaction(data: Omit<InvestmentTransaction, 'i
     data.type,
     data.quantity,
     data.price,
-    data.fees
+    data.fees,
+    data.currency ?? null,
+    data.fxRate ?? null
   );
 
   // Update the holding quantity automatically
@@ -2078,7 +2284,7 @@ export function getInvestmentAdjustments(accountId?: number): any[] {
 
 export function getCombinedCashHistory(accountId: number): any[] {
   return db.prepare(`
-    SELECT 
+    SELECT
       'adjustment' as recordType,
       ia.id,
       ia.date,
@@ -2088,6 +2294,20 @@ export function getCombinedCashHistory(accountId: number): any[] {
       NULL as accountId
     FROM investment_adjustments ia
     WHERE ia.accountId = ?
+
+    UNION ALL
+
+    SELECT
+      'dividend' as recordType,
+      dv.id,
+      dv.date,
+      'dividend' as type,
+      ih.symbol || ' Dividend' as title,
+      ${dividendAmountSql("dv.")} as amount,
+      NULL as accountId
+    FROM investment_dividends dv
+    JOIN investment_holdings ih ON dv.holdingId = ih.id
+    WHERE ih.accountId = ?
 
     UNION ALL
 
@@ -2106,7 +2326,7 @@ export function getCombinedCashHistory(accountId: number): any[] {
     WHERE (t.accountId = ? OR t.transferAccountId = ?) AND t.type = 'transfer'
 
     ORDER BY date DESC
-  `).all(accountId, accountId, accountId, accountId) as any[];
+  `).all(accountId, accountId, accountId, accountId, accountId) as any[];
 }
 // Export the database instance for advanced operations if needed
 export default db;

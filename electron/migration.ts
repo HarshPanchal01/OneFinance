@@ -323,5 +323,72 @@ function migrate1to2(db: any): void {
   } catch (e) {
     console.error('[Migration] Migration error creating savings_goals table:', e);
   }
+
+  // Add native quote currency to holdings (multi-currency portfolios)
+  try {
+    db.exec("ALTER TABLE investment_holdings ADD COLUMN currency TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding currency to investment_holdings:', error);
+    }
+  }
+
+  // Add app metadata key/value table (e.g. tradeFxTarget)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating app_meta table:', e);
+  }
+
+  // Add trade-date FX fields to trades (cost basis in user currency).
+  // null currency = legacy row entered as user currency; null fxRate = 1.
+  const tradeFxColumns = [
+    "ALTER TABLE investment_transactions ADD COLUMN currency TEXT DEFAULT NULL",
+    "ALTER TABLE investment_transactions ADD COLUMN fxRate REAL DEFAULT NULL",
+  ];
+  for (const sql of tradeFxColumns) {
+    try {
+      db.exec(sql);
+    } catch (e) {
+      const error = e as any;
+      if (!error?.message?.includes('duplicate column name')) {
+        console.error('[Migration] Migration error adding trade FX column:', error);
+      }
+    }
+  }
+
+  // Add dividend tracking: per-holding dividends table + the once-per-day
+  // auto-sync marker on holdings
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS investment_dividends (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        holdingId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        perShare REAL DEFAULT NULL,
+        currency TEXT DEFAULT NULL,
+        fxRate REAL DEFAULT NULL,
+        source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('auto', 'manual')),
+        FOREIGN KEY (holdingId) REFERENCES investment_holdings(id) ON DELETE CASCADE
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating investment_dividends table:', e);
+  }
+  try {
+    db.exec("ALTER TABLE investment_holdings ADD COLUMN divSyncedThrough TEXT DEFAULT NULL");
+  } catch (e) {
+    const error = e as any;
+    if (!error?.message?.includes('duplicate column name')) {
+      console.error('[Migration] Migration error adding divSyncedThrough to investment_holdings:', error);
+    }
+  }
 }
 

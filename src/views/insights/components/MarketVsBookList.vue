@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 
 const rowRefs = ref<Record<string, HTMLElement>>({});
@@ -26,19 +26,22 @@ const sortedHoldings = computed(() => {
     props.accountId === 'all' || h.accountId === parseInt(props.accountId)
   );
 
-  const assetData = new Map<string, { 
+  const assetData = new Map<string, {
       name: string | null;
-      quantity: number; 
-      marketValue: number; 
-      bookValue: number; 
+      quantity: number;
+      marketValue: number;
+      bookValue: number;
+      nativeBookValue: number;
+      nativeOk: boolean;
       lastPrice: number;
+      currency: string | null;
   }>();
 
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
 
-    // Market Value
-    const marketValue = h.quantity * (h.lastPrice || 0);
+    // Market Value (converted to user currency)
+    const marketValue = store.holdingMarketValue(h);
 
     // Calculate Book Value
     const hTxs = props.transactions
@@ -47,27 +50,42 @@ const sortedHoldings = computed(() => {
 
     let currentQty = 0;
     let currentBookValue = 0;
+    // Book value is trade-date-FX converted (currency move counts toward gain/loss,
+    // matching broker statements); the native walk feeds Average Cost, shown in the
+    // holding's currency so it compares directly against the closing price. That
+    // native sum is only meaningful when every trade is priced in the holding's
+    // currency — legacy rows (null currency) are user-currency numbers, so a mixed
+    // holding falls back to the converted average.
+    let nativeBookValue = 0;
+    let nativeOk = true;
 
     for (const tx of hTxs) {
+      if ((tx.currency ?? null) !== (h.currency ?? null)) nativeOk = false;
       if (tx.type === 'buy') {
-        const cost = (tx.quantity * tx.price) + tx.fees;
-        currentBookValue += cost;
+        const nativeCost = (tx.quantity * tx.price) + tx.fees;
+        currentBookValue += nativeCost * (tx.fxRate ?? 1);
+        nativeBookValue += nativeCost;
         currentQty += tx.quantity;
       } else if (tx.type === 'sell' && currentQty > 0) {
         const avgCost = currentBookValue / currentQty;
+        const nativeAvgCost = nativeBookValue / currentQty;
         currentQty -= tx.quantity;
         currentBookValue -= (tx.quantity * avgCost);
+        nativeBookValue -= (tx.quantity * nativeAvgCost);
       }
     }
 
     // Combine identical symbols across different accounts if "all" is selected
-    const existing = assetData.get(h.symbol) || { name: h.name, quantity: 0, marketValue: 0, bookValue: 0, lastPrice: h.lastPrice || 0 };
+    const existing = assetData.get(h.symbol) || { name: h.name, quantity: 0, marketValue: 0, bookValue: 0, nativeBookValue: 0, nativeOk: true, lastPrice: h.lastPrice || 0, currency: h.currency ?? null };
     assetData.set(h.symbol, {
       name: existing.name || h.name,
       quantity: existing.quantity + h.quantity,
       marketValue: existing.marketValue + marketValue,
       bookValue: existing.bookValue + currentBookValue,
-      lastPrice: h.lastPrice || 0 // Assuming the price is the same for the same symbol
+      nativeBookValue: existing.nativeBookValue + nativeBookValue,
+      nativeOk: existing.nativeOk && nativeOk,
+      lastPrice: h.lastPrice || 0, // Assuming the price is the same for the same symbol
+      currency: h.currency ?? existing.currency
     });
   });
 
@@ -77,16 +95,22 @@ const sortedHoldings = computed(() => {
     .map(([symbol, data]) => {
       const change = data.marketValue - data.bookValue;
       const percent = data.bookValue > 0 ? (change / data.bookValue) * 100 : 0;
-      const avgCost = data.quantity > 0 ? data.bookValue / data.quantity : 0;
+      // Native so it compares directly against the closing price; a holding with
+      // mixed-currency trades falls back to the converted (user-currency) average
+      const avgCost = data.quantity > 0
+        ? (data.nativeOk ? data.nativeBookValue : data.bookValue) / data.quantity
+        : 0;
+      const avgCostCurrency = data.nativeOk ? data.currency : null;
       const percentOfPortfolio = totalMarketValue > 0 ? (data.marketValue / totalMarketValue) * 100 : 0;
       
-      return { 
-          symbol, 
-          ...data, 
-          change, 
-          percent, 
-          avgCost, 
-          percentOfPortfolio 
+      return {
+          symbol,
+          ...data,
+          change,
+          percent,
+          avgCost,
+          avgCostCurrency,
+          percentOfPortfolio
       };
     })
     .sort((a, b) => b.marketValue - a.marketValue);
@@ -171,10 +195,24 @@ watch(() => props.highlightedSymbol, async (newSymbol) => {
               <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ asset.quantity }}</span>
             </td>
             <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
-              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.avgCost) }}</span>
+              <!-- Average cost stays in the holding's native currency, like the quote price -->
+              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">
+                {{ formatCurrencyIn(asset.avgCost, asset.avgCostCurrency) }}
+                <span
+                  v-if="isForeignCurrency(asset.avgCostCurrency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500"
+                >{{ asset.avgCostCurrency }}</span>
+              </span>
             </td>
             <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
-              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.lastPrice) }}</span>
+              <!-- Quote price stays in the holding's native currency -->
+              <span :class="{ 'privacy-blur': settingsStore.privacyMode }">
+                {{ formatCurrencyIn(asset.lastPrice, asset.currency) }}
+                <span
+                  v-if="isForeignCurrency(asset.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500"
+                >{{ asset.currency }}</span>
+              </span>
             </td>
             <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
               <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(asset.marketValue) }}</span>

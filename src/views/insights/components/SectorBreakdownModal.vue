@@ -24,7 +24,7 @@ const sectorHoldings = computed(() => {
 
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
-    const marketValue = h.quantity * (h.lastPrice || 0);
+    const marketValue = store.holdingMarketValue(h);
 
     if (!h.sectorWeightings) {
       sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);
@@ -77,7 +77,7 @@ const sectorHoldings = computed(() => {
 
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
-    const marketValue = h.quantity * (h.lastPrice || 0);
+    const marketValue = store.holdingMarketValue(h);
     
     let processed = false;
 

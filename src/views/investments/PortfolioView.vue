@@ -18,7 +18,7 @@ const props = defineProps<{
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
-const { getCurrencySymbol, formatCurrency } = useFormatter();
+const { getCurrencySymbol, formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 
 const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
 
@@ -205,7 +205,7 @@ function getAccountCashBalance(accountId: number) {
   const account = store.accounts.find(a => a.id === accountId);
   if (!account) return 0;
   const accountHoldings = store.investmentHoldings.filter(h => h.accountId === accountId);
-  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
   return (account.balance || 0) - holdingsValue;
 }
 </script>
@@ -249,6 +249,12 @@ function getAccountCashBalance(accountId: number) {
           </span>
           <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
             Current Investments Value
+          </p>
+          <p
+            v-if="store.totalDividends > 0"
+            class="text-xs text-violet-500 dark:text-violet-400 font-medium mt-0.5"
+          >
+            <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(store.totalDividends) }}</span> in dividends earned
           </p>
         </div>
       </div>
@@ -301,6 +307,20 @@ function getAccountCashBalance(accountId: number) {
             </div>
           </div>
           <div class="flex items-center space-x-4">
+            <div
+              v-if="store.accountDividendTotal(account.id) > 0"
+              class="text-right"
+            >
+              <span
+                class="text-lg font-bold text-violet-500 dark:text-violet-400"
+                :class="{ 'privacy-blur': settingsStore.privacyMode }"
+              >
+                {{ formatCurrency(store.accountDividendTotal(account.id)) }}
+              </span>
+              <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                Dividends Earned
+              </p>
+            </div>
             <div class="text-right">
               <span
                 class="text-lg font-bold text-gray-900 dark:text-white"
@@ -371,10 +391,24 @@ function getAccountCashBalance(accountId: number) {
                     <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ holding.quantity }}</span>
                   </td>
                   <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(holding.lastPrice || 0) }}</span>
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">
+                      {{ formatCurrencyIn(holding.lastPrice || 0, holding.currency) }}
+                      <span
+                        v-if="isForeignCurrency(holding.currency)"
+                        class="text-[10px] text-gray-400 dark:text-gray-500"
+                      >{{ holding.currency }}</span>
+                    </span>
                   </td>
                   <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
-                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(holding.quantity * (holding.lastPrice || 0)) }}</span>
+                    <span
+                      :class="{ 'privacy-blur': settingsStore.privacyMode }"
+                      :title="isForeignCurrency(holding.currency) ? `${formatCurrencyIn(holding.quantity * (holding.lastPrice || 0), holding.currency)} ${holding.currency}` : undefined"
+                    >{{ formatCurrency(store.holdingMarketValue(holding)) }}</span>
+                    <span
+                      v-if="store.holdingFxMissing(holding)"
+                      class="ml-0.5 text-amber-500"
+                      :title="`Exchange rate unavailable — value shown in ${holding.currency}`"
+                    >*</span>
                   </td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end space-x-2">

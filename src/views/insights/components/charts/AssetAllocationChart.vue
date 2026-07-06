@@ -38,7 +38,7 @@ const topAssets = computed(() => {
   let totalUninvestedCash = 0;
   for (const acc of targetAccounts) {
     const accHoldings = store.investmentHoldings.filter(h => h.accountId === acc.id);
-    const holdingsValue = accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+    const holdingsValue = accHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
     const cash = (acc.balance || 0) - holdingsValue;
     if (cash > 0) {
       totalUninvestedCash += cash;
@@ -48,7 +48,7 @@ const topAssets = computed(() => {
   const allocationMap = new Map<string, number>();
   
   holdings.forEach(h => {
-    const value = h.quantity * (h.lastPrice || 0);
+    const value = store.holdingMarketValue(h);
     allocationMap.set(h.symbol, (allocationMap.get(h.symbol) || 0) + value);
   });
   

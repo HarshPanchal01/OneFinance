@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { useFormatter } from '@/composables/useFormatter';
-import { formatDate } from '@/utils';
+import { dividendCashImpact, formatDate, tradeCashImpact } from '@/utils';
 
 const props = defineProps<{
   date: string;
@@ -15,10 +15,10 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 
 const isLoading = ref(true);
-const holdingsData = ref<{symbol: string, name: string, quantity: number, price: number, total: number}[]>([]);
+const holdingsData = ref<{symbol: string, name: string, quantity: number, price: number, total: number, currency: string | null}[]>([]);
 const cashTotal = ref(0);
 
 watch(() => props.date, async (newDate) => {
@@ -31,6 +31,7 @@ watch(() => props.date, async (newDate) => {
   const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
   const allTransactions = await window.electronAPI.getAllTransactions();
   const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
+  const dividendsRaw = await window.electronAPI.getInvestmentDividends();
   
   let targetAccounts = store.accounts.filter(a => {
     const type = store.accountTypes.find(at => at.id === a.accountTypeId);
@@ -72,13 +73,12 @@ watch(() => props.date, async (newDate) => {
     const hIds = accHoldings.map(h => h.id);
     const iTxnsAll = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
     
-    const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => {
-      if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-      if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-      return sum;
-    }, 0);
+    const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
-    let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+    const dTxnsAll = dividendsRaw.filter(d => hIds.includes(d.holdingId));
+    const dividendSumAll = dTxnsAll.reduce((sum, d) => sum + dividendCashImpact(d), 0);
+
+    let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll + dividendSumAll;
 
     // 2. Walk backwards: Undo any transactions that happened AFTER newDate
     const futureAccTxns = accTxnsAll.filter(t => t.date > newDate);
@@ -98,10 +98,11 @@ watch(() => props.date, async (newDate) => {
     });
 
     const futureITxns = iTxnsAll.filter(t => t.date > newDate);
-    futureITxns.forEach(it => {
-      if (it.type === 'buy') currentCash += (it.quantity * it.price + it.fees);
-      if (it.type === 'sell') currentCash -= (it.quantity * it.price - it.fees);
-    });
+    // Walking backwards: undo each future trade's cash impact
+    futureITxns.forEach(it => { currentCash -= tradeCashImpact(it); });
+
+    // ...and each future dividend's inflow
+    dTxnsAll.filter(d => d.date > newDate).forEach(d => { currentCash -= dividendCashImpact(d); });
 
     computedCash += currentCash;
     
@@ -168,13 +169,17 @@ watch(() => props.date, async (newDate) => {
           }
       }
       
-      const total = data.quantity * price;
+      // Historical closes are native-currency; convert at the current cached rate
+      // (matches how investment_history snapshots are valued)
+      const currency = store.investmentHoldings.find(h => h.symbol === symbol)?.currency ?? null;
+      const total = store.convertToUserCurrency(data.quantity * price, currency);
       finalHoldings.push({
           symbol,
           name: data.name,
           quantity: data.quantity,
           price,
-          total
+          total,
+          currency
       });
   }
 
@@ -287,7 +292,12 @@ watch(() => props.date, async (newDate) => {
                       {{ h.quantity }}
                     </td>
                     <td class="px-4 py-3 text-right font-medium text-gray-900 dark:text-white text-sm">
-                      {{ formatCurrency(h.price) }}
+                      <!-- Quote price stays in the holding's native currency -->
+                      {{ formatCurrencyIn(h.price, h.currency) }}
+                      <span
+                        v-if="isForeignCurrency(h.currency)"
+                        class="text-[10px] text-gray-400 dark:text-gray-500"
+                      >{{ h.currency }}</span>
                     </td>
                     <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
                       {{ formatCurrency(h.total) }}

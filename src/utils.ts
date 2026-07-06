@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction, InvestmentTransaction, InvestmentDividend } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -113,6 +113,7 @@ export interface ImportData {
   investmentTransactions?: any[];
   investmentHistory?: any[];
   investmentAdjustments?: any[];
+  dividends?: InvestmentDividend[];
   budgets?: Budget[];
   goals?: SavingsGoal[];
 }
@@ -250,6 +251,20 @@ export function verifyImportData(
           return;
         }
         if (categories.find((categoryValue) => categoryValue.id === value.categoryId) == undefined) {
+          forEachResult = false;
+          return;
+        }
+      });
+    }
+
+    // Dividends are optional (older 2.0 exports predate this feature) — validate only if present.
+    if (data.dividends != undefined) {
+      data.dividends.forEach((value) => {
+        if (value.holdingId == undefined || value.date == undefined || value.amount == undefined) {
+          forEachResult = false;
+          return;
+        }
+        if (investmentHoldings.find((holdingValue) => holdingValue.id === value.holdingId) == undefined) {
           forEachResult = false;
           return;
         }
@@ -524,6 +539,46 @@ export function getMonthStr(date: Date): string {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+// Latest close on or before `date` — markets close weekends/holidays, so a date
+// can fall between candles; fall back to the prior trading day. Shared by the
+// FX-at-date lookup (electron/finance.ts) and the price-alert reference closes.
+export function closeOnOrBefore(rows: { date: string; close: number }[], date: string): number | null {
+  let best: { date: string; close: number } | null = null;
+  for (const row of rows) {
+    if (row.close != null && row.date <= date && (!best || row.date > best.date)) best = row;
+  }
+  return best?.close ?? null;
+}
+
+// Signed cash impact of a trade in USER currency: price and fees are native to
+// the trade's currency and convert together at the captured trade-date fxRate
+// (null = 1, legacy user-currency rows). Buys drain cash, sells add it.
+export function tradeCashImpact(tx: Pick<InvestmentTransaction, "type" | "quantity" | "price" | "fees" | "fxRate">): number {
+  const rate = tx.fxRate ?? 1;
+  if (tx.type === "buy") return -(tx.quantity * tx.price + tx.fees) * rate;
+  return (tx.quantity * tx.price - tx.fees) * rate;
+}
+
+// Cash a dividend added to the account in USER currency (amount is native,
+// converted at the captured pay-date fxRate; null = 1). Always an inflow.
+export function dividendCashImpact(d: Pick<InvestmentDividend, "amount" | "fxRate">): number {
+  return d.amount * (d.fxRate ?? 1);
+}
+
+// Shares of a holding owned at end-of-day `date`, from its buy/sell history.
+// Used by dividend auto-sync to size a payout on its ex-date.
+export function sharesHeldOn(
+  trades: Pick<InvestmentTransaction, "type" | "quantity" | "date">[],
+  date: string
+): number {
+  let qty = 0;
+  for (const t of trades) {
+    if (t.date > date) continue;
+    qty += t.type === "buy" ? t.quantity : -t.quantity;
+  }
+  return qty;
 }
 
 const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44; // average month length

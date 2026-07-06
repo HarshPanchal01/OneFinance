@@ -80,6 +80,8 @@ export interface InvestmentHolding {
   quantity: number;
   lastPrice: number | null;
   lastUpdated: string | null;
+  // Native quote currency from Yahoo (e.g. 'USD'); null = unknown, treated as user currency
+  currency?: string | null;
   sectorWeightings?: string | null;
   // Price-change alert thresholds (percent; null = off)
   alertDailyPct?: number | null;
@@ -93,6 +95,15 @@ export interface InvestmentHolding {
   alertDailyNotified?: string | null;
   alertWeeklyNotified?: string | null;
   alertMonthlyNotified?: string | null;
+  // Last date dividend auto-sync ran for this holding (once-per-day guard)
+  divSyncedThrough?: string | null;
+}
+
+export interface FxRate {
+  from: string;      // e.g. 'USD'
+  to: string;        // e.g. 'CAD'
+  rate: number;      // 1 unit of `from` in `to`
+  updatedAt: string;
 }
 
 export type PriceAlertTimeframe = 'daily' | 'weekly' | 'monthly';
@@ -113,8 +124,21 @@ export interface InvestmentTransaction {
   date: string;
   type: InvestmentTransactionType;
   quantity: number;
-  price: number;
-  fees: number;
+  price: number;    // in `currency` (native trade currency)
+  fees: number;     // in `currency`, converted with the same fxRate
+  currency?: string | null;  // null = legacy row entered as user currency
+  fxRate?: number | null;    // trade currency -> user currency at trade date; null = 1
+}
+
+export interface InvestmentDividend {
+  id: number;
+  holdingId: number;
+  date: string;
+  amount: number;            // total received, in `currency` (native)
+  perShare?: number | null;  // null for manual lump-sum entries
+  currency?: string | null;  // null = entered as user currency
+  fxRate?: number | null;    // pay-date rate to user currency; null = 1
+  source: 'auto' | 'manual';
 }
 
 export interface InvestmentHistory {

@@ -67,6 +67,15 @@ import {
   deleteInvestmentHolding,
   getInvestmentTransactions,
   getAllInvestmentTransactions,
+  updateInvestmentTransactionFxRates,
+  getInvestmentDividends,
+  createInvestmentDividend,
+  updateInvestmentDividend,
+  deleteInvestmentDividend,
+  updateInvestmentDividendFxRates,
+  getHoldingActivity,
+  getMeta,
+  setMeta,
   getAccountInvestmentTransactions,
   getCombinedInvestmentHistory,
   getAllCombinedInvestmentHistory,
@@ -81,8 +90,9 @@ import {
   bulkUpsertInvestmentHistory,
   createInvestmentHistoryEntry,
 } from "./db";
-import { getQuote, getQuotes, searchSymbols, getAssetProfile, getHistoricalPrices } from "./finance";
-import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, SavingsGoal } from "@/types";
+import { getQuote, getQuotes, getFxRates, searchSymbols, getAssetProfile, getHistoricalPrices, getHistoricalFxRate, getHistoricalFxRates, getDividendEvents } from "./finance";
+import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, SavingsGoal } from "@/types";
+import { sharesHeldOn } from "@/utils";
 
 /**
  * Register all IPC handlers for database operations
@@ -282,8 +292,8 @@ export function registerIpcHandlers(): void {
     return getTotalMonthSpend(year, month);
   });
 
-  ipcMain.handle("db:getNetWorthTrend", async () => {
-    return getNetWorthTrend();
+  ipcMain.handle("db:getNetWorthTrend", async (_event, fxRates?: Record<string, number>) => {
+    return getNetWorthTrend(fxRates);
   });
 
   ipcMain.handle("db:getDatabaseVersion", async () => {
@@ -370,6 +380,26 @@ export function registerIpcHandlers(): void {
     return getAccountTransactions(accountId);
   });
 
+  ipcMain.handle("db:getInvestmentDividends", async (_event, holdingId?: number) => {
+    return getInvestmentDividends(holdingId);
+  });
+
+  ipcMain.handle("db:createInvestmentDividend", async (_event, data: Omit<InvestmentDividend, 'id'>) => {
+    return createInvestmentDividend(data);
+  });
+
+  ipcMain.handle("db:updateInvestmentDividend", async (_event, id: number, data: Partial<Omit<InvestmentDividend, 'id'>>) => {
+    return updateInvestmentDividend(id, data);
+  });
+
+  ipcMain.handle("db:deleteInvestmentDividend", async (_event, id: number) => {
+    return deleteInvestmentDividend(id);
+  });
+
+  ipcMain.handle("db:getHoldingActivity", async (_event, holdingId: number) => {
+    return getHoldingActivity(holdingId);
+  });
+
   ipcMain.handle("db:createInvestmentTransaction", async (_event, data: Omit<InvestmentTransaction, 'id'>) => {
     return createInvestmentTransaction(data);
   });
@@ -410,6 +440,10 @@ export function registerIpcHandlers(): void {
     return getQuotes(symbols);
   });
 
+  ipcMain.handle("finance:getFxRates", async (_event, pairs: { from: string; to: string }[]) => {
+    return getFxRates(pairs);
+  });
+
   ipcMain.handle("finance:searchSymbols", async (_event, query: string) => {
     return searchSymbols(query);
   });
@@ -420,6 +454,174 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("finance:getHistoricalPrices", async (_event, symbol: string, period1: string, period2: string) => {
     return getHistoricalPrices(symbol, period1, period2);
+  });
+
+  ipcMain.handle("finance:getHistoricalFxRate", async (_event, from: string, to: string, date: string) => {
+    return getHistoricalFxRate(from, to, date);
+  });
+
+  // Keep every trade's stored fxRate consistent with the user currency it
+  // targets. `app_meta.tradeFxTarget` records which currency the rates were last
+  // derived against; it only advances when every candidate row resolved, so a
+  // failed/offline run self-heals on a later call (the 30-min refresh cycle)
+  // instead of leaving stale-target rates forever. Modes:
+  //   - target mismatch or `force` (import): re-derive ALL currency-carrying rows
+  //   - otherwise: heal only rows whose fxRate is still null (offline creation)
+  // One historical fetch per distinct trade currency (frugality rule); a healthy
+  // steady-state call costs zero Yahoo requests. Legacy rows (null currency)
+  // stay at rate 1 by design.
+  ipcMain.handle("investments:recomputeTradeFx", async (_event, userCurrency: string, force = false) => {
+    const fullRecompute = force || getMeta("tradeFxTarget") !== userCurrency;
+    // Trades and dividends share the target marker and heal together — one
+    // historical fetch per distinct currency covers both tables' dates.
+    const rows = [
+      ...getAllInvestmentTransactions()
+        .filter(t => t.currency && (fullRecompute || t.fxRate == null))
+        .map(t => ({ id: t.id, date: t.date, currency: t.currency!, kind: 'trade' as const })),
+      ...getInvestmentDividends()
+        .filter(d => d.currency && (fullRecompute || d.fxRate == null))
+        .map(d => ({ id: d.id, date: d.date, currency: d.currency!, kind: 'dividend' as const })),
+    ];
+
+    const byCurrency = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const list = byCurrency.get(r.currency) ?? [];
+      list.push(r);
+      byCurrency.set(r.currency, list);
+    }
+
+    const tradeUpdates: { id: number; fxRate: number | null }[] = [];
+    const dividendUpdates: { id: number; fxRate: number | null }[] = [];
+    let unresolved = 0;
+    for (const [currency, group] of byCurrency) {
+      const rates = await getHistoricalFxRates(currency, userCurrency, group.map(r => r.date));
+      for (const r of group) {
+        // No rate (fetch failed / gap) — leave the row untouched rather than
+        // silently downgrading a good rate to 1; the un-advanced target marker
+        // retries it next cycle
+        const rate = rates.get(r.date);
+        if (rate == null) { unresolved++; continue; }
+        (r.kind === 'trade' ? tradeUpdates : dividendUpdates).push({ id: r.id, fxRate: rate });
+      }
+    }
+    updateInvestmentTransactionFxRates(tradeUpdates);
+    updateInvestmentDividendFxRates(dividendUpdates);
+    if (unresolved === 0) setMeta("tradeFxTarget", userCurrency);
+    return tradeUpdates.length + dividendUpdates.length;
+  });
+
+  // Auto-capture dividends from Yahoo chart() events. Rides the renderer's
+  // 30-min refresh cycle but fetches at most once per symbol per day
+  // (divSyncedThrough marker) — a same-day re-run costs zero Yahoo calls.
+  // Markers only advance after a successful fetch, so an offline run retries
+  // its whole window next cycle. Returns the earliest inserted date per
+  // account so the caller can extend its history backfill past that date.
+  ipcMain.handle("investments:syncDividends", async (_event, userCurrency: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const holdings = getInvestmentHoldings();
+    const existingDividends = getInvestmentDividends();
+
+    const tradesByHolding = new Map<number, InvestmentTransaction[]>();
+    for (const t of getAllInvestmentTransactions()) {
+      const list = tradesByHolding.get(t.holdingId) ?? [];
+      list.push(t);
+      tradesByHolding.set(t.holdingId, list);
+    }
+    const firstTradeDate = (hId: number) =>
+      (tradesByHolding.get(hId) ?? []).reduce((min, t) => (!min || t.date < min) ? t.date : min, '');
+    const lastTradeDate = (hId: number) =>
+      (tradesByHolding.get(hId) ?? []).reduce((max, t) => t.date > max ? t.date : max, '');
+
+    // A holding needs a sync when it hasn't synced today, has trade history to
+    // size payouts against, and could still have held shares in the window —
+    // sold-out holdings stop costing a daily fetch once the marker passes
+    // their last trade.
+    const needsSync = (h: InvestmentHolding) => {
+      if (h.divSyncedThrough === today) return false;
+      if (!firstTradeDate(h.id)) return false;
+      if (h.quantity > 0) return true;
+      return !h.divSyncedThrough || h.divSyncedThrough <= lastTradeDate(h.id);
+    };
+
+    const bySymbol = new Map<string, InvestmentHolding[]>();
+    for (const h of holdings) {
+      if (!needsSync(h)) continue;
+      const list = bySymbol.get(h.symbol) ?? [];
+      list.push(h);
+      bySymbol.set(h.symbol, list);
+    }
+
+    let created = 0;
+    const earliestByAccount: Record<number, string> = {};
+
+    for (const [symbol, syncHoldings] of bySymbol) {
+      // One fetch per symbol, from the oldest un-synced point across its holdings
+      const since = syncHoldings
+        .map(h => h.divSyncedThrough ?? firstTradeDate(h.id))
+        .sort()[0];
+      let events: { date: string; perShare: number }[];
+      try {
+        events = await getDividendEvents(symbol, since, today);
+      } catch (e) {
+        console.error(`[Dividends] Event fetch failed for ${symbol}:`, e);
+        continue;
+      }
+
+      // Size each payout per holding, then resolve pay-date FX in one batch
+      // per currency (holdings of one symbol share the quote currency)
+      const pendingByHolding = new Map<number, { date: string; perShare: number; amount: number }[]>();
+      const datesByCurrency = new Map<string, Set<string>>();
+      for (const h of syncHoldings) {
+        const trades = tradesByHolding.get(h.id) ?? [];
+        const firstTrade = firstTradeDate(h.id);
+        const pending: { date: string; perShare: number; amount: number }[] = [];
+        for (const ev of events) {
+          // Respect each holding's own window so a user-deleted auto row isn't
+          // resurrected by a sibling holding's wider fetch span. divSyncedThrough
+          // is INCLUSIVE (synced through & including it) — skip on-or-before it so
+          // a deleted boundary-date row doesn't come back; the never-synced case
+          // falls back to first ownership (skip strictly before the first trade).
+          if (h.divSyncedThrough ? ev.date <= h.divSyncedThrough : ev.date < firstTrade) continue;
+          const shares = sharesHeldOn(trades, ev.date);
+          if (shares <= 0) continue;
+          if (existingDividends.some(d => d.holdingId === h.id && d.date === ev.date)) continue;
+          pending.push({ date: ev.date, perShare: ev.perShare, amount: ev.perShare * shares });
+        }
+        pendingByHolding.set(h.id, pending);
+        if (h.currency && h.currency !== userCurrency && pending.length > 0) {
+          const set = datesByCurrency.get(h.currency) ?? new Set<string>();
+          pending.forEach(p => set.add(p.date));
+          datesByCurrency.set(h.currency, set);
+        }
+      }
+
+      const ratesByCurrency = new Map<string, Map<string, number | null>>();
+      for (const [currency, dates] of datesByCurrency) {
+        ratesByCurrency.set(currency, await getHistoricalFxRates(currency, userCurrency, [...dates]));
+      }
+
+      for (const h of syncHoldings) {
+        for (const p of pendingByHolding.get(h.id) ?? []) {
+          const currency = h.currency ?? null;
+          // Unresolved rate stays null — the refresh-cycle recompute heals it
+          const fxRate = !currency || currency === userCurrency
+            ? 1
+            : (ratesByCurrency.get(currency)?.get(p.date) ?? null);
+          const row = createInvestmentDividend({
+            holdingId: h.id, date: p.date, amount: p.amount, perShare: p.perShare,
+            currency, fxRate, source: 'auto',
+          });
+          existingDividends.push(row);
+          created++;
+          if (!earliestByAccount[h.accountId] || p.date < earliestByAccount[h.accountId]) {
+            earliestByAccount[h.accountId] = p.date;
+          }
+        }
+        updateInvestmentHolding(h.id, { divSyncedThrough: today });
+      }
+    }
+
+    return { created, earliestByAccount };
   });
 
   // ============================================

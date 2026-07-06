@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -41,6 +41,19 @@ const electronAPI = {
   createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
     ipcRenderer.invoke("db:createInvestmentTransaction", data),
 
+  getInvestmentDividends: (holdingId?: number): Promise<InvestmentDividend[]> =>
+    ipcRenderer.invoke("db:getInvestmentDividends", holdingId),
+  createInvestmentDividend: (data: Omit<InvestmentDividend, 'id'>): Promise<InvestmentDividend> =>
+    ipcRenderer.invoke("db:createInvestmentDividend", data),
+  updateInvestmentDividend: (id: number, data: Partial<Omit<InvestmentDividend, 'id'>>): Promise<InvestmentDividend> =>
+    ipcRenderer.invoke("db:updateInvestmentDividend", id, data),
+  deleteInvestmentDividend: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteInvestmentDividend", id),
+  getHoldingActivity: (holdingId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getHoldingActivity", holdingId),
+  syncDividends: (userCurrency: string): Promise<{ created: number; earliestByAccount: Record<number, string> }> =>
+    ipcRenderer.invoke("investments:syncDividends", userCurrency),
+
   adjustAccountCash: (accountId: number, amount: number, notes: string): Promise<any> =>
     ipcRenderer.invoke("db:adjustAccountCash", accountId, amount, notes),
 
@@ -65,6 +78,9 @@ const electronAPI = {
   getQuotes: (symbols: string[]): Promise<any[]> =>
     ipcRenderer.invoke("finance:getQuotes", symbols),
 
+  getFxRates: (pairs: { from: string; to: string }[]): Promise<FxRate[]> =>
+    ipcRenderer.invoke("finance:getFxRates", pairs),
+
   searchSymbols: (query: string): Promise<any[]> =>
     ipcRenderer.invoke("finance:searchSymbols", query),
 
@@ -73,6 +89,12 @@ const electronAPI = {
 
   getHistoricalPrices: (symbol: string, period1: string, period2: string): Promise<{ date: string; close: number }[]> =>
     ipcRenderer.invoke("finance:getHistoricalPrices", symbol, period1, period2),
+
+  getHistoricalFxRate: (from: string, to: string, date: string): Promise<number | null> =>
+    ipcRenderer.invoke("finance:getHistoricalFxRate", from, to, date),
+
+  recomputeTradeFxRates: (userCurrency: string, force?: boolean): Promise<number> =>
+    ipcRenderer.invoke("investments:recomputeTradeFx", userCurrency, force),
 
   // ============================================
   // RECURRING TRANSACTIONS
@@ -266,8 +288,8 @@ const electronAPI = {
   getTotalMonthSpend: (year: number, month: number): Promise<number> =>
     ipcRenderer.invoke("db:getTotalMonthSpend", year, month),
 
-  getNetWorthTrend: (): Promise<{ month: number, year: number, balance: number }[]> =>
-    ipcRenderer.invoke("db:getNetWorthTrend"),
+  getNetWorthTrend: (fxRates?: Record<string, number>): Promise<{ month: number, year: number, balance: number }[]> =>
+    ipcRenderer.invoke("db:getNetWorthTrend", fxRates),
 
   getDatabaseVersion: (): Promise<number> =>
     ipcRenderer.invoke("db:getDatabaseVersion"),

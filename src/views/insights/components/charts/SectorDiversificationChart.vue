@@ -36,7 +36,7 @@ const chartDataObj = computed(() => {
   let totalUninvestedCash = 0;
   for (const acc of targetAccounts) {
     const accHoldings = store.investmentHoldings.filter(h => h.accountId === acc.id);
-    const holdingsValue = accHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+    const holdingsValue = accHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
     const cash = (acc.balance || 0) - holdingsValue;
     if (cash > 0) {
       totalUninvestedCash += cash;
@@ -52,7 +52,7 @@ const chartDataObj = computed(() => {
   holdings.forEach(h => {
     if (h.quantity <= 0) return;
     
-    const marketValue = h.quantity * (h.lastPrice || 0);
+    const marketValue = store.holdingMarketValue(h);
 
     if (!h.sectorWeightings) {
       sectorTotals.set('cash_and_equivalents', (sectorTotals.get('cash_and_equivalents') || 0) + marketValue);

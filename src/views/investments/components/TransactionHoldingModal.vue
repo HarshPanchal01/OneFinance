@@ -7,6 +7,7 @@ import { useFormatter } from '@/composables/useFormatter';
 import AmountInput from '@/components/AmountInput.vue';
 import { useSettingsStore } from '@/stores/settings';
 import ErrorModal from '@/components/ErrorModal.vue';
+import { tradeCashImpact } from '@/utils';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useFinanceStore();
-const { formatCurrency } = useFormatter();
+const { formatCurrency, formatCurrencyIn, isForeignCurrency } = useFormatter();
 const settingsStore = useSettingsStore();
 
 const errorModal = ref<InstanceType<typeof ErrorModal>>();
@@ -31,7 +32,7 @@ const cashBalance = computed(() => {
   if (!account) return 0;
   
   const accountHoldings = store.investmentHoldings.filter(h => h.accountId === accountId);
-  const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+  const holdingsValue = accountHoldings.reduce((sum, h) => sum + store.holdingMarketValue(h), 0);
   
   return (account.balance || 0) - holdingsValue;
 });
@@ -45,6 +46,14 @@ const form = reactive({
   fees: 0 as number | null,
   affectCash: true
 });
+
+// Price/fees are entered in the holding's native currency; the summary previews
+// the cash impact at the live rate (the persisted rate is the trade-date one,
+// resolved on save — for backdated trades this preview is an estimate).
+const nativeTotal = computed(() =>
+  ((form.quantity || 0) * (form.price || 0)) + (props.type === 'buy' ? (form.fees || 0) : -(form.fees || 0))
+);
+const convertedTotal = computed(() => store.convertToUserCurrency(nativeTotal.value, props.holding?.currency));
 
 watch(() => props.holding, (newHolding) => {
   if (newHolding) {
@@ -74,8 +83,8 @@ async function submit() {
   isSubmitting.value = true;
   try {
     const isoDate = new Date(form.date.getTime() - form.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    
-    await store.addInvestmentTransaction({
+
+    const newTx = await store.addInvestmentTransaction({
       holdingId: props.holding.id,
       date: isoDate,
       type: props.type,
@@ -84,13 +93,9 @@ async function submit() {
       fees: form.fees || 0
     });
 
-    if (!form.affectCash) {
-      let offsetAmount = 0;
-      if (props.type === 'buy') {
-        offsetAmount = (form.quantity * form.price) + (form.fees || 0); // Need to add cash back
-      } else if (props.type === 'sell') {
-        offsetAmount = -((form.quantity * form.price) - (form.fees || 0)); // Need to remove cash added
-      }
+    if (!form.affectCash && newTx) {
+      // Undo the trade's cash impact using the rate actually captured on the row
+      const offsetAmount = -tradeCashImpact(newTx);
       if (offsetAmount !== 0) {
         await window.electronAPI.adjustAccountCash(props.holding.accountId, offsetAmount, "Historical Transaction Adjustment");
         await store.fetchAccounts();
@@ -150,18 +155,32 @@ async function submit() {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price per Share</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Price per Share
+                <span
+                  v-if="isForeignCurrency(holding?.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500 font-normal"
+                >({{ holding?.currency }})</span>
+              </label>
               <AmountInput
                 v-model="form.price"
                 :show-currency="true"
+                :currency="holding?.currency"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fees (Optional)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Fees (Optional)
+                <span
+                  v-if="isForeignCurrency(holding?.currency)"
+                  class="text-[10px] text-gray-400 dark:text-gray-500 font-normal"
+                >({{ holding?.currency }})</span>
+              </label>
               <AmountInput
                 v-model="form.fees"
                 :show-currency="true"
+                :currency="holding?.currency"
               />
             </div>
 
@@ -195,13 +214,20 @@ async function submit() {
                     {{ formatCurrency(cashBalance) }}
                   </span>
                 </div>
-                <span
-                  class="font-bold"
-                  :class="type === 'buy' ? 'text-expense' : 'text-income'"
-                >
-                  <span v-if="type==='buy'">-</span><span v-else>+</span>
-                  <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency((((form.quantity || 0) * (form.price || 0)) + (type === 'buy' ? (form.fees || 0) : -(form.fees || 0)))) }}</span>
-                </span>
+                <div class="flex flex-col items-end">
+                  <span
+                    class="font-bold"
+                    :class="type === 'buy' ? 'text-expense' : 'text-income'"
+                  >
+                    <span v-if="type==='buy'">-</span><span v-else>+</span>
+                    <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(convertedTotal) }}</span>
+                  </span>
+                  <span
+                    v-if="isForeignCurrency(holding?.currency)"
+                    class="text-[10px] text-gray-400 dark:text-gray-500"
+                    :class="{ 'privacy-blur': settingsStore.privacyMode }"
+                  >{{ formatCurrencyIn(nativeTotal, holding?.currency) }} {{ holding?.currency }}</span>
+                </div>
               </div>
             </div>
           </div>

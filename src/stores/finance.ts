@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
-import { computeGoalProjection, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, type ImportData } from "@/utils";
+import { useSettingsStore } from "@/stores/settings";
+import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
 import type {
   Budget,
   SavingsGoal,
@@ -18,11 +19,14 @@ import type {
   RecurringTransaction,
   InvestmentHolding,
   InvestmentTransaction,
+  InvestmentDividend,
   InvestmentHistory,
   PriceAlert,
 } from "@/types";
 
 export const useFinanceStore = defineStore("finance", () => {
+  const settingsStore = useSettingsStore();
+
   // ============================================
   // STATE
   // ============================================
@@ -87,11 +91,74 @@ export const useFinanceStore = defineStore("finance", () => {
   // Investment State
   const investmentHoldings = ref<InvestmentHolding[]>([]);
   const investmentTransactions = ref<InvestmentTransaction[]>([]);
+  const investmentDividends = ref<InvestmentDividend[]>([]);
   const investmentHistory = ref<InvestmentHistory[]>([]);
 
   // Latest previous-close per symbol, captured from the periodic quote fetch
   // (in-memory only — powers the dashboard watchlist day change without an extra call).
   const quotePreviousCloses = ref<Record<string, number>>({});
+
+  // FX rates keyed 'FROM->TO' (target-keyed so a user-currency change never reads
+  // stale rates for the old target). Cached in localStorage so offline startup can
+  // still convert holdings' cached lastPrice.
+  const FX_CACHE_KEY = "fxRatesCache";
+  const fxRates = ref<Record<string, number>>({});
+
+  try {
+    const rawFxCache = localStorage.getItem(FX_CACHE_KEY);
+    if (rawFxCache) {
+      fxRates.value = JSON.parse(rawFxCache).rates ?? {};
+    }
+  } catch {
+    // Corrupt cache — rates refetch on the next price refresh
+  }
+
+  async function refreshFxRates() {
+    const to = settingsStore.currency;
+    const froms = [...new Set(
+      investmentHoldings.value
+        .map(h => h.currency)
+        .filter((c): c is string => !!c && c !== to)
+    )];
+    if (froms.length === 0) return;
+    try {
+      const rates = await window.electronAPI.getFxRates(froms.map(from => ({ from, to })));
+      if (rates.length === 0) return; // fetch failed/empty — keep cached rates
+      for (const r of rates) fxRates.value[`${r.from}->${r.to}`] = r.rate;
+      localStorage.setItem(FX_CACHE_KEY, JSON.stringify({ rates: fxRates.value }));
+    } catch (e) {
+      console.error("[Store] Failed to refresh FX rates:", e);
+    }
+  }
+
+  // null = rate unknown (callers fall back to 1:1 and can flag it in the UI)
+  function fxRateFor(fromCurrency?: string | null): number | null {
+    if (!fromCurrency || fromCurrency === settingsStore.currency) return 1;
+    return fxRates.value[`${fromCurrency}->${settingsStore.currency}`] ?? null;
+  }
+
+  function convertToUserCurrency(amount: number, fromCurrency?: string | null): number {
+    return amount * (fxRateFor(fromCurrency) ?? 1);
+  }
+
+  function holdingMarketValue(holding: InvestmentHolding): number {
+    return convertToUserCurrency(holding.quantity * (holding.lastPrice || 0), holding.currency);
+  }
+
+  function holdingFxMissing(holding: InvestmentHolding): boolean {
+    return fxRateFor(holding.currency) === null;
+  }
+
+  // Rates for the current user currency keyed by source code (e.g. { USD: 1.37 }),
+  // for main-process consumers like the net-worth trend.
+  function userFxRateMap(): Record<string, number> {
+    const suffix = `->${settingsStore.currency}`;
+    const map: Record<string, number> = {};
+    for (const [key, rate] of Object.entries(fxRates.value)) {
+      if (key.endsWith(suffix)) map[key.slice(0, -suffix.length)] = rate;
+    }
+    return map;
+  }
 
   const refreshCooldown = ref(0);
   let cooldownInterval: number | undefined;
@@ -414,6 +481,8 @@ export const useFinanceStore = defineStore("finance", () => {
     const holdingsRaw = await window.electronAPI.getInvestmentHoldings();
     const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
     const investmentTransactionsRaw = await window.electronAPI.getAllInvestmentTransactions();
+    const dividendsRaw = await window.electronAPI.getInvestmentDividends();
+    investmentDividends.value = dividendsRaw;
 
     accountsRaw.forEach(account => {
       // Find transactions where this account is either the source or the destination
@@ -442,16 +511,17 @@ export const useFinanceStore = defineStore("finance", () => {
       const accountHoldingIds = accountHoldings.map(h => h.id);
       const accountInvestmentTransactions = investmentTransactionsRaw.filter(it => accountHoldingIds.includes(it.holdingId));
       
-      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => {
-        if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-        if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-        return sum;
-      }, 0);
+      const investmentTradeSum = accountInvestmentTransactions.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
-      // Add investment holdings current market value
-      const holdingsValue = accountHoldings.reduce((sum, h) => sum + (h.quantity * (h.lastPrice || 0)), 0);
+      // Add dividend income (cash received per holding, converted at pay-date FX)
+      const dividendSum = dividendsRaw
+        .filter(d => accountHoldingIds.includes(d.holdingId))
+        .reduce((sum, d) => sum + dividendCashImpact(d), 0);
 
-      account.balance = account.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + holdingsValue;
+      // Add investment holdings current market value (converted to user currency)
+      const holdingsValue = accountHoldings.reduce((sum, h) => sum + holdingMarketValue(h), 0);
+
+      account.balance = account.startingBalance + transactionSum + adjustmentSum + investmentTradeSum + dividendSum + holdingsValue;
     });
 
     accounts.value = accountsRaw;
@@ -765,7 +835,7 @@ export const useFinanceStore = defineStore("finance", () => {
     try {
       dashboardTransactions.value = await window.electronAPI.getAllTransactions();
       dashboardTrends.value = await window.electronAPI.getRollingMonthlyTrends();
-      netWorthTrends.value = await window.electronAPI.getNetWorthTrend();
+      netWorthTrends.value = await window.electronAPI.getNetWorthTrend(userFxRateMap());
       await fetchInvestmentHoldings();
     } catch (e) {
       console.error("[Store] Failed to load dashboard data:", e);
@@ -1006,7 +1076,43 @@ export const useFinanceStore = defineStore("finance", () => {
     return success;
   }
 
-  async function addInvestmentTransaction(data: Omit<InvestmentTransaction, 'id'>) {
+  async function addInvestmentTransaction(
+    data: Omit<InvestmentTransaction, 'id'>,
+    options?: { captureFx?: boolean }
+  ) {
+    // Stamp the trade with its native currency + trade-date FX rate (captured once,
+    // persisted on the row — frugality rule) so cost basis and cash impact convert
+    // like broker statements. Callers may pass `currency` (e.g. AddHoldingModal's
+    // fresh quote currency, which can be newer than the holding row's); import
+    // passes { captureFx: false } to round-trip stored values as-is (legacy rows
+    // stay null = user currency, rate 1).
+    if (options?.captureFx !== false && data.fxRate == null) {
+      const currency = data.currency
+        ?? investmentHoldings.value.find(h => h.id === data.holdingId)?.currency
+        ?? null;
+      let fxRate: number | null = null;
+      if (currency) {
+        if (currency === settingsStore.currency) {
+          fxRate = 1;
+        } else if (data.date >= toIsoDateString(new Date())) {
+          // Today's trade: the live cached rate (refreshed every 30 min) is what
+          // the historical endpoint would return — skip the Yahoo call
+          fxRate = fxRateFor(currency);
+        }
+        if (fxRate == null) {
+          try {
+            fxRate = await window.electronAPI.getHistoricalFxRate(currency, settingsStore.currency, data.date);
+          } catch (e) {
+            console.error("[Store] Failed to fetch trade-date FX rate:", e);
+          }
+          // Offline/failed fetch — fall back to the live cached rate. A row left
+          // at null is re-derived by the refresh-cycle recompute once online.
+          fxRate = fxRate ?? fxRateFor(currency);
+        }
+      }
+      data = { ...data, currency, fxRate };
+    }
+
     const newTx = await window.electronAPI.createInvestmentTransaction(data);
     if (newTx) {
       // Find the holding to know which account to refresh
@@ -1021,9 +1127,100 @@ export const useFinanceStore = defineStore("finance", () => {
     return newTx;
   }
 
-  async function refreshInvestmentPrices() {
+  // Stamp a dividend with its native currency + pay-date FX rate (captured once,
+  // persisted on the row). Mirrors addInvestmentTransaction's capture: rate 1
+  // when native == user currency, the live cached rate for today, else the
+  // pay-date historical rate (fallback: live rate; a row left null self-heals
+  // via the refresh-cycle recompute). A non-null fxRate is kept as-is (an
+  // unchanged-date edit passes the stored rate to avoid a redundant fetch).
+  async function captureDividendFx(data: Omit<InvestmentDividend, 'id'>): Promise<Omit<InvestmentDividend, 'id'>> {
+    if (data.fxRate != null) return data;
+    const currency = data.currency
+      ?? investmentHoldings.value.find(h => h.id === data.holdingId)?.currency
+      ?? null;
+    let fxRate: number | null = null;
+    if (currency) {
+      if (currency === settingsStore.currency) {
+        fxRate = 1;
+      } else if (data.date >= toIsoDateString(new Date())) {
+        fxRate = fxRateFor(currency);
+      }
+      if (fxRate == null) {
+        try {
+          fxRate = await window.electronAPI.getHistoricalFxRate(currency, settingsStore.currency, data.date);
+        } catch (e) {
+          console.error("[Store] Failed to fetch dividend pay-date FX rate:", e);
+        }
+        fxRate = fxRate ?? fxRateFor(currency);
+      }
+    }
+    return { ...data, currency, fxRate };
+  }
+
+  async function addInvestmentDividend(data: Omit<InvestmentDividend, 'id'>) {
+    const captured = await captureDividendFx(data);
+    const newDividend = await window.electronAPI.createInvestmentDividend(captured);
+    if (newDividend) {
+      await fetchAccounts(); // refreshes investmentDividends + balances
+    }
+    return newDividend;
+  }
+
+  async function editInvestmentDividend(id: number, data: Omit<InvestmentDividend, 'id'>) {
+    const captured = await captureDividendFx(data);
+    const updated = await window.electronAPI.updateInvestmentDividend(id, captured);
+    if (updated) {
+      await fetchAccounts();
+    }
+    return updated;
+  }
+
+  async function removeInvestmentDividend(id: number) {
+    await window.electronAPI.deleteInvestmentDividend(id);
+    await fetchAccounts();
+  }
+
+  // Dividend totals in user currency
+  function holdingDividendTotal(holdingId: number): number {
+    return investmentDividends.value
+      .filter(d => d.holdingId === holdingId)
+      .reduce((sum, d) => sum + dividendCashImpact(d), 0);
+  }
+
+  function accountDividendTotal(accountId: number): number {
+    const holdingIds = investmentHoldings.value.filter(h => h.accountId === accountId).map(h => h.id);
+    return investmentDividends.value
+      .filter(d => holdingIds.includes(d.holdingId))
+      .reduce((sum, d) => sum + dividendCashImpact(d), 0);
+  }
+
+  const totalDividends = computed(() =>
+    investmentDividends.value.reduce((sum, d) => sum + dividendCashImpact(d), 0)
+  );
+
+  async function refreshInvestmentPrices(options?: { rebuildHistory?: boolean }) {
     if (investmentHoldings.value.length === 0) return;
-    
+
+    // Self-heal stored trade fxRates before anything reads them (the backfill
+    // below, converted balances): re-derives rows targeting a stale currency or
+    // left null by an offline creation. Zero Yahoo calls when already healthy.
+    try {
+      await window.electronAPI.recomputeTradeFxRates(settingsStore.currency);
+    } catch (e) {
+      console.error("[Store] Trade FX heal failed:", e);
+    }
+
+    // Auto-capture dividends before balances/backfill read them (once per
+    // symbol per day inside Main). Newly inserted dates can predate existing
+    // history — extend each account's backfill window back to them.
+    let dividendBackfillStart: Record<number, string> = {};
+    try {
+      const divSync = await window.electronAPI.syncDividends(settingsStore.currency);
+      dividendBackfillStart = divSync.earliestByAccount;
+    } catch (e) {
+      console.error("[Store] Dividend sync failed:", e);
+    }
+
     const symbols = [...new Set(investmentHoldings.value.map(h => h.symbol))];
     try {
       const quotes = await window.electronAPI.getQuotes(symbols);
@@ -1037,11 +1234,6 @@ export const useFinanceStore = defineStore("finance", () => {
         const d = new Date();
         d.setDate(d.getDate() - n);
         return d.toISOString().split('T')[0];
-      };
-      const closeOnOrBefore = (history: { date: string; close: number }[], dateStr: string): number | null => {
-        const eligible = history.filter(h => h.date <= dateStr && h.close != null);
-        if (eligible.length === 0) return null;
-        return eligible.reduce((a, b) => (a.date >= b.date ? a : b)).close;
       };
       const alertQueue: PriceAlert[] = [];
 
@@ -1082,6 +1274,9 @@ export const useFinanceStore = defineStore("finance", () => {
             lastUpdated: quote.updatedAt,
             name: quote.name
           };
+
+          // Never clobber a known currency with undefined (quote may omit it on drift)
+          if (quote.currency) updateData.currency = quote.currency;
 
           // If sector weightings are missing, fetch them
           if (!holding.sectorWeightings) {
@@ -1127,8 +1322,11 @@ export const useFinanceStore = defineStore("finance", () => {
         await window.electronAPI.showPriceAlerts(unique);
       }
 
-      // Refresh store state
+      // Refresh store state. FX rates refresh after holdings (so the pair list
+      // reflects fresh currencies) and before accounts (so balances convert
+      // with fresh rates).
       await fetchInvestmentHoldings();
+      await refreshFxRates();
       await fetchAccounts();
 
       const today = new Date().toISOString().split('T')[0];
@@ -1142,6 +1340,7 @@ export const useFinanceStore = defineStore("finance", () => {
       // INCREMENTAL BACKFILL LOGIC
       const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
       const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
+      const dividendsRaw = await window.electronAPI.getInvestmentDividends();
       const allHoldings = await window.electronAPI.getInvestmentHoldings();
       const allTransactions = await window.electronAPI.getAllTransactions();
       const existingHistory = await window.electronAPI.getGlobalInvestmentHistory();
@@ -1164,18 +1363,26 @@ export const useFinanceStore = defineStore("finance", () => {
         const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
         const hIds = accHoldings.map(h => h.id);
         const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
-        
+        const dTxns = dividendsRaw.filter(d => hIds.includes(d.holdingId));
+
         const txnDates = [
           ...accTxns.map(t => t.date),
           ...adjTxns.map(a => a.date),
-          ...iTxns.map(t => t.date)
+          ...iTxns.map(t => t.date),
+          ...dTxns.map(d => d.date)
         ].sort();
 
         const earliestTxnDate = txnDates.length > 0 ? txnDates[0] : today;
 
         // If we have history, we only need to refresh from that date to today.
-        // If we don't, we start from the beginning.
-        const startDateStr = lastDate || earliestTxnDate;
+        // If we don't, we start from the beginning. A rebuild (e.g. after a
+        // user-currency change) recomputes everything so old rows aren't left
+        // denominated in the previous currency.
+        let startDateStr = options?.rebuildHistory ? earliestTxnDate : (lastDate || earliestTxnDate);
+        // A dividend sync can insert cash events older than the existing
+        // history (e.g. the first sync backfills years) — recompute from there
+        const divStart = acc.id != null ? dividendBackfillStart[acc.id] : undefined;
+        if (divStart && divStart < startDateStr) startDateStr = divStart;
         
         // We re-calculate the last recorded day anyway to ensure it has latest prices
         if (startDateStr < oldestRequiredDate) oldestRequiredDate = startDateStr;
@@ -1210,6 +1417,7 @@ export const useFinanceStore = defineStore("finance", () => {
             const accHoldings = allHoldings.filter(h => h.accountId === acc.id);
             const hIds = accHoldings.map(h => h.id);
             const iTxns = invTxnsRaw.filter(t => hIds.includes(t.holdingId));
+            const dTxns = dividendsRaw.filter(d => hIds.includes(d.holdingId));
 
             const transactionSumAll = accTxns.reduce((sum, t) => {
               if (t.accountId === acc.id && t.type === 'expense') return sum - t.amount;
@@ -1227,13 +1435,11 @@ export const useFinanceStore = defineStore("finance", () => {
               return sum;
             }, 0);
             
-            const investmentTradeSumAll = iTxns.reduce((sum, it) => {
-              if (it.type === 'buy') return sum - (it.quantity * it.price + it.fees);
-              if (it.type === 'sell') return sum + (it.quantity * it.price - it.fees);
-              return sum;
-            }, 0);
+            const investmentTradeSumAll = iTxns.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
-            const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+            const dividendSumAll = dTxns.reduce((sum, d) => sum + dividendCashImpact(d), 0);
+
+            const currentTrueCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll + dividendSumAll;
 
             const updateHistories = [];
 
@@ -1257,10 +1463,11 @@ export const useFinanceStore = defineStore("finance", () => {
                });
 
                const futureITxns = iTxns.filter(t => t.date > mDate);
-               futureITxns.forEach(it => {
-                  if (it.type === 'buy') pastCash += (it.quantity * it.price + it.fees);
-                  if (it.type === 'sell') pastCash -= (it.quantity * it.price - it.fees);
-               });
+               // Walking backwards: undo each future trade's cash impact
+               futureITxns.forEach(it => { pastCash -= tradeCashImpact(it); });
+
+               // ...and each future dividend's inflow
+               dTxns.filter(d => d.date > mDate).forEach(d => { pastCash -= dividendCashImpact(d); });
 
                let holdingsValue = 0;
                for (const holding of accHoldings) {
@@ -1279,7 +1486,9 @@ export const useFinanceStore = defineStore("finance", () => {
                      if (mDate !== today && pastPrices.length > 0) {
                          price = pastPrices[pastPrices.length - 1].close;
                      }
-                     holdingsValue += (currentQty * price);
+                     // Historical closes are native-currency; converted at the current
+                     // cached rate (frugal trade-off — no per-day historical FX).
+                     holdingsValue += convertToUserCurrency(currentQty * price, holding.currency);
                   }
                }
 
@@ -1381,7 +1590,7 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function fetchNetWorthTrend() {
     try {
-      netWorthTrends.value = await window.electronAPI.getNetWorthTrend();
+      netWorthTrends.value = await window.electronAPI.getNetWorthTrend(userFxRateMap());
     } catch (e) {
       console.error("[Store] Failed to fetch net worth trend:", e);
       netWorthTrends.value = [];
@@ -1459,6 +1668,7 @@ export const useFinanceStore = defineStore("finance", () => {
     const allExistingInvestmentTransactions = await window.electronAPI.getAllInvestmentTransactions();
     const allExistingInvestmentHistory = await window.electronAPI.getGlobalInvestmentHistory();
     const allExistingInvestmentAdjustments = await window.electronAPI.getInvestmentAdjustments();
+    const allExistingInvestmentDividends = await window.electronAPI.getInvestmentDividends();
 
     const accountTypeIdMap = new Map<number, number>();
     const categoryTypeIdMap = new Map<number, number>();
@@ -1715,11 +1925,15 @@ export const useFinanceStore = defineStore("finance", () => {
           quantity: holding.quantity,
           lastPrice: holding.lastPrice,
           lastUpdated: holding.lastUpdated,
+          currency: holding.currency ?? null,
           sectorWeightings: holding.sectorWeightings,
           // Carry alert thresholds; reference/notified caches reset to null (re-anchor on the new machine)
           alertDailyPct: holding.alertDailyPct ?? null,
           alertWeeklyPct: holding.alertWeeklyPct ?? null,
           alertMonthlyPct: holding.alertMonthlyPct ?? null,
+          // Carry the dividend sync marker — the dividends import below brings the
+          // rows, so re-walking the whole window would only cost a redundant fetch
+          divSyncedThrough: holding.divSyncedThrough ?? null,
         });
 
         console.log(`Inserting holding ${holding.symbol} completed`);
@@ -1746,14 +1960,18 @@ export const useFinanceStore = defineStore("finance", () => {
           throw new Error("Holding id mapping not found for investment transaction id: " + tx.id);
         }
 
+        // currency/fxRate round-trip as stored (legacy rows stay null = user
+        // currency); the post-import recompute below re-targets them
         await addInvestmentTransaction({
           holdingId: mappedHoldingId,
           date: tx.date,
           type: tx.type,
           quantity: tx.quantity,
           price: tx.price,
-          fees: tx.fees
-        });
+          fees: tx.fees,
+          currency: tx.currency ?? null,
+          fxRate: tx.fxRate ?? null
+        }, { captureFx: false });
       }
 
       // Reset holding quantities to their exported values since adding transactions artificially inflates them
@@ -1764,6 +1982,37 @@ export const useFinanceStore = defineStore("finance", () => {
             quantity: holding.quantity
           });
         }
+      }
+
+      // Dividends are optional (older 2.0 exports predate this feature).
+      // currency/fxRate round-trip as stored; the post-import recompute below
+      // re-targets the rates to this machine's user currency.
+      const importDividends = data.dividends || [];
+      for (const dividend of importDividends) {
+        const mappedHoldingId = holdingIdMap.get(dividend.holdingId);
+        if (mappedHoldingId == undefined) {
+          throw new Error("Holding id mapping not found for dividend id: " + dividend.id);
+        }
+
+        if (!isReplace && skipDuplicates) {
+          const existing = allExistingInvestmentDividends.find(d =>
+            d.holdingId === mappedHoldingId && d.date === dividend.date && d.amount === dividend.amount
+          );
+          if (existing) {
+            console.log(`Skipping inserting existing dividend`);
+            continue;
+          }
+        }
+
+        await window.electronAPI.createInvestmentDividend({
+          holdingId: mappedHoldingId,
+          date: dividend.date,
+          amount: dividend.amount,
+          perShare: dividend.perShare ?? null,
+          currency: dividend.currency ?? null,
+          fxRate: dividend.fxRate ?? null,
+          source: dividend.source ?? 'manual',
+        });
       }
 
       for (const hist of importInvestmentHistory) {
@@ -1847,6 +2096,15 @@ export const useFinanceStore = defineStore("finance", () => {
       }
       await fetchGoals();
 
+      // Imported fxRates target the EXPORTER-time user currency, which may not be
+      // this machine's — force a full re-derive against the current one (a failed
+      // fetch here self-heals via the refresh-cycle recompute)
+      try {
+        await window.electronAPI.recomputeTradeFxRates(settingsStore.currency, true);
+      } catch (e) {
+        console.error("[Store] Post-import trade FX recompute failed:", e);
+      }
+
     }
    catch (error) {
       console.log(error);
@@ -1868,6 +2126,7 @@ export const useFinanceStore = defineStore("finance", () => {
     ledgerYears.value = [];
     investmentHoldings.value = [];
     investmentTransactions.value = [];
+    investmentDividends.value = [];
     investmentHistory.value = [];
   }
 
@@ -1910,8 +2169,18 @@ export const useFinanceStore = defineStore("finance", () => {
     expandedInvestmentAccounts,
     investmentHoldings,
     investmentTransactions,
+    investmentDividends,
     investmentHistory,
     quotePreviousCloses,
+    fxRates,
+    refreshFxRates,
+    fxRateFor,
+    convertToUserCurrency,
+    holdingMarketValue,
+    holdingFxMissing,
+    holdingDividendTotal,
+    accountDividendTotal,
+    totalDividends,
     refreshCooldown,
     startRefreshCooldown,
     isLoading,
@@ -1962,6 +2231,9 @@ export const useFinanceStore = defineStore("finance", () => {
     editInvestmentHolding,
     removeInvestmentHolding,
     addInvestmentTransaction,
+    addInvestmentDividend,
+    editInvestmentDividend,
+    removeInvestmentDividend,
     refreshInvestmentPrices,
     addTransaction,
     editTransaction,

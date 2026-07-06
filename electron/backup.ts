@@ -13,6 +13,7 @@ import {
   getAllInvestmentTransactions,
   getGlobalInvestmentHistory,
   getInvestmentAdjustments,
+  getInvestmentDividends,
   getBudgets,
   getSavingsGoals,
   getSessionPassword,
@@ -100,6 +101,7 @@ function buildExportPayload(): object {
     investmentTransactions: getAllInvestmentTransactions(),
     investmentHistory: getGlobalInvestmentHistory(),
     investmentAdjustments: getInvestmentAdjustments(),
+    dividends: getInvestmentDividends(),
     budgets: getBudgets(),
     goals: getSavingsGoals(),
   };

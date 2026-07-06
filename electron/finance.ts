@@ -1,10 +1,32 @@
 import YahooFinance from 'yahoo-finance2';
+import { FxRate } from '@/types';
+import { closeOnOrBefore } from '@/utils';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // Quote types the app can actually track + price. Excludes indices (e.g. ^GSPE),
 // currencies, futures, etc., which have no tradeable holding and break price fetch.
 const INVESTABLE_QUOTE_TYPES = ['EQUITY', 'ETF', 'MUTUALFUND', 'CRYPTOCURRENCY'];
+
+// London Stock Exchange instruments quote in pence with a currency of 'GBp'
+// (occasionally 'GBX'), whereas Yahoo's FX symbols and the rest of the app work in
+// whole-currency units (GBPUSD=X, a GBP-denominated holding). We normalize at the API
+// boundary — divide by 100 and relabel as GBP — so pence never leaks into FX pairing,
+// storage, or conversion (which would otherwise inflate every converted value 100×).
+export function isPenceCurrency(currency?: string | null): boolean {
+  if (!currency) return false;
+  return currency === 'GBp' || currency.toUpperCase() === 'GBX';
+}
+
+/** A pence (GBp/GBX) value expressed in whole pounds; other currencies pass through. */
+export function fromPence(value: number | null | undefined, currency?: string | null): number | null | undefined {
+  return isPenceCurrency(currency) && value != null ? value / 100 : value;
+}
+
+/** The whole-currency label for a native quote currency ('GBp'/'GBX' -> 'GBP'). */
+export function toMajorCurrency(currency?: string | null): string | null | undefined {
+  return isPenceCurrency(currency) ? 'GBP' : currency;
+}
 
 /**
  * Fetch current quote for a given symbol
@@ -14,12 +36,13 @@ export async function getQuote(symbol: string) {
   try {
     console.log(`[Yahoo API] Fetching quote for: ${symbol}`);
     const result = await yahooFinance.quote(symbol, {}, { validateResult: false }) as any;
+    const native = result.currency;
     return {
       symbol: result.symbol,
-      price: result.regularMarketPrice,
-      previousClose: result.regularMarketPreviousClose,
+      price: fromPence(result.regularMarketPrice, native),
+      previousClose: fromPence(result.regularMarketPreviousClose, native),
       name: result.shortName || result.longName,
-      currency: result.currency,
+      currency: toMajorCurrency(native),
       exchange: result.fullExchangeName,
       updatedAt: new Date().toISOString()
     };
@@ -43,10 +66,10 @@ export async function getQuotes(symbols: string[]) {
     
     return quotes.map((result: any) => ({
       symbol: result.symbol,
-      price: result.regularMarketPrice,
-      previousClose: result.regularMarketPreviousClose,
+      price: fromPence(result.regularMarketPrice, result.currency),
+      previousClose: fromPence(result.regularMarketPreviousClose, result.currency),
       name: result.shortName || result.longName,
-      currency: result.currency,
+      currency: toMajorCurrency(result.currency),
       exchange: result.fullExchangeName,
       updatedAt: new Date().toISOString()
     }));
@@ -54,6 +77,88 @@ export async function getQuotes(symbols: string[]) {
     console.error(`[Finance] Error fetching batch quotes:`, error);
     throw error;
   }
+}
+
+/**
+ * Yahoo FX quote symbol for a currency pair ('USD','CAD' -> 'USDCAD=X').
+ * Returns null for identity or incomplete pairs (no fetch needed/possible).
+ */
+export function fxPairSymbol(from: string, to: string): string | null {
+  if (!from || !to) return null;
+  const f = from.toUpperCase();
+  const t = to.toUpperCase();
+  if (f === t) return null;
+  return `${f}${t}=X`;
+}
+
+/**
+ * Fetch FX rates for currency pairs in one batch quote call.
+ * Never throws — a failure returns [] so callers keep their cached rates.
+ */
+export async function getFxRates(pairs: { from: string; to: string }[]): Promise<FxRate[]> {
+  const symbolToPair = new Map<string, { from: string; to: string }>();
+  for (const p of pairs) {
+    const sym = fxPairSymbol(p.from, p.to);
+    if (sym) symbolToPair.set(sym, { from: p.from.toUpperCase(), to: p.to.toUpperCase() });
+  }
+  if (symbolToPair.size === 0) return [];
+
+  try {
+    const quotes = await getQuotes([...symbolToPair.keys()]);
+    return quotes
+      // Reject a 0 (or negative) rate — a bad-data FX quote persisted as rate 0
+      // would zero out every foreign holding's value (same guard as getHistoricalFxRates)
+      .filter(q => q.symbol && symbolToPair.has(q.symbol) && q.price != null && q.price > 0)
+      .map(q => ({
+        ...symbolToPair.get(q.symbol)!,
+        rate: q.price as number,
+        updatedAt: q.updatedAt,
+      }));
+  } catch (error) {
+    console.error('[Finance] Error fetching FX rates:', error);
+    return [];
+  }
+}
+
+/**
+ * FX rates for a currency pair as of specific dates, via ONE chart() call
+ * spanning the full date range (frugality rule: callers persist the result per
+ * trade row — this is only hit at trade creation or a user-currency change).
+ * Identity pairs map to 1 with no network call; unknown dates map to null.
+ */
+export async function getHistoricalFxRates(from: string, to: string, dates: string[]): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+  if (dates.length === 0 || !from || !to) return result;
+
+  if (!fxPairSymbol(from, to)) {
+    for (const d of dates) result.set(d, 1);
+    return result;
+  }
+
+  const sorted = [...dates].sort();
+  // Pad a week back so the earliest date can still resolve to a prior close,
+  // and a day forward since Yahoo's period2 can exclude the end day's candle
+  const start = new Date(sorted[0]);
+  start.setDate(start.getDate() - 7);
+  const end = new Date(sorted[sorted.length - 1]);
+  end.setDate(end.getDate() + 1);
+  const rows = await getHistoricalPrices(fxPairSymbol(from, to)!, start, end);
+  for (const d of dates) {
+    // A 0-value candle (Yahoo bad-data day) must not become a persisted rate —
+    // it would zero the trade out of every balance
+    const close = closeOnOrBefore(rows, d);
+    result.set(d, close != null && close > 0 ? close : null);
+  }
+  return result;
+}
+
+/**
+ * FX rate for from->to as of a single date (trade-date rate for cost basis).
+ * Returns null when unresolvable so callers can fall back to a live rate.
+ */
+export async function getHistoricalFxRate(from: string, to: string, date: string): Promise<number | null> {
+  const rates = await getHistoricalFxRates(from, to, [date]);
+  return rates.get(date) ?? null;
 }
 
 /**
@@ -103,16 +208,54 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
       period2: d2,
       interval: '1d'
     }, { validateResult: false }) as any;
+    // chart() reports the series currency in meta; LSE symbols come through in pence.
+    const native = result?.meta?.currency;
     return (result?.quotes ?? [])
       .filter((q: any) => q?.date && q.close != null)
       .map((q: any) => ({
         date: new Date(q.date).toISOString().split('T')[0],
-        close: q.close as number,
+        close: fromPence(q.close as number, native) as number,
       }));
   } catch (error) {
     console.error(`[Finance] Error fetching historical prices for ${symbol}:`, error);
     return [];
   }
+}
+
+/**
+ * Dividend events (ex-date + per-share amount, native currency) for a symbol.
+ * chart() carries these in the same payload as prices — one call per span.
+ * THROWS on API failure (unlike getHistoricalPrices) so the dividend sync can
+ * tell "no dividends" from "fetch failed" and not advance its sync marker.
+ */
+export async function getDividendEvents(symbol: string, period1: string | Date, period2: string | Date = new Date()) {
+  const d1 = new Date(period1);
+  const d2 = new Date(period2);
+  if (d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0]) {
+    d2.setDate(d2.getDate() + 1);
+  }
+
+  console.log(`[Yahoo API] Fetching dividend events for ${symbol} from ${d1.toISOString().split('T')[0]} to ${d2.toISOString().split('T')[0]}`);
+  const result = await yahooFinance.chart(symbol, {
+    period1: d1,
+    period2: d2,
+    interval: '1d',
+    events: 'div'
+  }, { validateResult: false }) as any;
+
+  const dividends = result?.events?.dividends;
+  // LSE dividends are reported in pence too — normalize against the series currency.
+  const native = result?.meta?.currency;
+  // Raw (unvalidated) payloads key dividends by timestamp; validated ones are arrays
+  const rows: any[] = Array.isArray(dividends) ? dividends : Object.values(dividends ?? {});
+  return rows
+    .filter((d: any) => d?.date != null && d.amount != null && d.amount > 0)
+    .map((d: any) => ({
+      // Epoch seconds in raw payloads, Date/ms elsewhere
+      date: new Date(typeof d.date === 'number' && d.date < 1e12 ? d.date * 1000 : d.date).toISOString().split('T')[0],
+      perShare: fromPence(d.amount as number, native) as number,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
