@@ -98,6 +98,8 @@ export function useDataManagement() {
         investmentTransactionsValue = investmentTransactionsValue.concat(txs);
     }
     
+    const dividendsValue = await window.electronAPI.getInvestmentDividends();
+
     const investmentAccounts = store.accounts.filter(a => {
         const type = store.accountTypes.find(at => at.id === a.accountTypeId);
         return type?.classification === 'investment';
@@ -123,6 +125,7 @@ export function useDataManagement() {
       investmentTransactions: investmentTransactionsValue,
       investmentHistory: investmentHistoryValue,
       investmentAdjustments: investmentAdjustmentsValue,
+      dividends: dividendsValue,
       budgets: budgetsValue,
       goals: goalsValue,
     };

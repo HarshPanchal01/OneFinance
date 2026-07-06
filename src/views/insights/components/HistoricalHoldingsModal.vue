@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { useFinanceStore } from '@/stores/finance';
 import { useFormatter } from '@/composables/useFormatter';
-import { formatDate, tradeCashImpact } from '@/utils';
+import { dividendCashImpact, formatDate, tradeCashImpact } from '@/utils';
 
 const props = defineProps<{
   date: string;
@@ -31,6 +31,7 @@ watch(() => props.date, async (newDate) => {
   const invTxnsRaw = await window.electronAPI.getAllInvestmentTransactions();
   const allTransactions = await window.electronAPI.getAllTransactions();
   const adjustmentsRaw = await window.electronAPI.getInvestmentAdjustments();
+  const dividendsRaw = await window.electronAPI.getInvestmentDividends();
   
   let targetAccounts = store.accounts.filter(a => {
     const type = store.accountTypes.find(at => at.id === a.accountTypeId);
@@ -74,7 +75,10 @@ watch(() => props.date, async (newDate) => {
     
     const investmentTradeSumAll = iTxnsAll.reduce((sum, it) => sum + tradeCashImpact(it), 0);
 
-    let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll;
+    const dTxnsAll = dividendsRaw.filter(d => hIds.includes(d.holdingId));
+    const dividendSumAll = dTxnsAll.reduce((sum, d) => sum + dividendCashImpact(d), 0);
+
+    let currentCash = acc.startingBalance + transactionSumAll + adjustmentSumAll + investmentTradeSumAll + dividendSumAll;
 
     // 2. Walk backwards: Undo any transactions that happened AFTER newDate
     const futureAccTxns = accTxnsAll.filter(t => t.date > newDate);
@@ -96,6 +100,9 @@ watch(() => props.date, async (newDate) => {
     const futureITxns = iTxnsAll.filter(t => t.date > newDate);
     // Walking backwards: undo each future trade's cash impact
     futureITxns.forEach(it => { currentCash -= tradeCashImpact(it); });
+
+    // ...and each future dividend's inflow
+    dTxnsAll.filter(d => d.date > newDate).forEach(d => { currentCash -= dividendCashImpact(d); });
 
     computedCash += currentCash;
     

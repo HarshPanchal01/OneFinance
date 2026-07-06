@@ -4,6 +4,7 @@ import {
   getQuotes,
   getAssetProfile,
   getHistoricalPrices,
+  getDividendEvents,
   searchSymbols,
   fxPairSymbol,
   getFxRates,
@@ -275,6 +276,80 @@ describe("getHistoricalPrices", () => {
     await getHistoricalPrices("AAPL", "2026-06-10", "2026-06-10");
     const { period1, period2 } = mockChart.mock.calls[0][1];
     expect(period2.getTime()).toBeGreaterThan(period1.getTime());
+  });
+});
+
+describe("getDividendEvents", () => {
+  it("maps chart dividend events to sorted { date, perShare } rows", async () => {
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: [
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: 0.26 },
+          { date: new Date("2026-03-12T13:30:00.000Z"), amount: 0.25 },
+        ],
+      },
+      quotes: [],
+    });
+    const events = await getDividendEvents("AAPL", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([
+      { date: "2026-03-12", perShare: 0.25 },
+      { date: "2026-06-12", perShare: 0.26 },
+    ]);
+  });
+
+  it("handles the raw payload shape: timestamp-keyed object with epoch-second dates", async () => {
+    // With validateResult:false Yahoo's raw chart payload can come through
+    // unnormalized — dividends keyed by timestamp, dates as epoch seconds.
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: {
+          "1749735000": { amount: 0.26, date: 1749735000 }, // 2025-06-12
+        },
+      },
+    });
+    const events = await getDividendEvents("AAPL", "2025-01-01", "2025-07-01");
+    expect(events).toEqual([{ date: "2025-06-12", perShare: 0.26 }]);
+  });
+
+  it("drops events without a date or a positive amount", async () => {
+    mockChart.mockResolvedValue({
+      events: {
+        dividends: [
+          { date: null, amount: 0.25 },
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: 0 },
+          { date: new Date("2026-06-12T13:30:00.000Z"), amount: null },
+          { date: new Date("2026-03-12T13:30:00.000Z"), amount: 0.25 },
+        ],
+      },
+    });
+    const events = await getDividendEvents("AAPL", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([{ date: "2026-03-12", perShare: 0.25 }]);
+  });
+
+  it("returns [] when the chart result carries no dividend events", async () => {
+    mockChart.mockResolvedValue({ quotes: [] });
+    expect(await getDividendEvents("BTC-USD", "2026-01-01", "2026-07-01")).toEqual([]);
+  });
+
+  it("requests dividend events with validateResult disabled", async () => {
+    mockChart.mockResolvedValue({});
+    await getDividendEvents("AAPL", "2026-06-10", "2026-06-12");
+    const [symbol, queryOptions, moduleOptions] = mockChart.mock.calls[0];
+    expect(symbol).toBe("AAPL");
+    expect(queryOptions.events).toBe("div");
+    expect(moduleOptions).toEqual({ validateResult: false });
+  });
+
+  it("advances period2 when it equals period1 (Yahoo needs a non-empty range)", async () => {
+    mockChart.mockResolvedValue({});
+    await getDividendEvents("AAPL", "2026-06-10", "2026-06-10");
+    const { period1, period2 } = mockChart.mock.calls[0][1];
+    expect(period2.getTime()).toBeGreaterThan(period1.getTime());
+  });
+
+  it("rethrows on API error so the sync can tell failure from no-dividends", async () => {
+    mockChart.mockRejectedValue(new Error("chart failed"));
+    await expect(getDividendEvents("AAPL", "2026-01-01", "2026-07-01")).rejects.toThrow("chart failed");
   });
 });
 

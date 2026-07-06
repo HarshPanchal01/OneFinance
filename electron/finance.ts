@@ -198,6 +198,40 @@ export async function getHistoricalPrices(symbol: string, period1: string | Date
 }
 
 /**
+ * Dividend events (ex-date + per-share amount, native currency) for a symbol.
+ * chart() carries these in the same payload as prices — one call per span.
+ * THROWS on API failure (unlike getHistoricalPrices) so the dividend sync can
+ * tell "no dividends" from "fetch failed" and not advance its sync marker.
+ */
+export async function getDividendEvents(symbol: string, period1: string | Date, period2: string | Date = new Date()) {
+  const d1 = new Date(period1);
+  const d2 = new Date(period2);
+  if (d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0]) {
+    d2.setDate(d2.getDate() + 1);
+  }
+
+  console.log(`[Yahoo API] Fetching dividend events for ${symbol} from ${d1.toISOString().split('T')[0]} to ${d2.toISOString().split('T')[0]}`);
+  const result = await yahooFinance.chart(symbol, {
+    period1: d1,
+    period2: d2,
+    interval: '1d',
+    events: 'div'
+  }, { validateResult: false }) as any;
+
+  const dividends = result?.events?.dividends;
+  // Raw (unvalidated) payloads key dividends by timestamp; validated ones are arrays
+  const rows: any[] = Array.isArray(dividends) ? dividends : Object.values(dividends ?? {});
+  return rows
+    .filter((d: any) => d?.date != null && d.amount != null && d.amount > 0)
+    .map((d: any) => ({
+      // Epoch seconds in raw payloads, Date/ms elsewhere
+      date: new Date(typeof d.date === 'number' && d.date < 1e12 ? d.date * 1000 : d.date).toISOString().split('T')[0],
+      perShare: d.amount as number,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
  * Search for symbols
  */
 export async function searchSymbols(query: string) {

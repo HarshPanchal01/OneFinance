@@ -250,6 +250,12 @@ function getAccountCashBalance(accountId: number) {
           <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
             Current Investments Value
           </p>
+          <p
+            v-if="store.totalDividends > 0"
+            class="text-xs text-violet-500 dark:text-violet-400 font-medium mt-0.5"
+          >
+            <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(store.totalDividends) }}</span> in dividends earned
+          </p>
         </div>
       </div>
     </header>
@@ -301,6 +307,20 @@ function getAccountCashBalance(accountId: number) {
             </div>
           </div>
           <div class="flex items-center space-x-4">
+            <div
+              v-if="store.accountDividendTotal(account.id) > 0"
+              class="text-right"
+            >
+              <span
+                class="text-lg font-bold text-violet-500 dark:text-violet-400"
+                :class="{ 'privacy-blur': settingsStore.privacyMode }"
+              >
+                {{ formatCurrency(store.accountDividendTotal(account.id)) }}
+              </span>
+              <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                Dividends Earned
+              </p>
+            </div>
             <div class="text-right">
               <span
                 class="text-lg font-bold text-gray-900 dark:text-white"

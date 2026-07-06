@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { InvestmentHolding } from '@/types';
+import { InvestmentHolding, InvestmentDividend } from '@/types';
 import { useFormatter } from '@/composables/useFormatter';
 import { useSettingsStore } from '@/stores/settings';
 import { useFinanceStore } from '@/stores/finance';
+import DividendModal from './DividendModal.vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 
 const props = defineProps<{
   holding: InvestmentHolding | null;
@@ -33,6 +35,53 @@ const isLoading = ref(true);
 const typeFilter = ref('all');
 const sortOrder = ref('date-desc');
 
+const showDividendModal = ref(false);
+const editingDividend = ref<InvestmentDividend | null>(null);
+const confirmModal = ref<InstanceType<typeof ConfirmationModal>>();
+
+function openAddDividend() {
+  editingDividend.value = null;
+  showDividendModal.value = true;
+}
+
+function openEditDividend(tx: any) {
+  // The activity row carries a converted total; the full native row (amount,
+  // perShare, source) lives in the store's dividend list.
+  editingDividend.value = store.investmentDividends.find(d => d.id === tx.id) ?? null;
+  if (editingDividend.value) showDividendModal.value = true;
+}
+
+function closeDividendModal() {
+  showDividendModal.value = false;
+  editingDividend.value = null;
+}
+
+// Total dividend income in the current view, in user currency (rows carry a
+// converted `amount`)
+const dividendTotal = computed(() =>
+  transactions.value
+    .filter(tx => tx.recordType === 'dividend')
+    .reduce((sum, tx) => sum + tx.amount, 0)
+);
+
+async function handleDividendSaved() {
+  closeDividendModal();
+  await loadTransactions();
+}
+
+async function deleteDividend(tx: any) {
+  if (!confirmModal.value) return;
+  const confirmed = await confirmModal.value.openConfirmation({
+    title: 'Delete Dividend',
+    message: `Delete the ${formatDate(tx.date)} dividend? Its cash will be removed from the account balance.`,
+    confirmText: 'Delete'
+  });
+  if (confirmed) {
+    await store.removeInvestmentDividend(tx.id);
+    await loadTransactions();
+  }
+}
+
 // Custom dropdown states
 const showTypePicker = ref(false);
 const typePickerRef = ref<HTMLElement | null>(null);
@@ -56,9 +105,9 @@ function selectType(type: string) {
 const uniqueAssets = computed(() => {
   const assets = new Set<string>();
   transactions.value.forEach(tx => {
-    // Only include entries that are part of a trade (have holdingSymbol) 
-    // and aren't generic cash movements or adjustments
-    if (tx.recordType === 'trade' && (tx.asset || tx.holdingSymbol)) {
+    // Only include entries tied to an asset (trades/dividends), not generic
+    // cash movements or adjustments
+    if ((tx.recordType === 'trade' || tx.recordType === 'dividend') && (tx.asset || tx.holdingSymbol)) {
       assets.add(tx.asset || tx.holdingSymbol);
     }
   });
@@ -183,16 +232,10 @@ const filteredTransactions = computed(() => {
   return result;
 });
 
-onMounted(async () => {
-  window.addEventListener('click', handleClickOutside);
-  
-  if (props.initialAssetFilter) {
-    selectedAssets.value = [props.initialAssetFilter];
-  }
-
+async function loadTransactions() {
   try {
     if (props.holding) {
-      transactions.value = await window.electronAPI.getInvestmentTransactions(props.holding.id);
+      transactions.value = await window.electronAPI.getHoldingActivity(props.holding.id);
     } else if (props.isCash && props.accountId) {
       transactions.value = await window.electronAPI.getCombinedCashHistory(props.accountId);
     } else if (props.accountId) {
@@ -205,6 +248,16 @@ onMounted(async () => {
   } finally {
     isLoading.value = false;
   }
+}
+
+onMounted(async () => {
+  window.addEventListener('click', handleClickOutside);
+
+  if (props.initialAssetFilter) {
+    selectedAssets.value = [props.initialAssetFilter];
+  }
+
+  await loadTransactions();
 });
 
 onUnmounted(() => {
@@ -228,6 +281,9 @@ onUnmounted(() => {
             <p class="text-sm text-gray-500 dark:text-gray-400">
               <template v-if="holding">
                 Transaction ledger for {{ holding.symbol }}
+                <template v-if="dividendTotal > 0">
+                  · <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(dividendTotal) }}</span> in dividends
+                </template>
               </template>
               <template v-else-if="isCash">
                 Cash adjustments and transfers
@@ -241,6 +297,14 @@ onUnmounted(() => {
             </p>
           </div>
           <div class="flex items-center space-x-3">
+            <button
+              v-if="holding"
+              class="inline-flex items-center px-3 py-1.5 text-sm bg-primary-100 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors"
+              @click="openAddDividend"
+            >
+              <i class="pi pi-plus-circle mr-1.5" />
+              Add Dividend
+            </button>
             <button
               v-if="isFiltered"
               class="text-sm font-medium text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
@@ -355,6 +419,13 @@ onUnmounted(() => {
                     </button>
                     <button
                       class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      :class="typeFilter === 'dividend' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+                      @click="selectType('dividend')"
+                    >
+                      Dividend
+                    </button>
+                    <button
+                      class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       :class="typeFilter === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
                       @click="selectType('adjustment')"
                     >
@@ -424,6 +495,7 @@ onUnmounted(() => {
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
                       tx.type === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' :
                       tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                      tx.recordType === 'dividend' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' :
                       'bg-income-light text-income dark:bg-income/20'
                     ]"
                   >
@@ -607,6 +679,13 @@ onUnmounted(() => {
                     </button>
                     <button
                       class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      :class="typeFilter === 'dividend' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
+                      @click="selectType('dividend')"
+                    >
+                      Dividend
+                    </button>
+                    <button
+                      class="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       :class="typeFilter === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 font-medium' : 'text-gray-700 dark:text-gray-200'"
                       @click="selectType('adjustment')"
                     >
@@ -657,6 +736,10 @@ onUnmounted(() => {
                     </button>
                   </div>
                 </th>
+                <th
+                  v-if="holding"
+                  class="w-20 px-2 py-3"
+                />
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -689,6 +772,7 @@ onUnmounted(() => {
                       'px-2 py-1 text-[10px] font-bold uppercase rounded-full',
                       tx.type === 'transfer' ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' :
                       tx.recordType === 'adjustment' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                      tx.recordType === 'dividend' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' :
                       tx.recordType === 'cash' ? 'bg-gray-100 text-gray-500 dark:bg-gray-700/50' :
                       (tx.type === 'buy' ? 'bg-income-light text-income dark:bg-income/20' : 'bg-expense-light text-expense dark:bg-expense/20')
                     ]"
@@ -731,11 +815,45 @@ onUnmounted(() => {
                   </template>
                   <span :class="{ 'privacy-blur': settingsStore.privacyMode }">{{ formatCurrency(Math.abs(tx.amount)) }}</span>
                 </td>
+                <td
+                  v-if="holding"
+                  class="px-2 py-4 text-right"
+                >
+                  <div
+                    v-if="tx.recordType === 'dividend'"
+                    class="flex items-center justify-end space-x-1"
+                  >
+                    <button
+                      class="p-1 text-gray-400 hover:text-primary-500 transition-colors"
+                      title="Edit Dividend"
+                      @click="openEditDividend(tx)"
+                    >
+                      <i class="pi pi-pencil" />
+                    </button>
+                    <button
+                      class="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Delete Dividend"
+                      @click="deleteDividend(tx)"
+                    >
+                      <i class="pi pi-trash" />
+                    </button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
+    <DividendModal
+      v-if="showDividendModal && holding"
+      :holding="holding"
+      :dividend="editingDividend"
+      @close="closeDividendModal"
+      @saved="handleDividendSaved"
+    />
+
+    <ConfirmationModal ref="confirmModal" />
   </Teleport>
 </template>
