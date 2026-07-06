@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -40,6 +40,19 @@ const electronAPI = {
 
   createInvestmentTransaction: (data: Omit<InvestmentTransaction, 'id'>): Promise<InvestmentTransaction> =>
     ipcRenderer.invoke("db:createInvestmentTransaction", data),
+
+  getInvestmentDividends: (holdingId?: number): Promise<InvestmentDividend[]> =>
+    ipcRenderer.invoke("db:getInvestmentDividends", holdingId),
+  createInvestmentDividend: (data: Omit<InvestmentDividend, 'id'>): Promise<InvestmentDividend> =>
+    ipcRenderer.invoke("db:createInvestmentDividend", data),
+  updateInvestmentDividend: (id: number, data: Partial<Omit<InvestmentDividend, 'id'>>): Promise<InvestmentDividend> =>
+    ipcRenderer.invoke("db:updateInvestmentDividend", id, data),
+  deleteInvestmentDividend: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteInvestmentDividend", id),
+  getHoldingActivity: (holdingId: number): Promise<any[]> =>
+    ipcRenderer.invoke("db:getHoldingActivity", holdingId),
+  syncDividends: (userCurrency: string): Promise<{ created: number; earliestByAccount: Record<number, string> }> =>
+    ipcRenderer.invoke("investments:syncDividends", userCurrency),
 
   adjustAccountCash: (accountId: number, amount: number, notes: string): Promise<any> =>
     ipcRenderer.invoke("db:adjustAccountCash", accountId, amount, notes),

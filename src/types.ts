@@ -95,6 +95,8 @@ export interface InvestmentHolding {
   alertDailyNotified?: string | null;
   alertWeeklyNotified?: string | null;
   alertMonthlyNotified?: string | null;
+  // Last date dividend auto-sync ran for this holding (once-per-day guard)
+  divSyncedThrough?: string | null;
 }
 
 export interface FxRate {
@@ -126,6 +128,17 @@ export interface InvestmentTransaction {
   fees: number;     // in `currency`, converted with the same fxRate
   currency?: string | null;  // null = legacy row entered as user currency
   fxRate?: number | null;    // trade currency -> user currency at trade date; null = 1
+}
+
+export interface InvestmentDividend {
+  id: number;
+  holdingId: number;
+  date: string;
+  amount: number;            // total received, in `currency` (native)
+  perShare?: number | null;  // null for manual lump-sum entries
+  currency?: string | null;  // null = entered as user currency
+  fxRate?: number | null;    // pay-date rate to user currency; null = 1
+  source: 'auto' | 'manual';
 }
 
 export interface InvestmentHistory {
