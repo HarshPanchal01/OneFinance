@@ -106,7 +106,9 @@ export async function getFxRates(pairs: { from: string; to: string }[]): Promise
   try {
     const quotes = await getQuotes([...symbolToPair.keys()]);
     return quotes
-      .filter(q => q.symbol && symbolToPair.has(q.symbol) && q.price != null)
+      // Reject a 0 (or negative) rate — a bad-data FX quote persisted as rate 0
+      // would zero out every foreign holding's value (same guard as getHistoricalFxRates)
+      .filter(q => q.symbol && symbolToPair.has(q.symbol) && q.price != null && q.price > 0)
       .map(q => ({
         ...symbolToPair.get(q.symbol)!,
         rate: q.price as number,

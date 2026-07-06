@@ -206,6 +206,20 @@ describe("getFxRates", () => {
     ]);
   });
 
+  it("drops a 0-value FX quote (a persisted rate of 0 would zero foreign holdings)", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "USDCAD=X", regularMarketPrice: 0 },
+      { symbol: "EURCAD=X", regularMarketPrice: 1.48 },
+    ]);
+    const rates = await getFxRates([
+      { from: "USD", to: "CAD" },
+      { from: "EUR", to: "CAD" },
+    ]);
+    expect(rates).toEqual([
+      expect.objectContaining({ from: "EUR", to: "CAD", rate: 1.48 }),
+    ]);
+  });
+
   it("returns [] (does not throw) when the Yahoo call fails — callers keep cached rates", async () => {
     mockQuote.mockRejectedValue(new Error("fx down"));
     expect(await getFxRates([{ from: "USD", to: "CAD" }])).toEqual([]);
