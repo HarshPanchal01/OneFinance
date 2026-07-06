@@ -11,6 +11,8 @@ import TopBar from "@/components/TopBar.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
 import MasterPasswordGate from "@/views/auth/MasterPasswordGate.vue";
+import CommandPalette from "@/components/CommandPalette.vue";
+import { commands, type Command, type CommandContext } from "@/commands";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -59,6 +61,19 @@ watch(
 // Quick add transaction modal
 const showQuickAddModal = ref(false);
 const backupSetupModal = ref<InstanceType<typeof BackupSetupModal>>();
+
+// Command palette (Ctrl+K)
+const showCommandPalette = ref(false);
+const commandContext: CommandContext = {
+  navigate: navigateTo,
+  newTransaction: () => (showQuickAddModal.value = true),
+  togglePrivacy: () => settingsStore.togglePrivacyMode(),
+  lock: () => void auth.lock(),
+};
+
+function runCommand(command: Command) {
+  command.perform(commandContext);
+}
 
 // Navigate to view
 function navigateTo(view: string) {
@@ -272,6 +287,13 @@ watch(
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   if (!authUnlocked.value) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    showCommandPalette.value = !showCommandPalette.value;
+    return;
+  }
+  // While the palette is open it owns the keyboard; don't double-fire nav shortcuts.
+  if (showCommandPalette.value) return;
   if (e.ctrlKey || e.metaKey) {
     switch (e.key.toLowerCase()) {
       case "n":
@@ -324,7 +346,22 @@ function handleKeydown(e: KeyboardEvent) {
               } else {
                 currentView.value = "investment-insights";
               }
-              break;    
+              break;
+            case "b":
+              e.preventDefault();
+              currentView.value = "budgets";
+              break;
+            case "g":
+              e.preventDefault();
+              currentView.value = "goals";
+              break;
+            case "c":
+              // Shift-guarded so plain Ctrl+C (copy) still works.
+              if (e.shiftKey) {
+                e.preventDefault();
+                currentView.value = "calculators";
+              }
+              break;
     }
   }
 }
@@ -433,5 +470,13 @@ function handleKeydown(e: KeyboardEvent) {
 
     <!-- First-run backup setup prompt -->
     <BackupSetupModal ref="backupSetupModal" />
+
+    <!-- Command palette (Ctrl+K) -->
+    <CommandPalette
+      :visible="showCommandPalette"
+      :commands="commands"
+      @close="showCommandPalette = false"
+      @run="runCommand"
+    />
   </div>
 </template>

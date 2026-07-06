@@ -61,12 +61,16 @@ const {
 
 // Keyboard shortcuts
 const shortcuts = [
+  { keys: ["Ctrl", "K"], description: "Open command palette" },
   { keys: ["Ctrl", "N"], description: "New transaction" },
   { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
   { keys: ["Ctrl", "T"], description: "Go to Transactions" },
   { keys: ["Ctrl", "S"], description: "Go to Schedules" },
+  { keys: ["Ctrl", "B"], description: "Go to Budgets" },
+  { keys: ["Ctrl", "G"], description: "Go to Goals" },
   { keys: ["Ctrl", "I"], description: "Go to General Insights" },
   { keys: ["Ctrl", "P"], description: "Go to Portfolio Insights" },
+  { keys: ["Ctrl", "Shift", "C"], description: "Go to Calculators" },
   { keys: ["Ctrl", "L"], description: "Go to Labels" },
   { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
   { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },
