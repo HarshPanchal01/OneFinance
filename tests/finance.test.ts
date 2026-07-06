@@ -10,6 +10,7 @@ import {
   getFxRates,
   getHistoricalFxRate,
   getHistoricalFxRates,
+  isPenceCurrency,
 } from "../electron/finance";
 
 // finance.ts builds `new YahooFinance(...)` at module load, so the mock must stand in
@@ -82,6 +83,18 @@ describe("getQuote", () => {
     mockQuote.mockRejectedValue(new Error("network down"));
     await expect(getQuote("AAPL")).rejects.toThrow("network down");
   });
+
+  it("normalizes LSE pence (GBp) quotes to whole pounds (#175)", async () => {
+    mockQuote.mockResolvedValue({
+      symbol: "VOD.L",
+      regularMarketPrice: 7250, // 72.50 pence... reported as 7250 pence
+      regularMarketPreviousClose: 7000,
+      shortName: "Vodafone",
+      currency: "GBp",
+    });
+    const q = await getQuote("VOD.L");
+    expect(q).toMatchObject({ price: 72.5, previousClose: 70, currency: "GBP" });
+  });
 });
 
 describe("getQuotes", () => {
@@ -112,6 +125,16 @@ describe("getQuotes", () => {
   it("rethrows when the batch call fails", async () => {
     mockQuote.mockRejectedValue(new Error("boom"));
     await expect(getQuotes(["AAPL"])).rejects.toThrow("boom");
+  });
+
+  it("normalizes pence (GBp/GBX) rows while leaving other currencies untouched (#175)", async () => {
+    mockQuote.mockResolvedValue([
+      { symbol: "VOD.L", regularMarketPrice: 7250, regularMarketPreviousClose: 7000, currency: "GBp" },
+      { symbol: "AAPL", regularMarketPrice: 250, regularMarketPreviousClose: 248, currency: "USD" },
+    ]);
+    const quotes = await getQuotes(["VOD.L", "AAPL"]);
+    expect(quotes[0]).toMatchObject({ price: 72.5, previousClose: 70, currency: "GBP" });
+    expect(quotes[1]).toMatchObject({ price: 250, previousClose: 248, currency: "USD" });
   });
 });
 
@@ -277,6 +300,30 @@ describe("getHistoricalPrices", () => {
     const { period1, period2 } = mockChart.mock.calls[0][1];
     expect(period2.getTime()).toBeGreaterThan(period1.getTime());
   });
+
+  it("divides pence closes by 100 when the series currency is GBp (#175)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "GBp" },
+      quotes: [
+        { date: new Date("2026-06-10T13:30:00.000Z"), close: 7250 },
+        { date: new Date("2026-06-11T13:30:00.000Z"), close: 7300 },
+      ],
+    });
+    const prices = await getHistoricalPrices("VOD.L", "2026-06-10", "2026-06-12");
+    expect(prices).toEqual([
+      { date: "2026-06-10", close: 72.5 },
+      { date: "2026-06-11", close: 73 },
+    ]);
+  });
+
+  it("leaves FX-pair closes unchanged (meta.currency is a whole currency, not pence)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "USD" },
+      quotes: [{ date: new Date("2026-06-10T13:30:00.000Z"), close: 1.36 }],
+    });
+    const prices = await getHistoricalPrices("GBPUSD=X", "2026-06-10", "2026-06-12");
+    expect(prices).toEqual([{ date: "2026-06-10", close: 1.36 }]);
+  });
 });
 
 describe("getDividendEvents", () => {
@@ -350,6 +397,29 @@ describe("getDividendEvents", () => {
   it("rethrows on API error so the sync can tell failure from no-dividends", async () => {
     mockChart.mockRejectedValue(new Error("chart failed"));
     await expect(getDividendEvents("AAPL", "2026-01-01", "2026-07-01")).rejects.toThrow("chart failed");
+  });
+
+  it("normalizes pence (GBp) dividend amounts to whole pounds (#175)", async () => {
+    mockChart.mockResolvedValue({
+      meta: { currency: "GBp" },
+      events: {
+        dividends: [{ date: new Date("2026-06-12T13:30:00.000Z"), amount: 25 }],
+      },
+    });
+    const events = await getDividendEvents("VOD.L", "2026-01-01", "2026-07-01");
+    expect(events).toEqual([{ date: "2026-06-12", perShare: 0.25 }]);
+  });
+});
+
+describe("isPenceCurrency", () => {
+  it("matches Yahoo's pence codes and nothing else", () => {
+    expect(isPenceCurrency("GBp")).toBe(true);
+    expect(isPenceCurrency("GBX")).toBe(true);
+    expect(isPenceCurrency("gbx")).toBe(true);
+    expect(isPenceCurrency("GBP")).toBe(false); // whole pounds
+    expect(isPenceCurrency("USD")).toBe(false);
+    expect(isPenceCurrency(null)).toBe(false);
+    expect(isPenceCurrency(undefined)).toBe(false);
   });
 });
 
