@@ -58,7 +58,7 @@
     "vite-plugin-electron": "^0.29.1",
     "vite-plugin-electron-renderer": "^0.14.7",
     "vitest": "^4.1.9",
-    "vue": "^3.5.33",
+    "vue": "^3.5.39",
     "vue-tsc": "^3.3.3"
   },
   "overrides": {
