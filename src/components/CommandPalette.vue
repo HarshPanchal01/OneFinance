@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import type { Command } from "@/commands";
+import { useShortcuts } from "@/composables/useShortcuts";
+
+const { partsForCommand } = useShortcuts();
 
 const props = defineProps<{
   visible: boolean;
@@ -173,11 +176,11 @@ function isSectionStart(index: number): boolean {
               <i :class="['pi mr-3 text-base', cmd.icon]" />
               <span class="flex-1">{{ cmd.label }}</span>
               <span
-                v-if="cmd.shortcut"
+                v-if="partsForCommand(cmd.id)"
                 class="flex items-center space-x-1"
               >
                 <kbd
-                  v-for="key in cmd.shortcut"
+                  v-for="key in partsForCommand(cmd.id)!"
                   :key="key"
                   class="px-1.5 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded border border-gray-300 dark:border-gray-600"
                 >

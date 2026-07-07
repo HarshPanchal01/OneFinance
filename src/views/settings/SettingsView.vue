@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
 import NotificationModal from "@/components/NotificationModal.vue";
@@ -9,6 +9,8 @@ import { useDataManagement } from "@/composables/useDataManagement";
 import { useSettingsStore, regionalSettings } from "@/stores/settings";
 import { useAuthStore } from "@/stores/auth";
 import { REMEMBER_POLICY_OPTIONS, AUTO_LOCK_OPTIONS, type RememberPolicy } from "@/types";
+import { useShortcuts } from "@/composables/useShortcuts";
+import { comboFromEvent, type ShortcutId } from "@/shortcuts";
 import Select from "primevue/select";
 import lockupMacDark from "@/assets/onefinance_lockup_mac_dark.png";
 import lockupMacLight from "@/assets/onefinance_lockup_mac_light.png";
@@ -59,26 +61,70 @@ const {
   importData: _importData,
 } = useDataManagement();
 
-// Keyboard shortcuts
-const shortcuts = [
-  { keys: ["Ctrl", "K"], description: "Open command palette" },
-  { keys: ["Ctrl", "N"], description: "New transaction" },
-  { keys: ["Ctrl", "D"], description: "Go to Dashboard" },
-  { keys: ["Ctrl", "T"], description: "Go to Transactions" },
-  { keys: ["Ctrl", "S"], description: "Go to Schedules" },
-  { keys: ["Ctrl", "B"], description: "Go to Budgets" },
-  { keys: ["Ctrl", "G"], description: "Go to Goals" },
-  { keys: ["Ctrl", "I"], description: "Go to General Insights" },
-  { keys: ["Ctrl", "P"], description: "Go to Portfolio Insights" },
-  { keys: ["Ctrl", "Shift", "C"], description: "Go to Calculators" },
-  { keys: ["Ctrl", "L"], description: "Go to Labels" },
-  { keys: ["Ctrl", "Shift", "A"], description: "Go to Accounts" },
-  { keys: ["Ctrl", "Shift", "I"], description: "Go to Investments" },
-  { keys: ["Ctrl", "Shift", "S"], description: "Go to Settings" },
-  { keys: ["Ctrl", "Shift", "P"], description: "Toggle Privacy Mode" },
-  { keys: ["Ctrl", "Shift", "L"], description: "Lock OneFinance" },
-  { keys: ["/"], description: "Go to Search Bar (While on Transactions Page)" },
-];
+// Keyboard shortcuts (shared registry — see src/shortcuts.ts).
+const { bindings, isMac, partsFor, findConflict, setBinding, resetBinding, resetAll } =
+  useShortcuts();
+
+// Which shortcut is currently capturing a new key combo (null = none).
+const capturingId = ref<ShortcutId | null>(null);
+const captureMessage = ref("");
+
+function startCapture(id: ShortcutId) {
+  capturingId.value = id;
+  captureMessage.value = "Press keys… (Esc to cancel)";
+  window.addEventListener("keydown", onCaptureKeydown, true);
+}
+
+function stopCapture() {
+  capturingId.value = null;
+  captureMessage.value = "";
+  window.removeEventListener("keydown", onCaptureKeydown, true);
+}
+
+function onCaptureKeydown(e: KeyboardEvent) {
+  // Own the keyboard while capturing so the global handler doesn't also fire.
+  e.preventDefault();
+  e.stopImmediatePropagation();
+
+  if (e.key === "Escape") {
+    stopCapture();
+    return;
+  }
+  const id = capturingId.value;
+  if (!id) return;
+
+  const combo = comboFromEvent(e, isMac.value);
+  // Wait for a full combo: the accelerator (Ctrl/Cmd) plus a non-modifier key.
+  if (!combo) {
+    captureMessage.value = `Hold ${isMac.value ? "⌘" : "Ctrl"} + a key… (Esc)`;
+    return;
+  }
+
+  const conflict = findConflict(combo, id);
+  if (conflict) {
+    captureMessage.value = `In use by "${conflict.description}"`;
+    return;
+  }
+
+  setBinding(id, combo);
+  stopCapture();
+}
+
+function onResetShortcut(id: ShortcutId) {
+  resetBinding(id);
+  if (capturingId.value === id) stopCapture();
+}
+
+async function confirmResetAll() {
+  const confirmed = await confirmModal.value?.openConfirmation({
+    title: "Reset all shortcuts?",
+    message: "All keyboard shortcuts will return to their defaults.",
+    confirmText: "Reset",
+  });
+  if (confirmed) resetAll();
+}
+
+onUnmounted(stopCapture);
 
 // Load DB path and platform logo on mount
 onMounted(async () => {
@@ -178,31 +224,71 @@ async function runBackupNow() {
 
       <!-- Keyboard Shortcuts -->
       <div class="card p-6">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-          <i class="pi pi-th-large mr-2 text-gray-700 dark:text-white" />
-          Keyboard Shortcuts
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+            <i class="pi pi-th-large mr-2 text-gray-700 dark:text-white" />
+            Keyboard Shortcuts
+          </h3>
+          <button
+            class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+            @click="confirmResetAll"
+          >
+            Reset all
+          </button>
+        </div>
 
-        <div class="space-y-3">
+        <div class="space-y-1">
           <div
-            v-for="shortcut in shortcuts"
-            :key="shortcut.description"
-            class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+            v-for="binding in bindings"
+            :key="binding.def.id"
+            class="group flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0"
           >
             <span class="text-gray-600 dark:text-gray-300">{{
-              shortcut.description
+              binding.def.description
             }}</span>
-            <div class="flex items-center space-x-1">
-              <kbd
-                v-for="key in shortcut.keys"
-                :key="key"
-                class="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded border border-gray-300 dark:border-gray-600"
+            <div class="flex items-center space-x-1.5">
+              <!-- Fixed-width slot (left) so the reset never shifts the chips, which stay
+                   flush-right aligned with the "Reset all" button; fades in on hover. -->
+              <div class="w-5 flex justify-center">
+                <button
+                  v-if="binding.isCustom && capturingId !== binding.def.id"
+                  class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary-600 dark:hover:text-primary-400"
+                  title="Reset to default"
+                  @click="onResetShortcut(binding.def.id)"
+                >
+                  <i class="pi pi-replay text-xs" />
+                </button>
+              </div>
+              <!-- Recording state: the whole target becomes a highlighted capture box. -->
+              <button
+                v-if="capturingId === binding.def.id"
+                class="rounded-md border border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs text-primary-600 dark:text-primary-400"
+                @click="stopCapture"
               >
-                {{ key }}
-              </kbd>
+                {{ captureMessage }}
+              </button>
+              <!-- Otherwise the key chips double as the edit button (click to record). -->
+              <button
+                v-else
+                class="flex items-center space-x-1 cursor-pointer rounded-md border border-gray-300 dark:border-gray-600 px-1.5 py-1 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors"
+                title="Click to change shortcut"
+                @click="startCapture(binding.def.id)"
+              >
+                <kbd
+                  v-for="key in partsFor(binding.def.id)"
+                  :key="key"
+                  class="px-2 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded border border-gray-300 dark:border-gray-600"
+                >
+                  {{ key }}
+                </kbd>
+              </button>
             </div>
           </div>
         </div>
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Press <kbd class="px-1.5 py-0.5 font-mono bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">/</kbd>
+          to focus search while on the Transactions page.
+        </p>
       </div>
 
       <!-- General Preferences -->

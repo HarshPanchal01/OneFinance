@@ -13,6 +13,8 @@ import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
 import MasterPasswordGate from "@/views/auth/MasterPasswordGate.vue";
 import CommandPalette from "@/components/CommandPalette.vue";
 import { commands, type Command, type CommandContext } from "@/commands";
+import { useShortcuts } from "@/composables/useShortcuts";
+import type { ShortcutId } from "@/shortcuts";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -73,6 +75,18 @@ const commandContext: CommandContext = {
 
 function runCommand(command: Command) {
   command.perform(commandContext);
+}
+
+// Keyboard shortcuts (shared registry — see src/shortcuts.ts).
+const { matchEvent } = useShortcuts();
+
+function runShortcut(id: ShortcutId) {
+  if (id === "command-palette") {
+    showCommandPalette.value = !showCommandPalette.value;
+    return;
+  }
+  const command = commands.find((c) => c.id === id);
+  command?.perform(commandContext);
 }
 
 // Navigate to view
@@ -287,83 +301,13 @@ watch(
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   if (!authUnlocked.value) return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-    e.preventDefault();
-    showCommandPalette.value = !showCommandPalette.value;
-    return;
-  }
-  // While the palette is open it owns the keyboard; don't double-fire nav shortcuts.
-  if (showCommandPalette.value) return;
-  if (e.ctrlKey || e.metaKey) {
-    switch (e.key.toLowerCase()) {
-      case "n":
-        e.preventDefault();
-        showQuickAddModal.value = true;
-        break;
-      case "d":
-        e.preventDefault();
-        currentView.value = "dashboard";
-        break;
-            case "t":
-              e.preventDefault();
-              currentView.value = "transactions";
-              break;
-            case "i":
-              e.preventDefault();
-              if (e.shiftKey) {
-                currentView.value = "investments";
-              } else {
-                currentView.value = "insights";
-              }
-              break;
-            case "l":
-              e.preventDefault();
-              if (e.shiftKey) {
-                void auth.lock();
-              } else {
-                currentView.value = "categories";
-              }
-              break;
-            case "a":
-              if (e.shiftKey) {
-                e.preventDefault();
-                currentView.value = "accounts";
-              }
-              break;
-            case "s":
-              e.preventDefault();
-              if (e.shiftKey) {
-                currentView.value = "settings";
-              } else {
-                currentView.value = "recurring";
-              }
-              break;
-            case "p":
-              e.preventDefault();
-              if (e.shiftKey) {
-                // Toggle privacy mode
-                settingsStore.togglePrivacyMode();
-              } else {
-                currentView.value = "investment-insights";
-              }
-              break;
-            case "b":
-              e.preventDefault();
-              currentView.value = "budgets";
-              break;
-            case "g":
-              e.preventDefault();
-              currentView.value = "goals";
-              break;
-            case "c":
-              // Shift-guarded so plain Ctrl+C (copy) still works.
-              if (e.shiftKey) {
-                e.preventDefault();
-                currentView.value = "calculators";
-              }
-              break;
-    }
-  }
+  const id = matchEvent(e);
+  if (!id) return;
+  // While the palette is open it owns the keyboard; only Ctrl+K (toggle) gets through
+  // so nav shortcuts don't double-fire.
+  if (showCommandPalette.value && id !== "command-palette") return;
+  e.preventDefault();
+  runShortcut(id);
 }
 </script>
 
