@@ -20,6 +20,10 @@ import {
   getSavingsGoals,
   upsertSavingsGoal,
   deleteSavingsGoal,
+  getCategorizationRules,
+  upsertCategorizationRule,
+  deleteCategorizationRule,
+  setCategorizationRulePriorities,
   // Transactions
   getTransactions,
   getAllTransactions,
@@ -91,7 +95,7 @@ import {
   createInvestmentHistoryEntry,
 } from "./db";
 import { getQuote, getQuotes, getFxRates, searchSymbols, getAssetProfile, getHistoricalPrices, getHistoricalFxRate, getHistoricalFxRates, getDividendEvents } from "./finance";
-import { Account, AccountType, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, SavingsGoal } from "@/types";
+import { Account, AccountType, CategorizationRule, CreateTransactionInput, LedgerMonth, SearchOptions, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, SavingsGoal } from "@/types";
 import { sharesHeldOn } from "@/utils";
 
 /**
@@ -215,6 +219,26 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("db:deleteSavingsGoal", async (_event, id: number) => {
     return deleteSavingsGoal(id);
+  });
+
+  // ============================================
+  // CATEGORIZATION RULES HANDLERS
+  // ============================================
+
+  ipcMain.handle("db:getCategorizationRules", async () => {
+    return getCategorizationRules();
+  });
+
+  ipcMain.handle("db:upsertCategorizationRule", async (_event, rule: Omit<CategorizationRule, "id"> & { id?: number }) => {
+    return upsertCategorizationRule(rule);
+  });
+
+  ipcMain.handle("db:deleteCategorizationRule", async (_event, id: number) => {
+    return deleteCategorizationRule(id);
+  });
+
+  ipcMain.handle("db:setCategorizationRulePriorities", async (_event, ids: number[]) => {
+    return setCategorizationRulePriorities(ids);
   });
 
   // ============================================

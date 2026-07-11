@@ -36,6 +36,19 @@ export interface SavingsGoal {
   createdDate: string;
 }
 
+export type RuleMatchType = "contains" | "startsWith" | "equals";
+
+export interface CategorizationRule {
+  id: number;
+  pattern: string;
+  matchType: RuleMatchType;
+  categoryId: number;
+  // Lower = evaluated first.
+  priority: number;
+  // Stored as 0/1 in SQLite — treat truthy.
+  isActive: boolean;
+}
+
 // A deliberate essential subset of the seeded defaults (NOT all of them) that
 // cannot be deleted or renamed (color/icon/type stay editable): the "Other"
 // category the savings-interest fallback depends on, plus one or two core

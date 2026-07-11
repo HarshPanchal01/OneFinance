@@ -390,5 +390,22 @@ function migrate1to2(db: any): void {
       console.error('[Migration] Migration error adding divSyncedThrough to investment_holdings:', error);
     }
   }
+
+  // Add auto-categorization rules table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS categorization_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pattern TEXT NOT NULL,
+        matchType TEXT NOT NULL DEFAULT 'contains' CHECK (matchType IN ('contains', 'startsWith', 'equals')),
+        categoryId INTEGER NOT NULL,
+        priority INTEGER NOT NULL DEFAULT 0,
+        isActive BOOLEAN NOT NULL DEFAULT 1,
+        FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
+      )
+    `);
+  } catch (e) {
+    console.error('[Migration] Migration error creating categorization_rules table:', e);
+  }
 }
 
