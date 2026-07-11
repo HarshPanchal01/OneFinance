@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
 import { useSettingsStore } from "@/stores/settings";
-import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
+import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, isExpenseLike, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
 import type {
   Budget,
   SavingsGoal,
@@ -14,7 +14,6 @@ import type {
   CategoryBreakdown,
   SearchOptions,
   MonthlyTrend,
-  DailyTransactionSum,
   LedgerMonth,
   RecurringTransaction,
   InvestmentHolding,
@@ -190,7 +189,7 @@ export const useFinanceStore = defineStore("finance", () => {
   );
 
   const expenseTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)))
+    transactions.value.filter(isExpenseLike)
   );
 
   const transferTransactions = computed(() =>
@@ -1597,57 +1596,6 @@ export const useFinanceStore = defineStore("finance", () => {
     }
   }
 
-  async function fetchPacingData(
-    targetMonthStr: string, // "YYYY-MM"
-    comparisonMonthStr: string // "YYYY-MM"
-  ) {
-      // Parse target Month
-      const [yearStr, monthStr] = targetMonthStr.split('-');
-      const year = parseInt(yearStr);
-      const month = parseInt(monthStr);
-
-      // --- 1. Blue Line (Series A): Cumulative Spend for Target Month ---
-      const dailyData = await window.electronAPI.getDailyTransactionSum(year, month, 'expense');
-      
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const seriesA: DailyTransactionSum[] = [];
-      let runningTotal = 0;
-      
-      for (let d = 1; d <= daysInMonth; d++) {
-          const entry = dailyData.find(item => item.day === d);
-          if (entry) {
-              runningTotal += entry.total;
-          }
-          
-          seriesA.push({ day: d, total: runningTotal });
-      }
-
-      // --- 2. Gray Line (Series B): Comparison Month ---
-      const seriesB: DailyTransactionSum[] = [];
-
-      const [cYearStr, cMonthStr] = comparisonMonthStr.split('-');
-      const cYear = parseInt(cYearStr);
-      const cMonth = parseInt(cMonthStr);
-      
-      const cDailyData = await window.electronAPI.getDailyTransactionSum(cYear, cMonth, 'expense');
-      
-      const cDaysInMonth = new Date(cYear, cMonth, 0).getDate();
-      
-      let cRunningTotal = 0;
-      // We map up to the max days of either month to ensure the chart covers the longer month
-      const maxDays = Math.max(daysInMonth, cDaysInMonth);
-      
-      for (let d = 1; d <= maxDays; d++) {
-          const entry = cDailyData.find(item => item.day === d);
-          if (entry) {
-              cRunningTotal += entry.total;
-          }
-          seriesB.push({ day: d, total: cRunningTotal });
-      }
-
-      return { seriesA, seriesB };
-  }
-
   // ==================================
   // SETTINGS ACTIONS
   // ==================================
@@ -2223,7 +2171,6 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchMonthlyTrends,
     fetchRollingMonthlyTrends,
     fetchNetWorthTrend,
-    fetchPacingData,
     fetchInvestmentHoldings,
     fetchInvestmentTransactions,
     fetchInvestmentHistory,
