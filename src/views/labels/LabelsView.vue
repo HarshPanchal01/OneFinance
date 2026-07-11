@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, toRaw } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import { isProtectedAccountTypeName, isProtectedCategoryName, type AccountType, type Category } from "@/types";
+import { isProtectedAccountTypeName, isProtectedCategoryName, type AccountType, type CategorizationRule, type Category } from "@/types";
+import { MATCH_TYPE_LABELS, nextRulePriority } from "@/rules";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
-import CategoryModal from "./components/CategoryModal.vue";
-import AccountTypeModal from "./components/AccountTypeModal.vue";
+import CategoryModal from "@/views/labels/components/CategoryModal.vue";
+import AccountTypeModal from "@/views/labels/components/AccountTypeModal.vue";
+import RuleModal from "@/views/labels/components/RuleModal.vue";
 
 const store = useFinanceStore();
 
@@ -33,6 +35,26 @@ const accountTypeForm = ref<
   type: "",
   classification: "liquid",
 });
+
+const showRuleModal = ref(false);
+const editingRule = ref(false);
+
+const ruleForm = ref<CategorizationRule>({
+  id: 0,
+  pattern: "",
+  matchType: "contains",
+  categoryId: 0,
+  priority: 0,
+  isActive: true,
+});
+
+// Join each rule with its category once per render instead of per template access.
+const ruleRows = computed(() =>
+  store.categorizationRules.map((rule) => ({
+    rule,
+    category: store.categories.find((c) => c.id === rule.categoryId),
+  }))
+);
 
 // Delete category
 async function deleteCategory(id: number) {
@@ -158,6 +180,70 @@ function closeCategoryModal() {
 function closeAccountTypeModal() {
   showAccountTypeModal.value = false;
   editingAccountType.value = false;
+}
+
+// Categorization rules
+function openRuleCreateModal() {
+  editingRule.value = false;
+  ruleForm.value = {
+    id: 0,
+    pattern: "",
+    matchType: "contains",
+    categoryId: 0,
+    priority: nextRulePriority(store.categorizationRules),
+    isActive: true,
+  };
+  showRuleModal.value = true;
+}
+
+function openRuleEditModal(rule: CategorizationRule) {
+  editingRule.value = true;
+  ruleForm.value = { ...rule };
+  showRuleModal.value = true;
+}
+
+async function saveRule(form: CategorizationRule) {
+  if (!form.pattern.trim() || form.categoryId === 0) return;
+
+  try {
+    await store.saveCategorizationRule({
+      ...toRaw(form),
+      id: editingRule.value ? form.id : undefined,
+    });
+    showRuleModal.value = false;
+  } catch (error) {
+    console.error("Failed to save rule:", error);
+  }
+}
+
+function closeRuleModal() {
+  showRuleModal.value = false;
+  editingRule.value = false;
+}
+
+async function deleteRule(id: number) {
+  if (
+    await confirmModal.value?.openConfirmation({
+      title: "Delete Rule",
+      message: "Are you sure you want to delete this rule?",
+      cancelText: "Cancel",
+      confirmText: "Delete",
+    })
+  ) {
+    await store.removeCategorizationRule(id);
+  }
+}
+
+async function toggleRuleActive(rule: CategorizationRule) {
+  await store.saveCategorizationRule({ ...toRaw(rule), isActive: !rule.isActive });
+}
+
+async function moveRule(index: number, delta: number) {
+  const target = index + delta;
+  if (target < 0 || target >= store.categorizationRules.length) return;
+  const ids = store.categorizationRules.map((r) => r.id);
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  await store.reorderCategorizationRules(ids);
 }
 
 </script>
@@ -300,6 +386,125 @@ function closeAccountTypeModal() {
       </div>
     </div>
 
+    <!-- Auto-Categorization Rules -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+          Auto-Categorization Rules
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          {{ store.categorizationRules.length }} rules — applied top to bottom
+        </p>
+      </div>
+
+      <button
+        class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 rounded-lg font-medium transition-colors"
+        @click="openRuleCreateModal"
+      >
+        <i class="pi pi-plus mr-2" />
+        Add Rule
+      </button>
+    </div>
+
+    <!-- Rules list (single column — order is the priority) -->
+    <div
+      v-if="store.categorizationRules.length > 0"
+      class="space-y-2"
+    >
+      <div
+        v-for="({ rule, category }, index) in ruleRows"
+        :key="rule.id"
+        class="group card px-4 py-3 hover:shadow-md transition-shadow flex items-center gap-3"
+        :class="{ 'opacity-60': !rule.isActive }"
+      >
+        <span class="w-6 text-sm text-gray-400 dark:text-gray-500 text-right shrink-0">
+          {{ index + 1 }}
+        </span>
+
+        <!-- Reorder -->
+        <div class="flex flex-col shrink-0">
+          <button
+            :disabled="index === 0"
+            class="p-0.5 rounded text-gray-400 hover:text-primary-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
+            title="Move up"
+            @click="moveRule(index, -1)"
+          >
+            <i class="pi pi-chevron-up text-xs" />
+          </button>
+          <button
+            :disabled="index === ruleRows.length - 1"
+            class="p-0.5 rounded text-gray-400 hover:text-primary-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
+            title="Move down"
+            @click="moveRule(index, 1)"
+          >
+            <i class="pi pi-chevron-down text-xs" />
+          </button>
+        </div>
+
+        <!-- Rule description -->
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <span class="text-xs lowercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0">
+            {{ MATCH_TYPE_LABELS[rule.matchType] }}
+          </span>
+          <span class="font-medium text-gray-900 dark:text-white truncate">
+            "{{ rule.pattern }}"
+          </span>
+          <i class="pi pi-arrow-right text-xs text-gray-400 shrink-0" />
+          <template v-if="category">
+            <div
+              class="w-6 h-6 rounded-md flex items-center justify-center text-white shrink-0"
+              :style="{ backgroundColor: category.colorCode }"
+            >
+              <i :class="['pi text-xs', category.icon]" />
+            </div>
+            <span class="text-sm text-gray-700 dark:text-gray-300 truncate">
+              {{ category.name }}
+            </span>
+          </template>
+        </div>
+
+        <!-- Actions -->
+        <div class="hidden group-hover:flex items-center space-x-1 shrink-0">
+          <button
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary-500 transition-colors"
+            title="Edit"
+            @click="openRuleEditModal(rule)"
+          >
+            <i class="pi pi-pencil text-sm" />
+          </button>
+          <button
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-expense transition-colors"
+            title="Delete"
+            @click="deleteRule(rule.id)"
+          >
+            <i class="pi pi-trash text-sm" />
+          </button>
+        </div>
+
+        <!-- Active toggle -->
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="!!rule.isActive"
+          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+          :class="rule.isActive ? 'bg-primary-500 dark:bg-primary-500/30' : 'bg-gray-200 dark:bg-gray-700'"
+          :title="rule.isActive ? 'Active' : 'Inactive'"
+          @click="toggleRuleActive(rule)"
+        >
+          <span
+            class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
+            :class="rule.isActive ? 'translate-x-5' : 'translate-x-1'"
+          />
+        </button>
+      </div>
+    </div>
+    <p
+      v-else
+      class="text-sm text-gray-400 dark:text-gray-500"
+    >
+      No rules yet — rules suggest a category from the transaction title as you type.
+    </p>
+
     <!-- Empty State -->
     <div
       v-if="store.categories.length === 0"
@@ -328,6 +533,12 @@ function closeAccountTypeModal() {
     :name-locked="isProtectedAccountTypeName(accountTypeForm.type)"
     @close-account-type-modal="closeAccountTypeModal"
     @save-account-type="saveAccountType"
+  />
+  <RuleModal
+    v-if="showRuleModal"
+    :editing-rule="ruleForm"
+    @close-rule-modal="closeRuleModal"
+    @save-rule="saveRule"
   />
 
   <ConfirmationModal ref="confirmModal" />

@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction, InvestmentTransaction, InvestmentDividend } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, CategorizationRule, Category, TransactionWithCategory, CategoryBreakdown, RecurringTransaction, InvestmentTransaction, InvestmentDividend } from "@/types";
 
 export interface DateRange {
   startDate: Date;
@@ -122,6 +122,7 @@ export interface ImportData {
   dividends?: InvestmentDividend[];
   budgets?: Budget[];
   goals?: SavingsGoal[];
+  categorizationRules?: CategorizationRule[];
 }
 
 export function verifyImportData(
@@ -281,6 +282,29 @@ export function verifyImportData(
     if (data.goals != undefined) {
       data.goals.forEach((value) => {
         if (value.name == undefined || value.targetAmount == undefined || value.createdDate == undefined) {
+          forEachResult = false;
+          return;
+        }
+      });
+    }
+
+    // Categorization rules are optional (older 2.0 exports predate this feature) — validate only if present.
+    if (data.categorizationRules != undefined) {
+      data.categorizationRules.forEach((value) => {
+        if (value.pattern == undefined || value.matchType == undefined || value.categoryId == undefined) {
+          forEachResult = false;
+          return;
+        }
+        // An empty pattern can never match (and the UI refuses to create one).
+        if (typeof value.pattern !== "string" || value.pattern.trim() === "") {
+          forEachResult = false;
+          return;
+        }
+        if (!["contains", "startsWith", "equals"].includes(value.matchType)) {
+          forEachResult = false;
+          return;
+        }
+        if (categories.find((categoryValue) => categoryValue.id === value.categoryId) == undefined) {
           forEachResult = false;
           return;
         }

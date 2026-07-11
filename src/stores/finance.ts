@@ -2,9 +2,11 @@ import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
 import { useSettingsStore } from "@/stores/settings";
 import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, isExpenseLike, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
+import { compareRules, nextRulePriority } from "@/rules";
 import type {
   Budget,
   SavingsGoal,
+  CategorizationRule,
   Category,
   Account,
   AccountType,
@@ -44,6 +46,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
   // Savings goals
   const goals = ref<SavingsGoal[]>([]);
+
+  // Auto-categorization rules (priority-ordered)
+  const categorizationRules = ref<CategorizationRule[]>([]);
 
   // Accounts
   const accounts = ref<Account[]>([]);
@@ -257,6 +262,9 @@ export const useFinanceStore = defineStore("finance", () => {
 
       // Load savings goals
       await fetchGoals();
+
+      // Load auto-categorization rules
+      await fetchCategorizationRules();
 
       databaseVersion.value = await window.electronAPI.getDatabaseVersion();
 
@@ -623,8 +631,9 @@ export const useFinanceStore = defineStore("finance", () => {
     const success = await window.electronAPI.deleteCategory(id);
     if (success) {
       categories.value = categories.value.filter((c) => c.id !== id);
-      // The budget row is removed by the DB's ON DELETE CASCADE; mirror that locally.
+      // Budget and rule rows are removed by the DB's ON DELETE CASCADE; mirror that locally.
       budgets.value = budgets.value.filter((b) => b.categoryId !== id);
+      categorizationRules.value = categorizationRules.value.filter((r) => r.categoryId !== id);
     }
     return success;
   }
@@ -740,6 +749,51 @@ export const useFinanceStore = defineStore("finance", () => {
       };
     });
   });
+
+  // ============================================
+  // ACTIONS - Categorization Rules
+  // ============================================
+
+  async function fetchCategorizationRules() {
+    categorizationRules.value = await window.electronAPI.getCategorizationRules();
+  }
+
+  async function saveCategorizationRule(rule: Omit<CategorizationRule, "id"> & { id?: number }) {
+    const updated = await window.electronAPI.upsertCategorizationRule(rule);
+    const index = categorizationRules.value.findIndex((r) => r.id === updated.id);
+    if (index !== -1) {
+      categorizationRules.value[index] = updated;
+    } else {
+      categorizationRules.value.push(updated);
+    }
+    categorizationRules.value = [...categorizationRules.value].sort(compareRules);
+    return updated;
+  }
+
+  async function removeCategorizationRule(id: number) {
+    const success = await window.electronAPI.deleteCategorizationRule(id);
+    if (success) {
+      categorizationRules.value = categorizationRules.value.filter((r) => r.id !== id);
+    }
+    return success;
+  }
+
+  async function reorderCategorizationRules(ids: number[]) {
+    // Optimistic: rewrite local priorities to the new dense order before the IPC lands.
+    categorizationRules.value = categorizationRules.value
+      .map((r) => {
+        const index = ids.indexOf(r.id);
+        return index === -1 ? r : { ...r, priority: index };
+      })
+      .sort(compareRules);
+    try {
+      await window.electronAPI.setCategorizationRulePriorities(ids);
+    } catch (e) {
+      // Roll back to the DB's order so the UI never shows an order that wasn't persisted.
+      console.error("[Store] Failed to persist rule order:", e);
+      await fetchCategorizationRules();
+    }
+  }
 
   // ============================================
   // ACTIONS - Recurring Transactions
@@ -2044,6 +2098,34 @@ export const useFinanceStore = defineStore("finance", () => {
       }
       await fetchGoals();
 
+      const importRules = data.categorizationRules || [];
+      let importRulePriority = nextRulePriority(categorizationRules.value);
+      for (const importedRule of importRules) {
+        const mappedRuleCategoryId = categoryTypeIdMap.get(importedRule.categoryId);
+        if (mappedRuleCategoryId == undefined) {
+          console.log(`Skipping categorization rule with no category mapping for category id: ${importedRule.categoryId}`);
+          continue;
+        }
+        // Merge mode: don't duplicate an equivalent rule the user already has.
+        if (!isReplace && categorizationRules.value.some((r) =>
+          r.categoryId === mappedRuleCategoryId &&
+          r.matchType === importedRule.matchType &&
+          r.pattern.trim().toLowerCase() === importedRule.pattern.trim().toLowerCase()
+        )) {
+          console.log(`Skipping existing categorization rule "${importedRule.pattern}"`);
+          continue;
+        }
+        await window.electronAPI.upsertCategorizationRule({
+          pattern: importedRule.pattern,
+          matchType: importedRule.matchType,
+          categoryId: mappedRuleCategoryId,
+          // Append after existing rules (merge mode) while preserving relative order.
+          priority: importRulePriority++,
+          isActive: importedRule.isActive ?? true,
+        });
+      }
+      await fetchCategorizationRules();
+
       // Imported fxRates target the EXPORTER-time user currency, which may not be
       // this machine's — force a full re-derive against the current one (a failed
       // fetch here self-heals via the refresh-cycle recompute)
@@ -2068,6 +2150,7 @@ export const useFinanceStore = defineStore("finance", () => {
     categories.value = [];
     budgets.value = [];
     goals.value = [];
+    categorizationRules.value = [];
     transactions.value = [];
     accountTypes.value = [];
     ledgerMonths.value = [];
@@ -2094,6 +2177,7 @@ export const useFinanceStore = defineStore("finance", () => {
     currentMonthSpendByCategory,
     goals,
     goalProgress,
+    categorizationRules,
     accounts,
     accountTypes,
     transactions,
@@ -2158,6 +2242,10 @@ export const useFinanceStore = defineStore("finance", () => {
     fetchGoals,
     saveGoal,
     removeGoal,
+    fetchCategorizationRules,
+    saveCategorizationRule,
+    removeCategorizationRule,
+    reorderCategorizationRules,
     fetchRecurringTransactions,
     addRecurringTransaction,
     editRecurringTransaction,

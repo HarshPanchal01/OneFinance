@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { app } from "electron";
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, CategorizationRule, Category, CreateTransactionInput, LedgerMonth, SearchOptions, Transaction, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, isProtectedCategoryName, isProtectedAccountTypeName } from "@/types";
 import { migrateDatabase } from "./migration";
 
 export const databaseVersion = 2.0;
@@ -425,6 +425,19 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Auto-categorization rules - suggest a category from the transaction title
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS categorization_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pattern TEXT NOT NULL,
+      matchType TEXT NOT NULL DEFAULT 'contains' CHECK (matchType IN ('contains', 'startsWith', 'equals')),
+      categoryId INTEGER NOT NULL,
+      priority INTEGER NOT NULL DEFAULT 0,
+      isActive BOOLEAN NOT NULL DEFAULT 1,
+      FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
+    )
+  `);
+
   // Seed default categories if none exist
   const categoryCount = db
     .prepare("SELECT COUNT(*) as count FROM categories")
@@ -783,6 +796,7 @@ export function deleteAllDataFromTables(): void{
     "investment_adjustments",
     "budgets",
     "savings_goals",
+    "categorization_rules",
     "accounts",
     "accountType",
     "categories",
@@ -1139,6 +1153,45 @@ export function upsertSavingsGoal(goal: Omit<SavingsGoal, "id"> & { id?: number 
 export function deleteSavingsGoal(id: number): boolean {
   const result = db.prepare("DELETE FROM savings_goals WHERE id = ?").run(id);
   return result.changes > 0;
+}
+
+// ============================================
+// CATEGORIZATION RULES OPERATIONS
+// ============================================
+
+export function getCategorizationRules(): CategorizationRule[] {
+  return db.prepare("SELECT * FROM categorization_rules ORDER BY priority ASC, id ASC").all() as CategorizationRule[];
+}
+
+export function upsertCategorizationRule(rule: Omit<CategorizationRule, "id"> & { id?: number }): CategorizationRule {
+  if (rule.id != null) {
+    db.prepare(`
+      UPDATE categorization_rules
+      SET pattern = ?, matchType = ?, categoryId = ?, priority = ?, isActive = ?
+      WHERE id = ?
+    `).run(rule.pattern, rule.matchType, rule.categoryId, rule.priority, rule.isActive ? 1 : 0, rule.id);
+    return db.prepare("SELECT * FROM categorization_rules WHERE id = ?").get(rule.id) as CategorizationRule;
+  }
+  const result = db.prepare(`
+    INSERT INTO categorization_rules (pattern, matchType, categoryId, priority, isActive)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(rule.pattern, rule.matchType, rule.categoryId, rule.priority, rule.isActive ? 1 : 0);
+  return db.prepare("SELECT * FROM categorization_rules WHERE id = ?").get(result.lastInsertRowid) as CategorizationRule;
+}
+
+export function deleteCategorizationRule(id: number): boolean {
+  const result = db.prepare("DELETE FROM categorization_rules WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+// Rewrites priorities to the given order (0..n-1) in one transaction — keeps them
+// dense and self-heals gaps left by category-CASCADE deletes.
+export function setCategorizationRulePriorities(ids: number[]): void {
+  const update = db.prepare("UPDATE categorization_rules SET priority = ? WHERE id = ?");
+  const apply = db.transaction((ordered: number[]) => {
+    ordered.forEach((id, index) => update.run(index, id));
+  });
+  apply(ids);
 }
 
 // ============================================

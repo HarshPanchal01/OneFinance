@@ -1,4 +1,4 @@
-import { Account, AccountType, Budget, SavingsGoal, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
+import { Account, AccountType, Budget, SavingsGoal, CategorizationRule, Category, CreateTransactionInput, LedgerMonth, SearchOptions, TransactionWithCategory, MonthlyTrend, DailyTransactionSum, RecurringTransaction, InvestmentHolding, InvestmentTransaction, InvestmentDividend, InvestmentHistory, FxRate, PriceAlert, RememberPolicy } from "@/types";
 import type { BackupSettings } from "./backup";
 import type { AppPreferences } from "./preferences";
 import { ipcRenderer, contextBridge } from "electron";
@@ -213,6 +213,22 @@ const electronAPI = {
 
   deleteSavingsGoal: (id: number): Promise<boolean> =>
     ipcRenderer.invoke("db:deleteSavingsGoal", id),
+
+  // ============================================
+  // CATEGORIZATION RULES
+  // ============================================
+
+  getCategorizationRules: (): Promise<CategorizationRule[]> =>
+    ipcRenderer.invoke("db:getCategorizationRules"),
+
+  upsertCategorizationRule: (rule: Omit<CategorizationRule, "id"> & { id?: number }): Promise<CategorizationRule> =>
+    ipcRenderer.invoke("db:upsertCategorizationRule", rule),
+
+  deleteCategorizationRule: (id: number): Promise<boolean> =>
+    ipcRenderer.invoke("db:deleteCategorizationRule", id),
+
+  setCategorizationRulePriorities: (ids: number[]): Promise<void> =>
+    ipcRenderer.invoke("db:setCategorizationRulePriorities", ids),
 
   // ============================================
   // ACCOUNTS
