@@ -100,7 +100,7 @@ const categoryOptions = computed(() => ({
 </script>
 
 <template>
-  <div class="flex flex-col xl:flex-row h-full w-full items-start xl:justify-between gap-6">
+  <div class="flex flex-col xl:flex-row h-full w-full items-start xl:justify-center gap-4">
     <!-- Left Column: Total Text + Chart -->
     <div class="flex flex-col items-center justify-start gap-0 shrink-0 w-full xl:w-auto">
       <h3 class="font-semibold text-gray-700 dark:text-gray-200 text-sm lg:text-base mb-1 lg:self-start xl:self-center whitespace-nowrap">
@@ -118,7 +118,7 @@ const categoryOptions = computed(() => ({
       </div>
 
       <!-- Chart -->
-      <div class="w-44 h-44 xl:w-56 xl:h-56">
+      <div class="w-52 h-52 xl:w-64 xl:h-64">
         <AppChart
           type="pie"
           :data="categoryData"

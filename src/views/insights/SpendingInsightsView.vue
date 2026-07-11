@@ -1,23 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, watch, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import { 
+import {
   getMetricsForRange,
-  getTimeRangeLabel, 
-  getExpenseBreakdownForRange, 
-  getCustomRangeObj, 
-  calculateSavingsRate, 
-  calculateAvgDailySpend, 
-  calculateNetCashFlow, 
-  getPacingLabel,
-  getMonthStr } from "@/utils";
+  getTimeRangeLabel,
+  getExpenseBreakdownForRange,
+  getCustomRangeObj,
+  calculateSavingsRate,
+  calculateAvgDailySpend,
+  calculateNetCashFlow } from "@/utils";
 import { useFormatter } from "@/composables/useFormatter";
-import type { DailyTransactionSum } from "@/types";
 import CashFlowChart from "@/views/insights/components/charts/CashFlowChart.vue";
-import PacingChart from "@/views/insights/components/charts/PacingChart.vue";
 import ExpenseBreakdownChart from "@/views/insights/components/charts/ExpenseBreakdownChart.vue";
 import NetWorthChart from "@/views/insights/components/charts/NetWorthChart.vue";
-import DatePicker from "primevue/datepicker";
+import SpendingHeatmapChart from "@/views/insights/components/charts/SpendingHeatmapChart.vue";
 import InsightMetricCard from "@/views/insights/components/InsightMetricCard.vue";
 import InsightTimeRangeSelector from "@/views/insights/components/InsightTimeRangeSelector.vue";
 
@@ -36,7 +32,6 @@ onMounted(async () => {
   if (store.expenseBreakdown.length === 0) {
     store.fetchPeriodSummarySync();
   }
-  await refreshPacing();
 });
 
 // ===============================================
@@ -102,56 +97,10 @@ const availableYears = computed(() => {
     
     return Array.from(years).sort((a, b) => b - a);
 });
-
-// ===============================================
-// PACING CHART
-// ===============================================
-
-// Date Pickers State
-// Default to current month
- 
-const pacingDateA = ref<any>(new Date());
-// Default to previous month
- 
-const pacingDateB = ref<any>(new Date(new Date().setMonth(new Date().getMonth() - 1)));
-
-// Refs to trigger date picker
- 
-// const pacingDateARef = ref<any>(null);
- 
-// const pacingDateBRef = ref<any>(null);
-
-const pacingSeriesA = ref<DailyTransactionSum[]>([]);
-const pacingSeriesB = ref<DailyTransactionSum[]>([]);
-
-async function refreshPacing() {
-    if (!pacingDateA.value) return;
-
-    const target = getMonthStr(pacingDateA.value);
-    let comparison: string = '';
-
-    if (pacingDateB.value) {
-        comparison = getMonthStr(pacingDateB.value);
-    } 
-
-    if (comparison) {
-         // Cast to any because our store definition is now loose string for 2nd arg
-          
-         const { seriesA, seriesB } = await store.fetchPacingData(target, comparison as any);
-         pacingSeriesA.value = seriesA;
-         pacingSeriesB.value = seriesB;
-    }
-}
-
-watch([pacingDateA, pacingDateB], refreshPacing);
-
-// Helper for label display
-const pacingLabelA = computed(() => getPacingLabel(pacingDateA.value, 'Selected Month'));
-const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Month'));
 </script>
 
 <template>
-  <div class="space-y-6 pb-6 max-w-full overflow-x-hidden overflow-y-auto h-full pr-2">
+  <div class="flex flex-col gap-4 pb-4 max-w-full overflow-x-hidden overflow-y-auto h-full pr-2">
     <header class="flex items-center justify-between shrink-0">
       <div>
         <div class="flex items-center space-x-3">
@@ -227,7 +176,7 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
     </div>
 
     <!-- Charts Row 1 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Cash Flow -->
       <div class="card p-4">
         <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
@@ -270,110 +219,8 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
         </div>
       </div>
 
-      <!-- Spending Pacing -->
-      <div class="card p-4">
-        <div class="relative flex items-center justify-between mb-4 min-h-[32px]">
-          <!-- Custom Legend (Left) -->
-          <div class="hidden xl:flex flex-row gap-4">
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-primary-500 shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Current</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div class="w-2.5 h-1.5 rounded-sm bg-amber-400 shrink-0" />
-              <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Comparison</span>
-            </div>
-          </div>
-
-          <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center xl:text-left">
-            Spending Pacing
-          </h3>
-
-          <!-- Date Pickers for Pacing (Right) -->
-          <div class="flex items-center gap-1 sm:gap-2 z-10 justify-end">
-            <!-- Target Month Picker -->            
-            <div class="relative">                                       
-              <DatePicker                       
-                ref="pacingDateARef"                    
-                v-model="pacingDateA"                              
-                view="month"                        
-                date-format="yy-mm"
-                class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
-                input-class="cursor-pointer h-full w-full caret-transparent"    
-                :pt="{ input: { inputmode: 'none' } }"      
-                :panel-style="{ minWidth: '18rem' }"                                        
-              />
-                                                      
-              <button 
-                class="flex items-center gap-1 px-1.5 py-0.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
-              >                                        
-                <span class="text-[10px] font-semibold text-primary-500 whitespace-nowrap">
-                  {{ pacingDateA ? pacingDateA.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Month' }}                                 
-                </span>                               
-              </button>                                        
-            </div>
-
-            <span class="text-gray-400 text-[10px]">vs</span>
-
-            <!-- Comparison Picker -->
-            <div class="relative">
-              <DatePicker 
-                ref="pacingDateBRef"
-                v-model="pacingDateB" 
-                view="month" 
-                date-format="yy-mm"
-                class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
-                input-class="cursor-pointer h-full w-full caret-transparent"
-                :pt="{ input: { inputmode: 'none' } }"
-                :panel-style="{ minWidth: '18rem' }"
-              />
-              <button
-                class="flex items-center gap-1 px-1.5 py-0.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors pointer-events-none"
-              >
-                <span class="text-[10px] font-semibold text-amber-500 whitespace-nowrap">
-                  {{ pacingDateB ? pacingDateB.toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Month' }}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="h-64">
-          <PacingChart 
-            :series-a="pacingSeriesA" 
-            :series-b="pacingSeriesB" 
-            :label-a="pacingLabelA" 
-            :label-b="pacingLabelB"
-            :date-a="pacingDateA"
-            :date-b="pacingDateB"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Charts Row 2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Expense Breakdown -->
-      <div class="card p-4 lg:col-span-1 flex flex-col relative">
-        <div class="absolute top-4 right-4 z-20">
-          <InsightTimeRangeSelector
-            v-model:model-value="expenseBreakdownTimeRange"
-            v-model:custom-range="expenseBreakdownCustomDate"
-          />
-        </div>
-        <div class="flex-1">
-          <ExpenseBreakdownChart
-            :breakdown="expenseBreakdownData"
-            :time-range="expenseBreakdownTimeRange"
-            :custom-range="getCustomRangeObj(expenseBreakdownCustomDate)"
-          />
-        </div>
-        <div class="text-xs text-gray-400 mt-auto pt-4 pl-1">
-          Based on {{ getTimeRangeLabel(expenseBreakdownTimeRange, getCustomRangeObj(expenseBreakdownCustomDate)) }}
-        </div>
-      </div>
-
       <!-- Net Worth Trend -->
-      <div class="card p-4 lg:col-span-2 flex flex-col">
+      <div class="card p-4 flex flex-col">
         <div class="relative flex items-center justify-end mb-4 min-h-[32px]">
           <h3 class="xl:absolute xl:left-1/2 xl:-translate-x-1/2 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-sm lg:text-base flex-1 xl:flex-none text-center">
             Net Worth Trend
@@ -396,9 +243,37 @@ const pacingLabelB = computed(() => getPacingLabel(pacingDateB.value, 'Select Mo
             </select>
           </div>
         </div>
-        <div class="h-64 xl:h-72">
+        <div class="h-64">
           <NetWorthChart :option="netWorthOption" />
         </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 2 (fills the remaining viewport height on lg+) -->
+    <div class="grid grid-cols-1 lg:grid-cols-7 gap-4 lg:flex-1 min-h-0">
+      <!-- Expense Breakdown -->
+      <div class="card p-4 lg:col-span-2 flex flex-col relative min-h-0">
+        <div class="absolute top-4 right-4 z-20">
+          <InsightTimeRangeSelector
+            v-model:model-value="expenseBreakdownTimeRange"
+            v-model:custom-range="expenseBreakdownCustomDate"
+          />
+        </div>
+        <div class="flex-1">
+          <ExpenseBreakdownChart
+            :breakdown="expenseBreakdownData"
+            :time-range="expenseBreakdownTimeRange"
+            :custom-range="getCustomRangeObj(expenseBreakdownCustomDate)"
+          />
+        </div>
+        <div class="text-xs text-gray-400 mt-auto pt-4 pl-1">
+          Based on {{ getTimeRangeLabel(expenseBreakdownTimeRange, getCustomRangeObj(expenseBreakdownCustomDate)) }}
+        </div>
+      </div>
+
+      <!-- Spending Calendar Heatmap -->
+      <div class="card p-4 lg:col-span-5 flex flex-col min-h-0">
+        <SpendingHeatmapChart />
       </div>
     </div>
   </div>

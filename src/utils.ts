@@ -529,18 +529,6 @@ export function calculateNetCashFlow(income: number, expense: number): number {
   return income - expense;
 }
 
- 
-export function getPacingLabel(date: any, defaultLabel: string): string {
-  if (!date) return defaultLabel;
-  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
-}
-
-export function getMonthStr(date: Date): string {
-    const y = date.getFullYear();
-    const m = date.getMonth() + 1;
-    return `${y}-${String(m).padStart(2, '0')}`;
-}
-
 // Latest close on or before `date` — markets close weekends/holidays, so a date
 // can fall between candles; fall back to the prior trading day. Shared by the
 // FX-at-date lookup (electron/finance.ts) and the price-alert reference closes.
