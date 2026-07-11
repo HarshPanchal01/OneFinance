@@ -3,62 +3,68 @@ import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from "vue"
 import { useFinanceStore } from "@/stores/finance";
 import { useSettingsStore } from "@/stores/settings";
 import { useFormatter } from "@/composables/useFormatter";
-import { toIsoDateString } from "@/utils";
+import { getDateRange, getMonthName, isExpenseLike, toIsoDateString } from "@/utils";
 
 const store = useFinanceStore();
 const settingsStore = useSettingsStore();
 const { formatCurrency, formatDate } = useFormatter();
 
-const GAP = 4; // px, between cells
-const LABEL_W = 40; // px, weekday label column
-const MONTH_ROW_H = 24; // px, month-label row (h-5 + mb-1)
-const LEGEND_H = 28; // px, legend row incl. its top margin
+const GAP = 4; // px, between cells (single source: fed to the grid styles below)
+const LABEL_W = 40; // px, weekday label column (single source: fed to styles below)
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SHORT_MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
-const now = new Date();
+// Reactive "today" that rolls over at midnight, so the YTD window, the today
+// ring and the year list stay correct when the view is left open across days.
+const today = ref(new Date());
+let midnightTimer: number | undefined;
+function armMidnightTick() {
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  midnightTimer = window.setTimeout(() => {
+    today.value = new Date();
+    armMidnightTick();
+  }, nextMidnight.getTime() - now.getTime() + 1000);
+}
 
-// Years present in the loaded transactions, plus the current year, newest first.
+// Scope-independent year list (the ledger's years, like the sibling selectors),
+// not the possibly month/year-scoped store.transactions.
 const availableYears = computed(() => {
-  const years = new Set<number>([now.getFullYear()]);
-  for (const t of store.transactions) {
-    const y = Number(t.date.slice(0, 4));
-    if (y) years.add(y);
-  }
+  const years = new Set<number>(store.ledgerYears);
+  years.add(today.value.getFullYear());
   return Array.from(years).sort((a, b) => b - a);
 });
 
-// 'YTD' = trailing 12 months (GitHub's own window) or a calendar year.
+// 'YTD' = trailing 12 months (the app-wide YTD convention) or a calendar year.
 const selectedRange = ref<string>("YTD");
 
 const rangeBounds = computed(() => {
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const t = today.value;
   if (selectedRange.value === "YTD") {
-    const start = new Date(today);
-    start.setFullYear(start.getFullYear() - 1);
-    start.setDate(start.getDate() + 1);
-    return { start, end: today };
+    const { startDate, endDate } = getDateRange("ytd");
+    return { start: startDate, end: endDate };
   }
   const year = Number(selectedRange.value);
   return {
     start: new Date(year, 0, 1),
-    end: year === now.getFullYear() ? today : new Date(year, 11, 31),
+    end:
+      year === t.getFullYear()
+        ? new Date(t.getFullYear(), t.getMonth(), t.getDate())
+        : new Date(year, 11, 31),
   };
 });
 
-// Sum of expenses per ISO day within the range, counting expense-transfers
-// like getExpenseBreakdownForRange does (and like the type:'expense' search
-// filter the day click applies). Dates are compared as ISO strings to avoid
-// timezone off-by-one from Date parsing.
+// Sum of spend per ISO day within the range, over the unscoped transaction set
+// (dashboardTransactions = getAllTransactions; store.transactions can be
+// month/year-scoped by the sidebar and would silently under-report here).
+// Dates are compared as ISO strings to avoid timezone off-by-one from Date
+// parsing; isExpenseLike keeps the totals consistent with the breakdown card
+// and the type:'expense' search the day click applies.
 const dailyTotals = computed<Record<string, number>>(() => {
   const startIso = toIsoDateString(rangeBounds.value.start);
   const endIso = toIsoDateString(rangeBounds.value.end);
   const totals: Record<string, number> = {};
-  for (const t of store.transactions) {
-    if (t.type !== "expense" && !(t.type === "transfer" && t.isExpenseTransfer)) continue;
+  for (const t of store.dashboardTransactions) {
+    if (!isExpenseLike(t)) continue;
     if (t.date < startIso || t.date > endIso) continue;
     totals[t.date] = (totals[t.date] || 0) + t.amount;
   }
@@ -90,30 +96,32 @@ function intensityLevel(total: number): number {
   return 4;
 }
 
-// GitHub-style grid: columns are weeks (Sun→Sat rows). Leading nulls pad the
-// first week so the range's first day lands on its weekday row.
+// GitHub-style grid: columns are weeks (Sun→Sat rows). `lead` is the row
+// offset of the range's first day (rendered as one spacer spanning that many
+// rows, so the v-for stays a flat list of real days for v-memo).
 const calendar = computed(() => {
   const { start, end } = rangeBounds.value;
+  const lead = start.getDay();
 
-  const cells: (DayCell | null)[] = [];
-  for (let i = 0; i < start.getDay(); i++) cells.push(null);
-
+  const cells: DayCell[] = [];
   const markers: { col: number; label: string }[] = [];
   const cursor = new Date(start);
+  let slot = lead;
   while (cursor <= end) {
     if (cursor.getDate() === 1) {
       markers.push({
-        col: Math.floor(cells.length / 7),
-        label: SHORT_MONTHS[cursor.getMonth()],
+        col: Math.floor(slot / 7),
+        label: getMonthName(cursor.getMonth() + 1).slice(0, 3),
       });
     }
     const iso = toIsoDateString(cursor);
     const total = dailyTotals.value[iso] || 0;
     cells.push({ iso, total, level: intensityLevel(total) });
+    slot++;
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  return { cells, markers, cols: Math.ceil(cells.length / 7) };
+  return { cells, markers, lead, cols: Math.ceil(slot / 7) };
 });
 
 // Each month's label centered over the weeks it spans (vs. GitHub's
@@ -126,7 +134,7 @@ const monthSpans = computed(() => {
   });
 });
 
-const todayIso = toIsoDateString(now);
+const todayIso = computed(() => toIsoDateString(today.value));
 
 // Translucent overlays on the card background so intensity reads in light + dark.
 const LEVEL_BG = [
@@ -140,18 +148,29 @@ const LEVEL_BG = [
 // Cells scale to fill the card: width and height are computed independently so
 // a full year (53 week-columns) still fills the vertical space — cells go
 // rectangular up to a capped aspect ratio instead of shrinking to tiny squares.
+// The month-label and legend row heights are measured from the DOM (incl.
+// margins) so the math can't drift from the Tailwind classes.
 const MAX_ASPECT = 1.6;
 const wrapEl = ref<HTMLElement | null>(null);
+const monthRowEl = ref<HTMLElement | null>(null);
+const legendEl = ref<HTMLElement | null>(null);
 const cellW = ref(14);
 const cellH = ref(14);
 const pitchX = computed(() => cellW.value + GAP);
+
+function outerHeight(el: HTMLElement | null): number {
+  if (!el) return 0;
+  const cs = window.getComputedStyle(el);
+  return el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+}
 
 function recomputeCell() {
   const el = wrapEl.value;
   const cols = calendar.value.cols;
   if (!el || !cols) return;
-  const availW = el.clientWidth - LABEL_W - 4; // minus weekday labels + their margin
-  const availH = el.clientHeight - MONTH_ROW_H - LEGEND_H;
+  const availW = el.clientWidth - LABEL_W - GAP;
+  const availH =
+    el.clientHeight - outerHeight(monthRowEl.value) - outerHeight(legendEl.value);
   const sizeW = Math.floor((availW - (cols - 1) * GAP) / cols);
   const sizeH = Math.floor((availH - 6 * GAP) / 7);
   cellW.value = Math.max(11, Math.min(sizeW, 40));
@@ -161,14 +180,28 @@ function recomputeCell() {
   );
 }
 
+// Floating tooltip anchored to the hovered cell's rect (not the mouse), so it
+// sits centered above the cell no matter where the pointer entered.
+const hovered = ref<DayCell | null>(null);
+const tipPos = ref({ x: 0, y: 0 });
+
 let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => recomputeCell());
   if (wrapEl.value) resizeObserver.observe(wrapEl.value);
   recomputeCell();
+  armMidnightTick();
 });
-onBeforeUnmount(() => resizeObserver?.disconnect());
-watch(() => calendar.value.cols, () => nextTick(recomputeCell));
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  if (midnightTimer) window.clearTimeout(midnightTimer);
+});
+// A grid rebuild can replace a hovered cell in place (no mouseleave fires), so
+// drop any tooltip alongside the resize pass.
+watch(calendar, () => {
+  hovered.value = null;
+  nextTick(recomputeCell);
+});
 
 const dayGridStyle = computed(() => ({
   display: "grid",
@@ -183,18 +216,17 @@ const weekdayGridStyle = computed(() => ({
   gridTemplateRows: `repeat(7, ${cellH.value}px)`,
   gap: `${GAP}px`,
   width: `${LABEL_W}px`,
+  marginRight: `${GAP}px`,
 }));
-
-// Floating tooltip driven by a single hover state (cheaper than one node per cell).
-const hovered = ref<DayCell | null>(null);
-const tipPos = ref({ x: 0, y: 0 });
 
 function onEnter(cell: DayCell, e: MouseEvent) {
   hovered.value = cell;
-  tipPos.value = { x: e.clientX, y: e.clientY };
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  tipPos.value = { x: rect.left + rect.width / 2, y: rect.top };
 }
 
 function onDayClick(cell: DayCell) {
+  if (cell.total <= 0) return; // an empty day has nothing to drill into
   const filter = {
     fromDate: cell.iso,
     toDate: cell.iso,
@@ -250,8 +282,9 @@ function onDayClick(cell: DayCell) {
       <div class="mx-auto w-fit max-w-full">
         <!-- Month labels: each centered over the weeks its month spans -->
         <div
+          ref="monthRowEl"
           class="relative h-5 mb-1"
-          :style="{ marginLeft: `${LABEL_W + 4}px` }"
+          :style="{ marginLeft: `${LABEL_W + GAP}px` }"
         >
           <span
             v-for="(m, i) in monthSpans"
@@ -266,7 +299,7 @@ function onDayClick(cell: DayCell) {
         <div class="flex">
           <!-- Weekday labels -->
           <div
-            class="mr-1 text-xs text-gray-500 dark:text-gray-400"
+            class="text-xs text-gray-500 dark:text-gray-400"
             :style="weekdayGridStyle"
           >
             <span
@@ -276,27 +309,34 @@ function onDayClick(cell: DayCell) {
             >{{ wd }}</span>
           </div>
 
-          <!-- Day grid -->
+          <!-- Day grid: leading spacer pushes day 1 onto its weekday row -->
           <div :style="dayGridStyle">
-            <template
-              v-for="(cell, idx) in calendar.cells"
-              :key="idx"
-            >
-              <div v-if="!cell" />
-              <button
-                v-else
-                class="w-full h-full rounded-[3px] transition-transform hover:ring-2 hover:ring-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                :class="[LEVEL_BG[cell.level], cell.iso === todayIso ? 'ring-1 ring-primary-500' : '']"
-                @mouseenter="onEnter(cell, $event)"
-                @mouseleave="hovered = null"
-                @click="onDayClick(cell)"
-              />
-            </template>
+            <div
+              v-if="calendar.lead"
+              :style="{ gridRow: `span ${calendar.lead}` }"
+            />
+            <button
+              v-for="cell in calendar.cells"
+              :key="cell.iso"
+              v-memo="[cell.total, cell.level, cell.iso === todayIso]"
+              class="w-full h-full rounded-[3px] transition-transform hover:ring-2 hover:ring-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              :class="[
+                LEVEL_BG[cell.level],
+                cell.iso === todayIso ? 'ring-1 ring-primary-500' : '',
+                cell.total > 0 ? 'cursor-pointer' : 'cursor-default',
+              ]"
+              @mouseenter="onEnter(cell, $event)"
+              @mouseleave="hovered = null"
+              @click="onDayClick(cell)"
+            />
           </div>
         </div>
 
         <!-- Legend -->
-        <div class="flex items-center justify-end gap-1.5 mt-3 text-xs text-gray-400">
+        <div
+          ref="legendEl"
+          class="flex items-center justify-end gap-1.5 mt-3 text-xs text-gray-400"
+        >
           <span>Less</span>
           <div
             v-for="lvl in [0, 1, 2, 3, 4]"
@@ -314,7 +354,7 @@ function onDayClick(cell: DayCell) {
       <div
         v-if="hovered"
         class="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-gray-900 dark:bg-gray-700 px-2.5 py-1.5 text-xs text-white shadow-lg"
-        :style="{ left: `${tipPos.x}px`, top: `${tipPos.y - 8}px` }"
+        :style="{ left: `${tipPos.x}px`, top: `${tipPos.y - 6}px` }"
       >
         <div class="font-semibold">
           {{ formatDate(hovered.iso) }}

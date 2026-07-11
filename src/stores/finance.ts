@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
 import { useSettingsStore } from "@/stores/settings";
-import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
+import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, isExpenseLike, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
 import type {
   Budget,
   SavingsGoal,
@@ -189,7 +189,7 @@ export const useFinanceStore = defineStore("finance", () => {
   );
 
   const expenseTransactions = computed(() =>
-    transactions.value.filter((t) => t.type === "expense" || (t.type === "transfer" && Boolean(t.isExpenseTransfer)))
+    transactions.value.filter(isExpenseLike)
   );
 
   const transferTransactions = computed(() =>

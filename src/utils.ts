@@ -5,6 +5,12 @@ export interface DateRange {
   endDate: Date;
 }
 
+// The single definition of "counts as spend": a plain expense, or a transfer
+// logged as one (debt payments etc.). Mirrored in SQL in electron/db.ts.
+export function isExpenseLike(t: { type: string; isExpenseTransfer?: boolean }): boolean {
+  return t.type === 'expense' || (t.type === 'transfer' && Boolean(t.isExpenseTransfer));
+}
+
 export function formatCurrency(amount: number, locale = 'en-US', currency = 'USD'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -409,7 +415,7 @@ export function getMetricsForRange(range: string, transactions: TransactionWithC
   });
 
   const income = filtered.filter(t => t.type === 'income' || (t.type === 'transfer' && Boolean(t.isIncomeTransfer))).reduce((sum, t) => sum + t.amount, 0);
-  const expense = filtered.filter(t => t.type === 'expense' || (t.type === 'transfer' && Boolean(t.isExpenseTransfer))).reduce((sum, t) => sum + t.amount, 0);
+  const expense = filtered.filter(isExpenseLike).reduce((sum, t) => sum + t.amount, 0);
 
   return { income, expense, days: daysDivisor };
 }
@@ -418,7 +424,7 @@ export function getExpenseBreakdownForRange(range: string, transactions: Transac
   const { startDate, endDate } = getDateRange(range, transactions, customRange);
 
   const filtered = transactions.filter(t => {
-    if (t.type !== 'expense' && !(t.type === 'transfer' && Boolean(t.isExpenseTransfer))) return false;
+    if (!isExpenseLike(t)) return false;
     const [y, m, d] = t.date.split('-').map(Number);
     const tDate = new Date(y, m - 1, d);
     return tDate >= startDate && tDate <= endDate;

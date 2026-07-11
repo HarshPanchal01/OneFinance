@@ -32,6 +32,11 @@ onMounted(async () => {
   if (store.expenseBreakdown.length === 0) {
     store.fetchPeriodSummarySync();
   }
+  // The heatmap aggregates the unscoped dashboardTransactions (store.transactions
+  // can be month/year-scoped by the sidebar); make sure it's loaded (Budgets-view pattern).
+  if (store.dashboardTransactions.length === 0) {
+    await store.refreshDashboardData();
+  }
 });
 
 // ===============================================
@@ -249,10 +254,12 @@ const availableYears = computed(() => {
       </div>
     </div>
 
-    <!-- Charts Row 2 (fills the remaining viewport height on lg+) -->
+    <!-- Charts Row 2 (fills the remaining viewport height on lg+). The breakdown
+         card needs 3/7 below ~1792px: narrower can't hold the fixed 256px pie +
+         legend at the 1280px minimum window without clipping. -->
     <div class="grid grid-cols-1 lg:grid-cols-7 gap-4 lg:flex-1 min-h-0">
       <!-- Expense Breakdown -->
-      <div class="card p-4 lg:col-span-2 flex flex-col relative min-h-0">
+      <div class="card p-4 lg:col-span-3 min-[1792px]:col-span-2 flex flex-col relative min-h-0">
         <div class="absolute top-4 right-4 z-20">
           <InsightTimeRangeSelector
             v-model:model-value="expenseBreakdownTimeRange"
@@ -272,7 +279,7 @@ const availableYears = computed(() => {
       </div>
 
       <!-- Spending Calendar Heatmap -->
-      <div class="card p-4 lg:col-span-5 flex flex-col min-h-0">
+      <div class="card p-4 lg:col-span-4 min-[1792px]:col-span-5 flex flex-col min-h-0">
         <SpendingHeatmapChart />
       </div>
     </div>
