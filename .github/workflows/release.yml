@@ -44,9 +44,12 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+      # inputs are passed via env, never interpolated into the script — inline
+      # ${{ }} in run blocks is a shell-injection sink.
       - name: Validate Version Input
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          VERSION_INPUT="${{ inputs.version }}"
           if [[ ! "$VERSION_INPUT" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::'$VERSION_INPUT' is not a valid version (expected e.g. v2.0.0)"
             exit 1
@@ -54,8 +57,10 @@ jobs:
 
       - name: Bump Version & Tag
         id: create_tag
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
         run: |
-          VERSION_INPUT="${{ inputs.version }}"
           VERSION_NUM=${VERSION_INPUT#v}
           TAG="v$VERSION_NUM"
 
@@ -68,7 +73,7 @@ jobs:
           git add package.json package-lock.json
           if ! git diff --staged --quiet; then
             git commit -m "chore: release $TAG"
-            git push origin "HEAD:${{ github.ref_name }}"
+            git push origin "HEAD:$RELEASE_BRANCH"
           fi
 
           # Reuse an existing tag (safe re-run after a failed build), else create it

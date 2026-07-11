@@ -295,6 +295,11 @@ export function verifyImportData(
           forEachResult = false;
           return;
         }
+        // An empty pattern can never match (and the UI refuses to create one).
+        if (typeof value.pattern !== "string" || value.pattern.trim() === "") {
+          forEachResult = false;
+          return;
+        }
         if (!["contains", "startsWith", "equals"].includes(value.matchType)) {
           forEachResult = false;
           return;

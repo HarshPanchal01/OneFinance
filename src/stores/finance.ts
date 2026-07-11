@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, toRaw } from "vue";
 import { useSettingsStore } from "@/stores/settings";
 import { closeOnOrBefore, computeGoalProjection, dividendCashImpact, getCustomRangeObj, getExpenseBreakdownForRange, getMetricsForRange, getPreviousDateRange, isExpenseLike, toIsoDateString, tradeCashImpact, type ImportData } from "@/utils";
+import { compareRules, nextRulePriority } from "@/rules";
 import type {
   Budget,
   SavingsGoal,
@@ -753,10 +754,6 @@ export const useFinanceStore = defineStore("finance", () => {
   // ACTIONS - Categorization Rules
   // ============================================
 
-  function sortRules(rules: CategorizationRule[]): CategorizationRule[] {
-    return rules.sort((a, b) => a.priority - b.priority || a.id - b.id);
-  }
-
   async function fetchCategorizationRules() {
     categorizationRules.value = await window.electronAPI.getCategorizationRules();
   }
@@ -769,7 +766,7 @@ export const useFinanceStore = defineStore("finance", () => {
     } else {
       categorizationRules.value.push(updated);
     }
-    categorizationRules.value = sortRules([...categorizationRules.value]);
+    categorizationRules.value = [...categorizationRules.value].sort(compareRules);
     return updated;
   }
 
@@ -783,13 +780,19 @@ export const useFinanceStore = defineStore("finance", () => {
 
   async function reorderCategorizationRules(ids: number[]) {
     // Optimistic: rewrite local priorities to the new dense order before the IPC lands.
-    categorizationRules.value = sortRules(
-      categorizationRules.value.map((r) => {
+    categorizationRules.value = categorizationRules.value
+      .map((r) => {
         const index = ids.indexOf(r.id);
         return index === -1 ? r : { ...r, priority: index };
       })
-    );
-    await window.electronAPI.setCategorizationRulePriorities(ids);
+      .sort(compareRules);
+    try {
+      await window.electronAPI.setCategorizationRulePriorities(ids);
+    } catch (e) {
+      // Roll back to the DB's order so the UI never shows an order that wasn't persisted.
+      console.error("[Store] Failed to persist rule order:", e);
+      await fetchCategorizationRules();
+    }
   }
 
   // ============================================
@@ -2096,7 +2099,7 @@ export const useFinanceStore = defineStore("finance", () => {
       await fetchGoals();
 
       const importRules = data.categorizationRules || [];
-      let nextRulePriority = categorizationRules.value.length;
+      let importRulePriority = nextRulePriority(categorizationRules.value);
       for (const importedRule of importRules) {
         const mappedRuleCategoryId = categoryTypeIdMap.get(importedRule.categoryId);
         if (mappedRuleCategoryId == undefined) {
@@ -2117,7 +2120,7 @@ export const useFinanceStore = defineStore("finance", () => {
           matchType: importedRule.matchType,
           categoryId: mappedRuleCategoryId,
           // Append after existing rules (merge mode) while preserving relative order.
-          priority: nextRulePriority++,
+          priority: importRulePriority++,
           isActive: importedRule.isActive ?? true,
         });
       }

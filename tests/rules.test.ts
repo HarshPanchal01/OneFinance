@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ruleMatches, matchRules } from "../src/rules";
+import { ruleMatches, matchRules, nextRulePriority } from "../src/rules";
 import type { CategorizationRule } from "../src/types";
 
 function rule(overrides: Partial<CategorizationRule> = {}): CategorizationRule {
@@ -82,5 +82,16 @@ describe("matchRules", () => {
     const off = rule({ id: 1, priority: 0, isActive: 0 as unknown as boolean });
     const on = rule({ id: 2, priority: 1, isActive: 1 as unknown as boolean, categoryId: 20 });
     expect(matchRules("Starbucks", [off, on])?.categoryId).toBe(20);
+  });
+});
+
+describe("nextRulePriority", () => {
+  it("returns 0 for an empty list", () => {
+    expect(nextRulePriority([])).toBe(0);
+  });
+
+  it("appends after the max priority, not the list length, when priorities are sparse", () => {
+    const rules = [rule({ id: 1, priority: 0 }), rule({ id: 3, priority: 5 })];
+    expect(nextRulePriority(rules)).toBe(6);
   });
 });

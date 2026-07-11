@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, toRaw } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { useFinanceStore } from "@/stores/finance";
 import { isProtectedAccountTypeName, isProtectedCategoryName, type AccountType, type CategorizationRule, type Category } from "@/types";
+import { MATCH_TYPE_LABELS, nextRulePriority } from "@/rules";
 import ConfirmationModal from "@/components/ConfirmationModal.vue";
 import ErrorModal from "@/components/ErrorModal.vue";
-import CategoryModal from "./components/CategoryModal.vue";
-import AccountTypeModal from "./components/AccountTypeModal.vue";
-import RuleModal from "./components/RuleModal.vue";
+import CategoryModal from "@/views/labels/components/CategoryModal.vue";
+import AccountTypeModal from "@/views/labels/components/AccountTypeModal.vue";
+import RuleModal from "@/views/labels/components/RuleModal.vue";
 
 const store = useFinanceStore();
 
@@ -47,15 +48,13 @@ const ruleForm = ref<CategorizationRule>({
   isActive: true,
 });
 
-const matchTypeLabels: Record<CategorizationRule["matchType"], string> = {
-  contains: "contains",
-  startsWith: "starts with",
-  equals: "equals",
-};
-
-function ruleCategory(rule: CategorizationRule): Category | undefined {
-  return store.categories.find((c) => c.id === rule.categoryId);
-}
+// Join each rule with its category once per render instead of per template access.
+const ruleRows = computed(() =>
+  store.categorizationRules.map((rule) => ({
+    rule,
+    category: store.categories.find((c) => c.id === rule.categoryId),
+  }))
+);
 
 // Delete category
 async function deleteCategory(id: number) {
@@ -191,7 +190,7 @@ function openRuleCreateModal() {
     pattern: "",
     matchType: "contains",
     categoryId: 0,
-    priority: store.categorizationRules.length,
+    priority: nextRulePriority(store.categorizationRules),
     isActive: true,
   };
   showRuleModal.value = true;
@@ -413,7 +412,7 @@ async function moveRule(index: number, delta: number) {
       class="space-y-2"
     >
       <div
-        v-for="(rule, index) in store.categorizationRules"
+        v-for="({ rule, category }, index) in ruleRows"
         :key="rule.id"
         class="group card px-4 py-3 hover:shadow-md transition-shadow flex items-center gap-3"
         :class="{ 'opacity-60': !rule.isActive }"
@@ -433,7 +432,7 @@ async function moveRule(index: number, delta: number) {
             <i class="pi pi-chevron-up text-xs" />
           </button>
           <button
-            :disabled="index === store.categorizationRules.length - 1"
+            :disabled="index === ruleRows.length - 1"
             class="p-0.5 rounded text-gray-400 hover:text-primary-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
             title="Move down"
             @click="moveRule(index, 1)"
@@ -444,22 +443,22 @@ async function moveRule(index: number, delta: number) {
 
         <!-- Rule description -->
         <div class="flex items-center gap-2 min-w-0 flex-1">
-          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0">
-            {{ matchTypeLabels[rule.matchType] }}
+          <span class="text-xs lowercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0">
+            {{ MATCH_TYPE_LABELS[rule.matchType] }}
           </span>
           <span class="font-medium text-gray-900 dark:text-white truncate">
             "{{ rule.pattern }}"
           </span>
           <i class="pi pi-arrow-right text-xs text-gray-400 shrink-0" />
-          <template v-if="ruleCategory(rule)">
+          <template v-if="category">
             <div
               class="w-6 h-6 rounded-md flex items-center justify-center text-white shrink-0"
-              :style="{ backgroundColor: ruleCategory(rule)!.colorCode }"
+              :style="{ backgroundColor: category.colorCode }"
             >
-              <i :class="['pi text-xs', ruleCategory(rule)!.icon]" />
+              <i :class="['pi text-xs', category.icon]" />
             </div>
             <span class="text-sm text-gray-700 dark:text-gray-300 truncate">
-              {{ ruleCategory(rule)!.name }}
+              {{ category.name }}
             </span>
           </template>
         </div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useFinanceStore } from "@/stores/finance";
-import type { CategorizationRule, RuleMatchType } from "@/types";
+import { MATCH_TYPE_LABELS } from "@/rules";
+import type { CategorizationRule } from "@/types";
 
 const props = defineProps<{
   editingRule: CategorizationRule;
@@ -15,12 +16,6 @@ defineEmits<{
 const store = useFinanceStore();
 
 const ruleForm = ref({ ...props.editingRule, isActive: !!props.editingRule.isActive });
-
-const matchTypeOptions: { value: RuleMatchType; label: string }[] = [
-  { value: "contains", label: "Contains" },
-  { value: "startsWith", label: "Starts with" },
-  { value: "equals", label: "Equals" },
-];
 
 const isValid = computed(
   () => ruleForm.value.pattern.trim().length > 0 && ruleForm.value.categoryId !== 0
@@ -71,11 +66,11 @@ const isValid = computed(
                 class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option
-                  v-for="option in matchTypeOptions"
-                  :key="option.value"
-                  :value="option.value"
+                  v-for="(label, value) in MATCH_TYPE_LABELS"
+                  :key="value"
+                  :value="value"
                 >
-                  {{ option.label }}
+                  {{ label }}
                 </option>
               </select>
               <input
