@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. v1.0.1)'
+        description: 'Release version (e.g. v2.0.0)'
         required: true
         type: string
       draft:
@@ -15,6 +15,12 @@ on:
 
 permissions:
   contents: write
+
+# One release run at a time — a re-dispatch for the same version queues instead
+# of racing the tag/bump steps.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   prepare_release:
@@ -28,52 +34,52 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Setup Git Identity
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-      - name: Bump Version
+      - name: Validate Version Input
+        run: |
+          VERSION_INPUT="${{ inputs.version }}"
+          if [[ ! "$VERSION_INPUT" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION_INPUT' is not a valid version (expected e.g. v2.0.0)"
+            exit 1
+          fi
+
+      - name: Bump Version & Tag
         id: create_tag
         run: |
-          # Strip 'v' prefix if present for package.json logic
           VERSION_INPUT="${{ inputs.version }}"
           VERSION_NUM=${VERSION_INPUT#v}
-          
+          TAG="v$VERSION_NUM"
+
           # Update package.json and package-lock.json
-          npm version $VERSION_NUM --no-git-tag-version --allow-same-version
-          
-          # Determine Tag Name (ensure v-prefix)
-          if [[ $VERSION_INPUT != v* ]]; then TAG="v$VERSION_INPUT"; else TAG="$VERSION_INPUT"; fi
-          
-          # Commit only if there are changes
+          npm version "$VERSION_NUM" --no-git-tag-version --allow-same-version
+
+          # Commit the bump back to the branch the workflow was dispatched on.
+          # Releases are cut from release/* branches — the tag must freeze that
+          # branch, never main.
           git add package.json package-lock.json
           if ! git diff --staged --quiet; then
             git commit -m "chore: release $TAG"
-            git push origin HEAD:main
-          fi
-          
-          # Check if tag exists locally or on remote
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-             echo "Tag $TAG exists locally."
-             TAG_EXISTS=true
-          elif git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
-             echo "Tag $TAG exists on remote."
-             TAG_EXISTS=true
-          else
-             TAG_EXISTS=false
+            git push origin "HEAD:${{ github.ref_name }}"
           fi
 
-          if [ "$TAG_EXISTS" = true ]; then
+          # Reuse an existing tag (safe re-run after a failed build), else create it
+          if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists. Skipping creation and proceeding to build."
           else
-            # Tag
-            git tag -a $TAG -m "Release $TAG"
-            git push origin $TAG
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
           fi
-          
-          # Output tag for next job
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build_and_release:
     name: Build & Release
@@ -85,15 +91,17 @@ jobs:
         include:
           - os: ubuntu-latest
             build_cmd: npm run dist:linux
+            artifacts: release/*.AppImage
           - os: windows-latest
             build_cmd: npm run dist:win
-    
+            artifacts: release/*.exe
+
     steps:
       - name: Checkout Tagged Code
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare_release.outputs.release_tag }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -110,12 +118,11 @@ jobs:
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v3
-        if: startsWith(github.ref, 'refs/tags/') || needs.prepare_release.outputs.release_tag != ''
         with:
           tag_name: ${{ needs.prepare_release.outputs.release_tag }}
-          files: |
-            release/*.exe
-            release/*.AppImage
+          files: ${{ matrix.artifacts }}
           draft: ${{ inputs.draft }}
           prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
           token: ${{ secrets.GITHUB_TOKEN }}
