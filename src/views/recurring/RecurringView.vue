@@ -78,11 +78,14 @@ function getAccountName(id: number) {
 <template>
   <div class="h-full flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between px-4 h-14 bg-gray-100 dark:bg-gray-900 border-b border-transparent dark:border-gray-800 shrink-0">
+    <div class="flex items-start justify-between gap-3 shrink-0">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           Schedules
-        </h2>
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Automate recurring income and expenses, with optional payment reminders.
+        </p>
       </div>
       <button
         class="inline-flex items-center px-4 py-2 bg-primary-500 dark:bg-primary-900/40 text-white dark:text-primary-300 hover:bg-primary-600 dark:hover:bg-primary-900/60 font-medium rounded-lg transition-colors shadow-sm"
@@ -90,7 +93,7 @@ function getAccountName(id: number) {
       >
         <i class="pi pi-plus mr-2 text-sm" /> New Schedule
       </button>
-    </header>
+    </div>
 
     <!-- Content -->
     <div class="mt-4 flex-1 min-h-0 overflow-y-auto pr-2 pb-4">
