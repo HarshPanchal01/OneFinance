@@ -85,6 +85,7 @@ export function useDataManagement() {
     const recurringTransactionsValue = await window.electronAPI.getRecurringTransactions();
     const budgetsValue = await window.electronAPI.getBudgets();
     const goalsValue = await window.electronAPI.getSavingsGoals();
+    const categorizationRulesValue = await window.electronAPI.getCategorizationRules();
     const databaseVersion = toRaw(store.databaseVersion);
     const investmentHoldingsValue = toRaw(store.investmentHoldings);
     
@@ -128,6 +129,7 @@ export function useDataManagement() {
       dividends: dividendsValue,
       budgets: budgetsValue,
       goals: goalsValue,
+      categorizationRules: categorizationRulesValue,
     };
 
     const timestamp = new Date().toDateString();

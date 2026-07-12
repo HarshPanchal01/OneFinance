@@ -16,6 +16,7 @@ import {
   getInvestmentDividends,
   getBudgets,
   getSavingsGoals,
+  getCategorizationRules,
   getSessionPassword,
 } from './db';
 import { wrapExport } from './secureExport';
@@ -104,6 +105,7 @@ function buildExportPayload(): object {
     dividends: getInvestmentDividends(),
     budgets: getBudgets(),
     goals: getSavingsGoals(),
+    categorizationRules: getCategorizationRules(),
   };
 }
 

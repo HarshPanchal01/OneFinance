@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useFinanceStore } from "@/stores/finance";
+import { matchRules } from "@/rules";
 import type { Transaction } from "@/types";
 import AmountInput from "@/components/AmountInput.vue";
 
@@ -71,6 +72,8 @@ watch(
   () => props.visible,
   (visible) => {
     if (visible) {
+      lastSuggestedCategoryId.value = null;
+      userPickedCategory.value = false;
       if (props.transaction) {
         // Edit mode
         form.value = {
@@ -118,8 +121,48 @@ const modalTitle = computed(() =>
 );
 
 // Filter categories by type (optional)
-const filteredCategories = computed(() => 
+const filteredCategories = computed(() =>
   store.categories.filter(c => c.type === form.value.type || c.type === "both" || (form.value.type === 'transfer' && form.value.isExpenseTransfer && c.type === 'expense') || (form.value.type === 'transfer' && form.value.isIncomeTransfer && c.type === 'income'))
+);
+
+// Auto-categorization: suggest a category from the title while it's empty/ours.
+// Tracks our own suggestion vs a manual pick so a user's choice is never overwritten.
+const lastSuggestedCategoryId = ref<number | null>(null);
+const userPickedCategory = ref(false);
+
+// Re-selecting the already-selected option fires no change event, so focusing
+// the select while a value is present must count as taking ownership of it —
+// otherwise a re-affirmed suggestion could be retracted by a later title edit.
+function onCategoryFocus() {
+  if (form.value.categoryId != null) userPickedCategory.value = true;
+}
+
+// Only rules whose target category is selectable for the current type may fire.
+const candidateRules = computed(() => {
+  const validCategoryIds = new Set(filteredCategories.value.map((c) => c.id));
+  return store.categorizationRules.filter((r) => validCategoryIds.has(r.categoryId));
+});
+
+// candidateRules is a source too so a title typed before the rules finish
+// loading (cold start) still gets its suggestion when they arrive.
+watch(
+  () => [form.value.title, form.value.type, form.value.isExpenseTransfer, form.value.isIncomeTransfer, candidateRules.value],
+  () => {
+    const categoryVisible = form.value.type !== "transfer" || form.value.isExpenseTransfer || form.value.isIncomeTransfer;
+    if (!categoryVisible || userPickedCategory.value) return;
+    // Only claim an empty slot or replace our own earlier suggestion.
+    if (form.value.categoryId != null && form.value.categoryId !== lastSuggestedCategoryId.value) return;
+
+    const hit = matchRules(form.value.title, candidateRules.value);
+    if (hit) {
+      form.value.categoryId = hit.categoryId;
+      lastSuggestedCategoryId.value = hit.categoryId;
+    } else if (form.value.categoryId != null) {
+      // The title no longer matches — retract our suggestion, not a user value.
+      form.value.categoryId = null;
+      lastSuggestedCategoryId.value = null;
+    }
+  }
 );
 
 // Filter accounts by transaction type (Assets only allowed for transfers)
@@ -200,7 +243,11 @@ async function save() {
         form.value.title = "";
         form.value.amount = 0;
         form.value.notes = "";
-        // Keep date, type, account, and category as they are often repetitive
+        // Keep date, type, account, and category as they are often repetitive.
+        // The kept category now counts as the user's choice — clearing the
+        // suggestion tracking stops the emptied title from retracting it.
+        lastSuggestedCategoryId.value = null;
+        userPickedCategory.value = false;
       } else {
         emit("saved");
         emit("close");
@@ -424,6 +471,8 @@ function close() {
             <select
               v-model="form.categoryId"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              @change="userPickedCategory = true"
+              @focus="onCategoryFocus"
             >
               <option :value="null">
                 No category

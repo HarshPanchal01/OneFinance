@@ -1,0 +1,30 @@
+name: Feature Request
+description: Suggest an idea or improvement for OneFinance
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that OneFinance doesn't support (or makes harder than it should be)?
+      placeholder: I want to ... but currently ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What would you like to happen? Rough ideas are fine.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workarounds you use today, or other ways this could be solved.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Mockups, examples from other apps, or anything else that helps.

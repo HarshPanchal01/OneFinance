@@ -11,6 +11,10 @@ import TopBar from "@/components/TopBar.vue";
 import TransactionModal from "@/components/TransactionModal.vue";
 import BackupSetupModal from "@/views/settings/components/BackupSetupModal.vue";
 import MasterPasswordGate from "@/views/auth/MasterPasswordGate.vue";
+import CommandPalette from "@/components/CommandPalette.vue";
+import { commands, type Command, type CommandContext } from "@/commands";
+import { useShortcuts } from "@/composables/useShortcuts";
+import type { ShortcutId } from "@/shortcuts";
 
 // Views
 import DashboardView from "@/views/DashboardView.vue";
@@ -59,6 +63,31 @@ watch(
 // Quick add transaction modal
 const showQuickAddModal = ref(false);
 const backupSetupModal = ref<InstanceType<typeof BackupSetupModal>>();
+
+// Command palette (Ctrl+K)
+const showCommandPalette = ref(false);
+const commandContext: CommandContext = {
+  navigate: navigateTo,
+  newTransaction: () => (showQuickAddModal.value = true),
+  togglePrivacy: () => settingsStore.togglePrivacyMode(),
+  lock: () => void auth.lock(),
+};
+
+function runCommand(command: Command) {
+  command.perform(commandContext);
+}
+
+// Keyboard shortcuts (shared registry — see src/shortcuts.ts).
+const { matchEvent } = useShortcuts();
+
+function runShortcut(id: ShortcutId) {
+  if (id === "command-palette") {
+    showCommandPalette.value = !showCommandPalette.value;
+    return;
+  }
+  const command = commands.find((c) => c.id === id);
+  command?.perform(commandContext);
+}
 
 // Navigate to view
 function navigateTo(view: string) {
@@ -272,61 +301,13 @@ watch(
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
   if (!authUnlocked.value) return;
-  if (e.ctrlKey || e.metaKey) {
-    switch (e.key.toLowerCase()) {
-      case "n":
-        e.preventDefault();
-        showQuickAddModal.value = true;
-        break;
-      case "d":
-        e.preventDefault();
-        currentView.value = "dashboard";
-        break;
-            case "t":
-              e.preventDefault();
-              currentView.value = "transactions";
-              break;
-            case "i":
-              e.preventDefault();
-              if (e.shiftKey) {
-                currentView.value = "investments";
-              } else {
-                currentView.value = "insights";
-              }
-              break;
-            case "l":
-              e.preventDefault();
-              if (e.shiftKey) {
-                void auth.lock();
-              } else {
-                currentView.value = "categories";
-              }
-              break;
-            case "a":
-              if (e.shiftKey) {
-                e.preventDefault();
-                currentView.value = "accounts";
-              }
-              break;
-            case "s":
-              e.preventDefault();
-              if (e.shiftKey) {
-                currentView.value = "settings";
-              } else {
-                currentView.value = "recurring";
-              }
-              break;
-            case "p":
-              e.preventDefault();
-              if (e.shiftKey) {
-                // Toggle privacy mode
-                settingsStore.togglePrivacyMode();
-              } else {
-                currentView.value = "investment-insights";
-              }
-              break;    
-    }
-  }
+  const id = matchEvent(e);
+  if (!id) return;
+  // While the palette is open it owns the keyboard; only Ctrl+K (toggle) gets through
+  // so nav shortcuts don't double-fire.
+  if (showCommandPalette.value && id !== "command-palette") return;
+  e.preventDefault();
+  runShortcut(id);
 }
 </script>
 
@@ -433,5 +414,13 @@ function handleKeydown(e: KeyboardEvent) {
 
     <!-- First-run backup setup prompt -->
     <BackupSetupModal ref="backupSetupModal" />
+
+    <!-- Command palette (Ctrl+K) -->
+    <CommandPalette
+      :visible="showCommandPalette"
+      :commands="commands"
+      @close="showCommandPalette = false"
+      @run="runCommand"
+    />
   </div>
 </template>
