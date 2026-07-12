@@ -34,7 +34,7 @@ OneFinance keeps your entire financial life — accounts, transactions, budgets,
   - [Encrypted Backups & Export/Import](#encrypted-backups--exportimport)
   - [Localization](#localization)
   - [Command Palette & Keyboard Shortcuts](#command-palette--keyboard-shortcuts)
-  - [Dark Mode](#dark-mode)
+  - [Themes & Privacy Mode](#themes--privacy-mode)
 - [Privacy: Local-First by Design](#privacy-local-first-by-design)
 - [Installation](#installation)
 - [Development](#development)
@@ -126,9 +126,9 @@ Pick your region once and the whole app follows: date format, number separators,
 
 ![Keyboard shortcut settings](assets/screenshots/settings_top_view.png)
 
-### Dark Mode
+### Themes & Privacy Mode
 
-A full dark theme across the app — every view, chart, and control — synced with a single toggle (or follow the system). Every screenshot above shows the dark theme; here's the same dashboard in light mode:
+Light and dark themes, applied consistently across every view, chart, and control — pick one or follow your system. Every screenshot above shows the dark theme; here's the same dashboard in light mode:
 
 ![Dashboard in light mode](assets/screenshots/dashboard_light.png)
 
