@@ -7,12 +7,35 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
+        **Security vulnerabilities:** please do not report them here — see [SECURITY.md](https://github.com/HarshPanchal01/OneFinance/blob/main/SECURITY.md) for private reporting.
   - type: textarea
     id: description
     attributes:
       label: Description
       description: A clear and concise description of what the bug is.
       placeholder: Describe the issue...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Where in the app does the bug occur?
+      options:
+        - Dashboard / widgets
+        - Transactions
+        - Budgets
+        - Savings Goals
+        - Schedules / payment reminders
+        - Investments (quotes, dividends, FX, alerts)
+        - Insights / charts
+        - Calculators
+        - Auto-categorization rules
+        - Security (master password, lock, stay-unlocked)
+        - Backups / export / import
+        - Settings / localization
+        - Command palette / keyboard shortcuts
+        - Other
     validations:
       required: true
   - type: textarea
@@ -46,8 +69,8 @@ body:
     id: version
     attributes:
       label: App Version
-      description: e.g. 1.0.0
-      placeholder: 1.0.0
+      description: Shown in Settings → App Info, e.g. 2.0.0
+      placeholder: 2.0.0
     validations:
       required: true
   - type: textarea
