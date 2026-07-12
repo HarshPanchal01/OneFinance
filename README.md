@@ -34,7 +34,6 @@ OneFinance keeps your entire financial life — accounts, transactions, budgets,
   - [Encrypted Backups & Export/Import](#encrypted-backups--exportimport)
   - [Localization](#localization)
   - [Command Palette & Keyboard Shortcuts](#command-palette--keyboard-shortcuts)
-  - [Tray & Start on Login](#tray--start-on-login)
   - [Dark Mode](#dark-mode)
 - [Privacy: Local-First by Design](#privacy-local-first-by-design)
 - [Installation](#installation)
@@ -49,93 +48,93 @@ OneFinance keeps your entire financial life — accounts, transactions, budgets,
 
 A one-screen overview of your money: income, expenses, and cash-flow KPIs with period-over-period deltas, a net-worth hero chart over your full history, and detail widgets for recent transactions, top spending (budget-aware, with your savings goals alongside), upcoming bills, and an investment watchlist. Every widget clicks through to the underlying data. A Customize panel lets you show, hide, and reorder widgets to taste.
 
-<!-- SCREENSHOT: Dashboard -->
+![Dashboard](assets/screenshots/dashboard.png)
 
 ### Transactions
 
 Log income, expenses, and transfers across all your accounts, with powerful filtering by label, account, date, amount, and type. Multi-select transactions for bulk delete or bulk category/account reassignment. Amount fields double as inline calculators — type `120 / 3 + 5.99` and it evaluates in place.
 
-<!-- SCREENSHOT: Transactions view with filters and bulk actions -->
+![Transactions view with filters and bulk actions](assets/screenshots/transactions_view.png)
 
 ### Budgets
 
 Set a monthly spending limit per category and track the current month against it: progress bars, pace indicator, days left, and a clear over-budget flag. Budgeted categories surface directly in the dashboard's spending widget so you always know where you stand.
 
-<!-- SCREENSHOT: Budgets view -->
+![Budgets view](assets/screenshots/budgets_view.png)
 
 ### Savings Goals
 
 Define a target amount and optional deadline per goal. Progress tracks either a linked account's live balance or manual contributions, and a linear on-pace projection tells you the required monthly saving and whether you're on track to make the date.
 
-<!-- SCREENSHOT: Goals view -->
+![Savings Goals view](assets/screenshots/goals_view.png)
 
 ### Schedules & Payment Reminders
 
-Recurring transactions (weekly, bi-weekly, monthly, yearly) post themselves automatically — rent, salary, subscriptions. Each schedule can fire a native desktop notification a configurable number of days before it's due, so bills never surprise you.
+Recurring transactions (weekly, bi-weekly, monthly, yearly) post themselves automatically — rent, salary, subscriptions. Each schedule can fire a native desktop notification a configurable number of days before it's due, so bills never surprise you. Optional tray and start-on-login settings keep OneFinance running in the background, so schedules post and reminders fire even with the window closed.
 
-<!-- SCREENSHOT: Schedules view with a reminder configured -->
+![Schedules view with payment reminders](assets/screenshots/schedules_view.png)
 
 ### Investments
 
 Track portfolios of stocks, ETFs, mutual funds, and crypto with live quotes. Holdings quote in their native currency and convert automatically to yours, including trade-date exchange rates for accurate cost basis. Dividends are captured automatically from market data (or entered manually) and credited to your cash. Per-holding price alerts notify you when a position moves past your daily, weekly, or monthly threshold. Performance is measured with the Modified Dietz method so deposits and withdrawals don't distort returns.
 
-<!-- SCREENSHOT: Investments / portfolio view -->
+![Investments view](assets/screenshots/investments_view.png)
 
 ### Insights
 
 Visualize where your money goes: cash-flow and net-worth trends, expense breakdowns by category, and a GitHub-style spending calendar heatmap that makes heavy-spend days obvious at a glance. A separate Investment Performance view benchmarks your portfolio over any period. Every chart clicks through to the matching filtered transactions.
 
-<!-- SCREENSHOT: Spending Insights with calendar heatmap -->
+![Spending Insights with calendar heatmap](assets/screenshots/spending_insights.png)
 
-<!-- SCREENSHOT: Investment Performance view -->
+![Portfolio Insights](assets/screenshots/portfolio_insights.png)
 
 ### Financial Calculators
 
 Built-in compound interest, loan/mortgage amortization (with accelerated-payment comparison), and debt payoff planning (avalanche vs. snowball) — all client-side, nothing saved, safe for hypotheticals.
 
-<!-- SCREENSHOT: Calculators view -->
+![Financial Calculators](assets/screenshots/calculators_view.png)
 
 ### Auto-Categorization Rules
 
 Teach OneFinance your merchants once: "title contains *X* → category *Y*" rules pre-fill the category when you enter a matching transaction. Rules are ordered by priority, toggleable, and always overridable — a suggestion never fights your explicit choice.
 
-<!-- SCREENSHOT: Auto-categorization rules in Labels view -->
+![Categories and auto-categorization rules](assets/screenshots/labels_view.png)
 
 ### Security
 
 Your database is encrypted at rest with **SQLCipher**, keyed by a master password that never touches disk. The app locks automatically after a configurable idle period, on OS sleep/screen lock, or instantly with `Ctrl+Shift+L`. An optional stay-unlocked policy (15 minutes up to 1 week) stores the key in your **operating system's keychain** — never in plaintext — so you can skip re-typing on trusted machines. There is deliberately no password recovery: nobody, including us, can read your data without the password.
 
-<!-- SCREENSHOT: Master password unlock screen -->
+![Master password unlock screen](assets/screenshots/unlock_screen.png)
 
 ### Encrypted Backups & Export/Import
 
 Automatic daily or weekly backups to a folder you choose, plus one-click manual backups — all encrypted with your master password (AES-256-GCM), with automatic rotation of old backup files. Export and import round-trip your complete dataset, and pre-2.0 plaintext exports still import for a smooth upgrade path.
 
-<!-- SCREENSHOT: Backup settings in Settings → Data Management -->
+![Backup and security settings](assets/screenshots/backup_settings.png)
 
 ### Localization
 
 Pick your region once and the whole app follows: date format, number separators, and currency symbol, consistently across every view, chart, and desktop notification.
 
-<!-- SCREENSHOT: Region settings -->
+![Region settings](assets/screenshots/localization_settings.png)
 
 ### Command Palette & Keyboard Shortcuts
 
 `Ctrl+K` opens a fuzzy-searchable palette covering every view and common actions (new transaction, toggle privacy, lock). Every shortcut is remappable in Settings, with OS-aware bindings (`⌘` on macOS, `Ctrl` elsewhere) and conflict detection.
 
-<!-- SCREENSHOT: Command palette overlay -->
+![Command palette](assets/screenshots/command_palette.png)
 
-### Tray & Start on Login
-
-Optionally keep OneFinance running in the system tray and start it at login, so scheduled transactions post and payment reminders fire even when the window is closed.
-
-<!-- SCREENSHOT: Tray icon and menu -->
+![Keyboard shortcut settings](assets/screenshots/settings_top_view.png)
 
 ### Dark Mode
 
-A full dark theme across the app — every view, chart, and control — synced with a single toggle. A privacy mode blurs amounts for over-the-shoulder safety.
+A full dark theme across the app — every view, chart, and control — synced with a single toggle (or follow the system). Every screenshot above shows the dark theme; here's the same dashboard in light mode:
 
-<!-- SCREENSHOT: Dark mode dashboard -->
+![Dashboard in light mode](assets/screenshots/dashboard_light.png)
+
+And a privacy mode blurs amounts for over-the-shoulder safety:
+
+![Privacy mode blurring amounts](assets/screenshots/privacy_blur_on.png)
 
 ## Privacy: Local-First by Design
 

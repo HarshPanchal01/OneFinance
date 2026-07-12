@@ -251,13 +251,13 @@ async function moveRule(index: number, delta: number) {
 <template>
   <div class="space-y-6 overflow-y-auto h-full pr-2 pb-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-start justify-between gap-3">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           Categories
-        </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          {{ store.categories.length }} categories
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Create and color-code the categories that organize your transactions.
         </p>
       </div>
 
