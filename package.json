@@ -35,7 +35,7 @@
     "@primevue/themes": "^4.5.4",
     "better-sqlite3-multiple-ciphers": "^12.11.1",
     "chart.js": "^4.5.1",
-    "pinia": "^3.0.4",
+    "pinia": "^4.0.2",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.5",
     "yahoo-finance2": "^4.0.0"
